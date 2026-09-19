@@ -5,6 +5,8 @@ import { formRecords, patients } from "@/db/schema";
 import { requireAdminApi } from "@/lib/session";
 import { labRequestDataSchema } from "@/lib/validators/lab-request";
 import { labRequestPdfFilename, labRequestPdfHtml } from "@/lib/pdf-templates/lab-request";
+import { prescriptionDataSchema } from "@/lib/validators/prescription";
+import { prescriptionPdfFilename, prescriptionPdfHtml } from "@/lib/pdf-templates/prescription";
 import { renderPdf } from "@/lib/pdf";
 
 export async function GET(
@@ -29,6 +31,7 @@ export async function GET(
       firstNames: patients.firstNames,
       age: patients.age,
       sex: patients.sex,
+      hospitalNumber: patients.hospitalNumber,
     })
     .from(formRecords)
     .innerJoin(patients, eq(formRecords.patientId, patients.id))
@@ -36,7 +39,7 @@ export async function GET(
     .limit(1);
 
   const row = rows[0];
-  if (!row || row.type !== "lab") {
+  if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -45,17 +48,33 @@ export async function GET(
     firstNames: row.firstNames,
     age: row.age ?? "",
     sex: row.sex ?? "",
+    hospitalNumber: row.hospitalNumber ?? "",
   };
 
-  const data = labRequestDataSchema.parse(row.data);
-  const html = labRequestPdfHtml({
-    patient: patientObj,
-    data,
-    isDraft: row.status === "draft",
-  });
+  let html = "";
+  let filename = "";
+
+  if (row.type === "lab") {
+    const data = labRequestDataSchema.parse(row.data);
+    html = labRequestPdfHtml({
+      patient: patientObj,
+      data,
+      isDraft: row.status === "draft",
+    });
+    filename = labRequestPdfFilename(patientObj, data.formDate);
+  } else if (row.type === "prescription") {
+    const data = prescriptionDataSchema.parse(row.data);
+    html = prescriptionPdfHtml({
+      patient: patientObj,
+      data,
+      isDraft: row.status === "draft",
+    });
+    filename = prescriptionPdfFilename(patientObj, data.prescriberDate);
+  } else {
+    return NextResponse.json({ error: "Form type not supported yet" }, { status: 400 });
+  }
 
   const pdf = await renderPdf(html);
-  const filename = labRequestPdfFilename(patientObj, data.formDate);
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

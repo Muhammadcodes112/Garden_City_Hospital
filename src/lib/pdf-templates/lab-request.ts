@@ -17,6 +17,7 @@ export type LabPdfPatient = {
   firstNames: string;
   age: string;
   sex: string;
+  hospitalNumber?: string;
 };
 
 function escapeHtml(s: string) {
