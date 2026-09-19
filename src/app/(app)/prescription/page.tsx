@@ -45,7 +45,7 @@ export default async function PrescriptionPage(props: {
           </p>
         </div>
         <Button asChild>
-          <Link href={formNewHref("prescription")}>
+          <Link href={formNewHref("prescription")} prefetch={false}>
             <Pill className="mr-2 h-4 w-4" />
             New prescription
           </Link>

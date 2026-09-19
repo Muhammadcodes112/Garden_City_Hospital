@@ -18,7 +18,7 @@ export default async function MedicalReportListPage() {
         Medical report editing is coming in the next step.
       </p>
       <Button asChild className="w-fit">
-        <Link href={formNewHref("medical_report")}>
+        <Link href={formNewHref("medical_report")} prefetch={false}>
           <FileText className="h-4 w-4" />
           New medical report
         </Link>

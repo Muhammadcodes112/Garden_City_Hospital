@@ -71,19 +71,19 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
         </h2>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button asChild>
-            <Link href={formNewHref("lab")}>
+            <Link href={formNewHref("lab")} prefetch={false}>
               <FlaskConical className="h-4 w-4" />
               New Lab Request
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={formNewHref("prescription")}>
+            <Link href={formNewHref("prescription")} prefetch={false}>
               <Pill className="h-4 w-4" />
               New Prescription
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={formNewHref("medical_report")}>
+            <Link href={formNewHref("medical_report")} prefetch={false}>
               <FileText className="h-4 w-4" />
               New Medical Report
             </Link>

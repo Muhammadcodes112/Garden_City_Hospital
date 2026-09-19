@@ -42,7 +42,7 @@ export default async function LabFormPage(props: {
           </p>
         </div>
         <Button asChild>
-          <Link href={formNewHref("lab")}>
+          <Link href={formNewHref("lab")} prefetch={false}>
             <FlaskConical className="mr-2 h-4 w-4" />
             New lab request
           </Link>
