@@ -40,25 +40,24 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const patientObj = {
+    surname: row.surname,
+    firstNames: row.firstNames,
+    age: row.age ?? "",
+    sex: row.sex ?? "",
+  };
+
   const data = labRequestDataSchema.parse(row.data);
   const html = labRequestPdfHtml({
-    patient: {
-      surname: row.surname,
-      firstNames: row.firstNames,
-      age: row.age ?? "",
-      sex: row.sex ?? "",
-    },
+    patient: patientObj,
     data,
     isDraft: row.status === "draft",
   });
 
   const pdf = await renderPdf(html);
-  const filename = labRequestPdfFilename(
-    { surname: row.surname, firstNames: row.firstNames },
-    data.formDate,
-  );
+  const filename = labRequestPdfFilename(patientObj, data.formDate);
 
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,

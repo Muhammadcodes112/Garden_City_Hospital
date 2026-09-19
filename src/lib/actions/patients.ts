@@ -35,9 +35,20 @@ export async function searchPatients(query: string): Promise<PatientRow[]> {
     )
     .limit(30);
 
-  return rows.filter(
-    (r) => !r.hospitalNumber.startsWith("DRAFT-") || r.hospitalNumber.toLowerCase().includes(q.toLowerCase()),
-  );
+  return rows
+    .filter(
+      (r) => !r.hospitalNumber.startsWith("DRAFT-") || r.hospitalNumber.toLowerCase().includes(q.toLowerCase()),
+    )
+    .map((r) => ({
+      id: r.id,
+      surname: r.surname,
+      firstNames: r.firstNames,
+      age: r.age ?? "",
+      sex: r.sex ?? "",
+      phone: r.phone ?? "",
+      address: r.address ?? "",
+      hospitalNumber: r.hospitalNumber,
+    }));
 }
 
 export async function upsertPatientForForm(

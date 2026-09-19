@@ -144,10 +144,7 @@ export function LabFormEditor({ initial }: Props) {
     }
   }
 
-  const pdfFilename = labRequestPdfFilename(
-    { surname: patient.surname, firstNames: patient.firstNames },
-    data.formDate,
-  );
+  const pdfFilename = labRequestPdfFilename(patient, data.formDate);
 
   return (
     <div className="flex flex-col gap-6 pb-24 lg:flex-row lg:items-start lg:gap-8 lg:pb-8">
