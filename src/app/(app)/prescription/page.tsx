@@ -1,3 +1,4 @@
+import { notFound, redirect } from "next/navigation";
 import { listFormRecords } from "@/lib/form-records";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,10 +7,32 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { formEditHref, formNewHref } from "@/lib/routes";
 import { Pill } from "lucide-react";
+import {
+  createPrescriptionDraftRecord,
+  getPrescriptionFormRecord,
+} from "@/lib/actions/prescription-form";
+import { PrescriptionFormEditor } from "@/components/prescription/prescription-form-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function PrescriptionListPage() {
+export default async function PrescriptionPage(props: {
+  searchParams: Promise<{ recordId?: string; new?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+
+  if (searchParams.new === "1") {
+    const { recordId } = await createPrescriptionDraftRecord();
+    redirect(`/prescription?recordId=${recordId}`);
+  }
+
+  if (searchParams.recordId) {
+    const record = await getPrescriptionFormRecord(searchParams.recordId);
+    if (!record) {
+      notFound();
+    }
+    return <PrescriptionFormEditor initial={record} />;
+  }
+
   const rows = await listFormRecords("prescription");
 
   return (
