@@ -27,6 +27,11 @@ import {
 } from "@/lib/validators/prescription";
 import { prescriptionPdfFilename } from "@/lib/pdf-templates/prescription";
 
+import { ShareDialog } from "@/components/forms/share-dialog";
+import { ActiveShareLinks } from "@/components/forms/active-share-links";
+import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
+import { Download, Share2, Unlock } from "lucide-react";
+
 type AutosavePayload = {
   patient: PatientFields;
   data: PrescriptionData;
@@ -42,6 +47,9 @@ export function PrescriptionFormEditor({ initial }: Props) {
   const [patient, setPatient] = useState<PatientFields>(initial.patient);
   const [data, setData] = useState<PrescriptionData>(initial.data);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareRefreshKey, setShareRefreshKey] = useState(0);
+  const [reopening, setReopening] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [serverUpdatedAt, setServerUpdatedAt] = useState(initial.updatedAt);
 
@@ -144,22 +152,64 @@ export function PrescriptionFormEditor({ initial }: Props) {
     }
   }
 
+  async function handleReopen() {
+    setReopening(true);
+    try {
+      await reopenFormRecord(initial.recordId);
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to reopen form:", err);
+    } finally {
+      setReopening(false);
+    }
+  }
+
   const pdfFilename = prescriptionPdfFilename(patient, data.prescriberDate);
+
+  function handleDownloadClick() {
+    logFormDownload(initial.recordId);
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-24">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SaveStatus status={status} />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
             Preview PDF
+          </Button>
+          {readOnly ? (
+            <Button asChild variant="outline">
+              <a
+                href={`/api/forms/${initial.recordId}/pdf?download=1`}
+                download={pdfFilename}
+                onClick={handleDownloadClick}
+              >
+                <Download className="mr-1.5 h-4 w-4" /> Download PDF
+              </a>
+            </Button>
+          ) : null}
+          <Button type="button" variant="outline" onClick={() => setShareOpen(true)}>
+            <Share2 className="mr-1.5 h-4 w-4" /> Share
           </Button>
           {!readOnly ? (
             <Button type="button" onClick={handleComplete}>
               Mark as Completed
             </Button>
           ) : (
-            <Badge variant="completed">Completed</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="completed">Completed</Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={reopening}
+                onClick={handleReopen}
+                className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Unlock className="h-3.5 w-3.5" /> {reopening ? "Reopening..." : "Edit"}
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -571,11 +621,21 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </CardContent>
       </Card>
 
+      <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
+
       <PdfPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         recordId={initial.recordId}
         filename={pdfFilename}
+      />
+
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        recordId={initial.recordId}
+        filename={pdfFilename}
+        onLinkCreated={() => setShareRefreshKey((k) => k + 1)}
       />
     </div>
   );

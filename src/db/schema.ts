@@ -90,6 +90,7 @@ export const activityAction = pgEnum("activity_action", [
   "downloaded",
   "shared",
   "link_revoked",
+  "reopened",
 ]);
 
 export const patients = pgTable("patients", {
