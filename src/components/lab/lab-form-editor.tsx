@@ -35,6 +35,7 @@ import { ShareDialog } from "@/components/forms/share-dialog";
 import { ActiveShareLinks } from "@/components/forms/active-share-links";
 import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
 import { Download, Share2, Unlock } from "lucide-react";
+import { toast } from "sonner";
 
 type AutosavePayload = {
   patient: PatientFields;
@@ -146,9 +147,12 @@ export function LabFormEditor({ initial }: Props) {
         patient,
         data,
       });
+      toast.success("Lab request marked as completed!");
       router.refresh();
     } catch (err) {
-      setCompleteError(err instanceof Error ? err.message : "Could not complete form");
+      const msg = err instanceof Error ? err.message : "Could not complete form";
+      setCompleteError(msg);
+      toast.error(msg);
     }
   }
 
@@ -156,9 +160,11 @@ export function LabFormEditor({ initial }: Props) {
     setReopening(true);
     try {
       await reopenFormRecord(initial.recordId);
+      toast.success("Form unlocked for editing");
       router.refresh();
     } catch (err) {
       console.error("Failed to reopen form:", err);
+      toast.error("Failed to unlock form");
     } finally {
       setReopening(false);
     }
@@ -167,6 +173,7 @@ export function LabFormEditor({ initial }: Props) {
   const pdfFilename = labRequestPdfFilename(patient, data.formDate);
 
   function handleDownloadClick() {
+    toast.info("Downloading PDF...");
     logFormDownload(initial.recordId);
   }
 

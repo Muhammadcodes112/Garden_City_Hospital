@@ -1,105 +1,143 @@
-# Garden City Specialist Hospital — Admin Portal
+# Garden City Specialist Hospital — Admin Forms & Reports System
 
-Admin-only internal tool for digitising three paper forms: Laboratory Request,
-Prescription, and Medical Report. Next.js (App Router) + TypeScript + Tailwind
-+ Drizzle ORM (Postgres) + Better Auth (email/password only) + Puppeteer PDF
-generation.
+A modern, responsive, high-performance web portal built for **Garden City Specialist Hospital, Kaduna** to digitize and manage three core clinical records:
+1. **Laboratory Request Form** (3-column checklist, clinical info, patient picker, doctor sign-off).
+2. **Prescription Form** (multi-item prescription, dosage/route pickers, prescriber & dispensary sign-off).
+3. **Medical Report** (official letterhead template, 7 toggleable rich-text sections, doctor sign-off & stamp upload).
 
-## Setup
+---
 
-1. Copy `.env.example` to `.env` and fill in:
-   - `DATABASE_URL` — a Postgres connection string (Neon or Supabase).
-   - `BETTER_AUTH_SECRET` — generate with `openssl rand -base64 32`.
-   - `BETTER_AUTH_URL` / `NEXT_PUBLIC_BETTER_AUTH_URL` — `http://localhost:3000` in dev.
-   - `ADMIN_SIGNUP_CODE` — a shared secret required to register a new admin
-     account via `/sign-up`. Anyone without it cannot create an account.
-   - `CHROME_EXECUTABLE_PATH` — optional, a local Chrome/Chromium binary path
-     for PDF generation in development (production uses `@sparticuz/chromium`,
-     bundled automatically). On Windows this is typically
-     `C:\Program Files\Google\Chrome\Application\chrome.exe`.
+## Key Features
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+- 🔐 **Secure Admin Authentication**: Built with Better Auth (email/password), secret admin access code protection (`ADMIN_SIGNUP_CODE`), and Postgres-backed rate limiting.
+- 💾 **Realtime Autosave**: Zero data loss with local storage caching and automatic debounced server synchronization.
+- 📄 **A4 PDF Generation & Preview**: Pixel-perfect A4 PDF export matching official hospital letterhead layouts. Fast HTML preview modal + PDF download engine.
+- 🔗 **Secure Public Links & Native Share**: Native Web Share API (`navigator.share`) with attached PDF files, and unguessable 32-character public links (`/s/[token]`) with 24h, 7d, or 30d configurable expiry durations and instant revocation.
+- 📝 **Form Locking & Re-Opening**: Completed records locked against accidental edits with 1-click admin unlock capability.
+- 📜 **Full Activity Audit Trail**: Logs creation, completion, downloads, shares, link revocations, and form re-openings.
 
-3. Push the schema to your database:
-   ```
-   npm run db:generate
-   npm run db:migrate
-   ```
+---
 
-4. Create an admin account, either:
-   - through the app at `/sign-up`, entering the `ADMIN_SIGNUP_CODE` value, or
-   - from the command line (no code needed, since it's a trusted local script):
-     ```
-     npm run create-admin -- --name "Jane Doe" --email jane@example.com --password "a-strong-password"
-     ```
+## Tech Stack
 
-5. Run the dev server:
-   ```
-   npm run dev
-   ```
+- **Framework**: Next.js 16 (App Router, Server Actions, Turbopack)
+- **Language**: TypeScript 5
+- **Database**: PostgreSQL (Neon Cloud / Drizzle ORM)
+- **Authentication**: Better Auth (`better-auth`)
+- **PDF Engine**: `puppeteer-core` + `@sparticuz/chromium`
+- **Styling**: Vanilla CSS / Tailwind CSS v4, Lucide Icons, Sonner Toasts
+- **Testing**: Node test suite (`npx tsx scripts/test-suite.ts`)
 
-6. Verify the install (optional but recommended before deploying):
-   ```
-   npm run typecheck
-   npm run lint
-   npm run build
-   npm run db:migrate
-   ```
-   If `next build` reports another build/dev process is running, stop the dev
-   server first (`Ctrl+C` in its terminal) or remove `.next/dev/lock`, then
-   retry.
+---
 
-## Data model
+## Local Setup Guide
 
-- `patients` — normalized patient identity (surname, first names, age, sex,
-  phone, address, unique hospital number), shared across all forms for the
-  same patient.
-- `form_records` — one row per lab request / prescription / medical report.
-  `type` selects which shape `data` (jsonb) holds; the exact per-type shape
-  is validated by `formDataSchema(type)` in `src/lib/validators/form-data.ts`.
-  `status` ('draft' | 'completed') and `completed_at` track lifecycle.
-- `share_links` — token-based, expiring/revocable links for sharing a
-  completed form outside the app.
-- `activity_logs` — audit trail per form record (created / completed /
-  downloaded / shared / link_revoked), tied to the acting user.
+### 1. Prerequisites
+- Node.js 20+ installed
+- PostgreSQL database (Neon Serverless PostgreSQL recommended)
 
-Only the schema, auth, and read-only list views for these tables are built so
-far. Creating/editing form records, the patient picker, share-link issuance,
-and PDF generation against the new `form_records` shape are not yet
-implemented — the previous per-type editing forms and PDF routes were removed
-because they depended on the tables this schema replaced.
+### 2. Environment Configuration
+Create a `.env` file in the project root:
 
-## Brand assets
+```env
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+BETTER_AUTH_SECRET="your-32-character-random-secret"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BETTER_AUTH_URL="http://localhost:3000"
+ADMIN_SIGNUP_CODE="Gardencityadmin"
+CHROME_EXECUTABLE_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe" # Optional local Chrome path
+```
 
-`public/brand/logo-mark.png` is currently a low-resolution placeholder cropped
-from an earlier prototype. Replace it with a clean crop of the real
-letterhead's monogram once available — the sign-in/sign-up pages, sidebar, and
-any generated PDF reference this same file.
+### 3. Installation & Database Setup
+```bash
+# Install dependencies
+npm install
 
-The exact hex values used throughout (`#111111` black, `#e3262b` red,
-`#0b6b3a` green, `#f7941d` orange) are defined once in `src/app/globals.css`
-(as both raw values and shadcn-style semantic tokens: `primary` = green,
-`accent` = red) and in `src/lib/pdf-templates/shared.ts` for PDF rendering —
-update both if the real letterhead colors differ once sampled from the source
-image.
+# Push database schema to Neon Postgres
+npm run db:generate
+npm run db:migrate
+```
 
-## Lab test checklist
+### 4. Create Initial Admin Account
+You can register via the web UI at `/sign-up` using your `ADMIN_SIGNUP_CODE`, or run the command line script:
+```bash
+npm run create-admin -- --name "Admin Name" --email admin@gardencity.com --password "SecurePassword123"
+```
 
-`src/lib/validators/lab-request.ts` (`LAB_TEST_CATEGORIES`) contains a
-best-effort default checklist grouped by department (Haematology, Chemical
-Pathology, etc.). This was not sourced from the real paper form — swap in the
-exact tests and wording once the actual Garden City Scanning & Diagnostic
-Center form is available.
+### 5. Running Development Server & Tests
+```bash
+# Start Next.js development server
+npm run dev
 
-## Deploying to Vercel
+# Run automated test suite
+npm test
 
-No extra configuration needed for PDF generation — `puppeteer-core` +
-`@sparticuz/chromium` are designed to work within Vercel's serverless function
-limits. Set the same environment variables as `.env` in the Vercel project
-settings (omit `CHROME_EXECUTABLE_PATH`).
+# Run TypeScript typecheck
+npm run typecheck
 
-Rate limiting (`src/lib/auth.ts`) is configured with `storage: "database"` so
-it holds up across serverless instances without needing Redis.
+# Build for production
+npm run build
+```
+
+---
+
+## Replacing Brand Assets (`/public/brand/`)
+
+All logo marks and official hospital letterhead backgrounds are stored in the `/public/brand/` directory:
+
+1. **Logo Mark** (`public/brand/logo-mark.png`):
+   - Used in the sign-in/sign-up pages, app header, navigation bar, and generated PDFs.
+   - Recommended size: `512x512` PNG (transparent background or crisp square image).
+
+2. **Official Blank Letterhead Image** (`public/brand/letterhead-blank.png`):
+   - Used as the background template for Medical Reports.
+   - Place your official blank hospital letterhead image (A4 proportion, ~1240x1754 px) at `public/brand/letterhead-blank.png`.
+
+---
+
+## Adding or Renaming Lab Tests (`src/lib/lab-tests/catalog.ts`)
+
+The Laboratory Request Checklist is configured in a single file: `src/lib/lab-tests/catalog.ts`.
+
+### How to Add a New Test to a Section
+Open `src/lib/lab-tests/catalog.ts` and add the test title string to the relevant section array:
+
+```ts
+section("HAEMATOLOGY", [
+  "Full Blood Count",
+  "Hb/PCV",
+  "Malaria Parasite",
+  "Your New Test Name", // <-- Add test name here
+]),
+```
+
+### How to Add a New Department or Section
+Add a new `section("SECTION TITLE", [...])` or `subsection(...)` block inside the `LAB_FORM_COLUMNS` array (Columns 1, 2, or 3):
+
+```ts
+{
+  column: 1,
+  blocks: [
+    section("MY NEW DEPARTMENT", [
+      "Test Name 1",
+      "Test Name 2",
+    ]),
+  ],
+}
+```
+
+The app UI search, mobile selector, PDF renderer, and database validators will automatically pick up your changes without needing schema migrations.
+
+---
+
+## Deployment to Vercel
+
+1. Push your repository to GitHub.
+2. Import the project into Vercel.
+3. Configure the Environment Variables in Vercel Project Settings:
+   - `DATABASE_URL`
+   - `BETTER_AUTH_SECRET`
+   - `BETTER_AUTH_URL` (e.g. `https://gardencityhospital.vercel.app`)
+   - `NEXT_PUBLIC_BETTER_AUTH_URL` (e.g. `https://gardencityhospital.vercel.app`)
+   - `ADMIN_SIGNUP_CODE`
+4. Deploy! Next.js and `@sparticuz/chromium` will automatically handle PDF rendering in serverless functions.

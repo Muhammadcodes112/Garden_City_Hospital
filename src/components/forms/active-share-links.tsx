@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/date";
 import { getActiveShareLinks, revokeShareLink, type ShareLinkItem } from "@/lib/actions/share";
+import { toast } from "sonner";
 
 type Props = {
   recordId: string;
@@ -36,9 +37,11 @@ export function ActiveShareLinks({ recordId, refreshKey = 0 }: Props) {
   async function handleRevoke(linkId: string) {
     try {
       await revokeShareLink(linkId);
+      toast.success("Share link revoked");
       await fetchLinks();
     } catch (err) {
       console.error("Failed to revoke share link:", err);
+      toast.error("Failed to revoke share link");
     }
   }
 
@@ -47,6 +50,7 @@ export function ActiveShareLinks({ recordId, refreshKey = 0 }: Props) {
     const url = `${origin}/s/${token}`;
     navigator.clipboard.writeText(url);
     setCopiedId(linkId);
+    toast.success("Share link copied to clipboard");
     setTimeout(() => setCopiedId(null), 2000);
   }
 

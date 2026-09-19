@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createShareLink } from "@/lib/actions/share";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type Props = {
   open: boolean;
@@ -53,9 +54,11 @@ export function ShareDialog({
         origin,
       });
       setShareUrl(res.url);
+      toast.success(`Share link generated (expires in ${expiryDays} day${expiryDays > 1 ? "s" : ""})`);
       if (onLinkCreated) onLinkCreated();
     } catch (err) {
       console.error("Failed to generate share link:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to generate share link");
     } finally {
       setLoading(false);
     }
@@ -81,9 +84,11 @@ export function ShareDialog({
           text: `Garden City Specialist Hospital Document: ${shareUrl || window.location.href}`,
         });
       }
+      toast.success("Shared successfully");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.error("Native share failed:", err);
+        toast.error("Share failed");
       }
     } finally {
       setNativeSharing(false);
@@ -94,6 +99,7 @@ export function ShareDialog({
     if (!shareUrl) return;
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
+    toast.success("Link copied to clipboard");
     setTimeout(() => setCopied(false), 2500);
   }
 
