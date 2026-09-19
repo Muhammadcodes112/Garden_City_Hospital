@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+:root {
+  /* Raw brand hex values — kept alongside the semantic tokens below because
+     server-rendered PDF templates (Puppeteer) can't consume CSS variables
+     from this file and need literal hex values. Keep both in sync. */
+  --brand-black: #111111;
+  --brand-red: #e3262b;
+  --brand-green: #0b6b3a;
+  --brand-orange: #f7941d;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  /* shadcn/ui-style semantic tokens */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: var(--brand-green);
+  --primary-foreground: #ffffff;
+
+  --accent: var(--brand-red);
+  --accent-foreground: #ffffff;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  --destructive: var(--brand-red);
+  --destructive-foreground: #ffffff;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: var(--brand-green);
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+
+  --card: #151c2c;
+  --card-foreground: #f8fafc;
+  --popover: #151c2c;
+  --popover-foreground: #f8fafc;
+
+  --primary: #14a85a;
+  --primary-foreground: #ffffff;
+
+  --accent: #ef4444;
+  --accent-foreground: #ffffff;
+
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+
+  --border: #27354a;
+  --input: #27354a;
+  --ring: #10b981;
+}
+
+@theme inline {
+  --color-brand-black: var(--brand-black);
+  --color-brand-red: var(--brand-red);
+  --color-brand-green: var(--brand-green);
+  --color-brand-orange: var(--brand-orange);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+}
