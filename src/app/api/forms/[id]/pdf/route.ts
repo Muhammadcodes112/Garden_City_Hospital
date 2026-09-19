@@ -7,6 +7,8 @@ import { labRequestDataSchema } from "@/lib/validators/lab-request";
 import { labRequestPdfFilename, labRequestPdfHtml } from "@/lib/pdf-templates/lab-request";
 import { prescriptionDataSchema } from "@/lib/validators/prescription";
 import { prescriptionPdfFilename, prescriptionPdfHtml } from "@/lib/pdf-templates/prescription";
+import { medicalReportDataSchema } from "@/lib/validators/medical-report";
+import { medicalReportPdfFilename, medicalReportPdfHtml } from "@/lib/pdf-templates/medical-report";
 import { renderPdf } from "@/lib/pdf";
 
 export async function GET(
@@ -31,6 +33,7 @@ export async function GET(
       firstNames: patients.firstNames,
       age: patients.age,
       sex: patients.sex,
+      address: patients.address,
       hospitalNumber: patients.hospitalNumber,
     })
     .from(formRecords)
@@ -48,6 +51,7 @@ export async function GET(
     firstNames: row.firstNames,
     age: row.age ?? "",
     sex: row.sex ?? "",
+    address: row.address ?? "",
     hospitalNumber: row.hospitalNumber ?? "",
   };
 
@@ -70,6 +74,14 @@ export async function GET(
       isDraft: row.status === "draft",
     });
     filename = prescriptionPdfFilename(patientObj, data.prescriberDate);
+  } else if (row.type === "medical_report") {
+    const data = medicalReportDataSchema.parse(row.data);
+    html = medicalReportPdfHtml({
+      patient: patientObj,
+      data,
+      isDraft: row.status === "draft",
+    });
+    filename = medicalReportPdfFilename(patientObj, data.reportDate);
   } else {
     return NextResponse.json({ error: "Form type not supported yet" }, { status: 400 });
   }

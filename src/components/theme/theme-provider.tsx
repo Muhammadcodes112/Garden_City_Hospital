@@ -29,9 +29,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("gch-theme") as Theme | null;
-    const preferred =
-      stored ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const preferred = stored ?? "light";
     setThemeState(preferred);
     applyTheme(preferred);
   }, []);

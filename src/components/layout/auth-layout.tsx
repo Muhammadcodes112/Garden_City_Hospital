@@ -46,7 +46,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
             height={48}
             className="h-12 w-12 rounded-md"
           />
-          <p className="text-center text-sm font-bold text-brand-black">
+          <p className="text-center text-sm font-bold text-foreground">
             <span>GARDEN</span> <span className="text-brand-red">CITY</span>{" "}
             <span className="text-brand-green">SPECIALIST HOSPITAL</span>
           </p>

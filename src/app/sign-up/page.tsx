@@ -67,7 +67,7 @@ export default function SignUpPage() {
   return (
     <AuthLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-brand-black">Create Admin Account</h2>
+        <h2 className="text-2xl font-bold text-foreground">Create Admin Account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Registration requires a valid admin access code.
         </p>

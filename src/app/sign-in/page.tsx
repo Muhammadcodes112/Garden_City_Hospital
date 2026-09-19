@@ -40,7 +40,7 @@ export default function SignInPage() {
   return (
     <AuthLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-brand-black">Admin Sign In</h2>
+        <h2 className="text-2xl font-bold text-foreground">Admin Sign In</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Sign in to manage hospital forms and records.
         </p>
