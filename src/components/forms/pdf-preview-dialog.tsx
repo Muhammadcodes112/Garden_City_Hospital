@@ -15,7 +15,8 @@ type Props = {
 
 export function PdfPreviewDialog({ open, onOpenChange, recordId, filename }: Props) {
   const [loading, setLoading] = useState(true);
-  const src = `/api/forms/${recordId}/pdf`;
+  const pdfUrl = `/api/forms/${recordId}/pdf`;
+  const previewUrl = `/api/forms/${recordId}/pdf?html=1`;
 
   useEffect(() => {
     if (open) setLoading(true);
@@ -36,7 +37,7 @@ export function PdfPreviewDialog({ open, onOpenChange, recordId, filename }: Pro
             </DialogPrimitive.Title>
             <div className="flex items-center gap-2">
               <Button asChild size="sm" variant="outline">
-                <a href={`${src}?download=1`} download={filename}>
+                <a href={`${pdfUrl}?download=1`} download={filename}>
                   Download
                 </a>
               </Button>
@@ -50,13 +51,13 @@ export function PdfPreviewDialog({ open, onOpenChange, recordId, filename }: Pro
           <div className="relative flex-1 bg-muted/30">
             {loading ? (
               <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                Generating PDF…
+                Loading document preview…
               </p>
             ) : null}
             <iframe
               title="PDF preview"
-              src={src}
-              className="h-full w-full border-0"
+              src={previewUrl}
+              className="h-full w-full border-0 bg-white"
               onLoad={() => setLoading(false)}
             />
           </div>

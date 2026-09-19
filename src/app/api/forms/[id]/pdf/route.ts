@@ -11,6 +11,9 @@ import { medicalReportDataSchema } from "@/lib/validators/medical-report";
 import { medicalReportPdfFilename, medicalReportPdfHtml } from "@/lib/pdf-templates/medical-report";
 import { renderPdf } from "@/lib/pdf";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -23,6 +26,7 @@ export async function GET(
   const { id } = await ctx.params;
   const url = new URL(req.url);
   const download = url.searchParams.get("download") === "1";
+  const wantsHtml = url.searchParams.get("html") === "1";
 
   const rows = await db
     .select({
@@ -86,13 +90,35 @@ export async function GET(
     return NextResponse.json({ error: "Form type not supported yet" }, { status: 400 });
   }
 
-  const pdf = await renderPdf(html);
+  if (wantsHtml) {
+    return new NextResponse(html, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 
-  return new NextResponse(new Uint8Array(pdf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  try {
+    const pdf = await renderPdf(html);
+
+    return new NextResponse(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (err) {
+    console.error("Failed to render PDF:", err);
+    // If PDF binary rendering fails, fallback to rendering HTML with print auto-trigger
+    const printHtml = html + `<script>window.addEventListener('load', () => window.print());</script>`;
+    return new NextResponse(printHtml, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename.replace(/\.pdf$/, ".html")}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 }

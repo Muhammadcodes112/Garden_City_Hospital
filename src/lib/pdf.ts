@@ -1,5 +1,8 @@
 import type { Browser } from "puppeteer-core";
 
+const CHROMIUM_PACK_URL =
+  "https://github.com/sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+
 async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import("puppeteer-core");
 
@@ -12,13 +15,26 @@ async function launchBrowser(): Promise<Browser> {
   }
 
   // Production (Vercel) and any environment without a local Chrome install:
-  // use the serverless-friendly Chromium binary.
   const chromium = (await import("@sparticuz/chromium")).default;
-  return puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
+
+  try {
+    const execPath = await chromium.executablePath();
+    return await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: execPath,
+      headless: chromium.headless,
+    });
+  } catch (err) {
+    console.warn("Default sparticuz chromium path failed, downloading remote pack...", err);
+    const remoteExecPath = await chromium.executablePath(CHROMIUM_PACK_URL);
+    return await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: remoteExecPath,
+      headless: chromium.headless,
+    });
+  }
 }
 
 /** Renders a self-contained HTML document (inline CSS, no external assets) to a PDF buffer. */
