@@ -11,6 +11,8 @@ import { labRequestPdfFilename, labRequestPdfHtml } from "@/lib/pdf-templates/la
 import { prescriptionPdfFilename, prescriptionPdfHtml } from "@/lib/pdf-templates/prescription";
 import { medicalReportPdfFilename, medicalReportPdfHtml } from "@/lib/pdf-templates/medical-report";
 
+import { headers } from "next/headers";
+
 export type ShareLinkItem = {
   id: string;
   token: string;
@@ -56,7 +58,10 @@ export async function createShareLink(input: {
     action: "shared",
   });
 
-  const baseUrl = input.origin || process.env.BETTER_AUTH_URL || "http://localhost:3000";
+  const reqHeaders = await headers();
+  const host = reqHeaders.get("host");
+  const headerOrigin = reqHeaders.get("origin") || (host ? (host.includes("localhost") ? `http://${host}` : `https://${host}`) : undefined);
+  const baseUrl = input.origin || headerOrigin || process.env.BETTER_AUTH_URL || "http://localhost:3000";
   const url = `${baseUrl}/s/${token}`;
 
   return {

@@ -10,6 +10,13 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
+  trustedOrigins: [
+    "https://gardencityhospital.vercel.app",
+    "https://garden-city.vercel.app",
+    "https://Garden-City.vercel.app",
+    ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
+    ...(process.env.NEXT_PUBLIC_BETTER_AUTH_URL ? [process.env.NEXT_PUBLIC_BETTER_AUTH_URL] : []),
+  ],
   // Rate limiting stored in Postgres (not in-memory) so it still holds up
   // across serverless invocations on Vercel, where each request can land on
   // a different instance. Sign-in gets a stricter rule than the global
