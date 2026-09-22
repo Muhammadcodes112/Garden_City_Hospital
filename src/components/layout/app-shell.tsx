@@ -108,14 +108,20 @@ function SidebarBrand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <Image
-        src="/brand/logo-mark.png"
+        src="/brand/logo-mark-dark.svg"
         alt={HOSPITAL_NAME}
         width={compact ? 36 : 44}
         height={compact ? 36 : 44}
         className="shrink-0 rounded-sm bg-white/10 p-0.5"
       />
       {!compact && (
-        <p className="text-sm font-bold leading-snug text-white">{HOSPITAL_NAME}</p>
+        <Image
+          src="/brand/wordmark-dark.png"
+          alt={HOSPITAL_NAME}
+          width={160}
+          height={36}
+          className="h-auto w-32"
+        />
       )}
     </div>
   );

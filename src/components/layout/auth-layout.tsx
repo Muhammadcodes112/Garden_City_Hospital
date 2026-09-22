@@ -10,24 +10,26 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Branding panel: desktop only */}
       <div
-        className="relative hidden flex-col justify-center overflow-hidden bg-gradient-to-br from-brand-green via-brand-green to-brand-black px-12 md:flex md:w-1/2"
+        className="relative hidden flex-col justify-center overflow-hidden bg-gradient-to-br from-brand-black via-brand-black to-brand-green px-12 md:flex md:w-1/2"
         style={{ backgroundImage: `url("${MEDICAL_PATTERN}")`, backgroundRepeat: "repeat" }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-green via-brand-green/95 to-brand-black" />
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-black via-brand-black/95 to-brand-green" />
         <div className="relative z-10 flex flex-col items-start gap-6">
           <Image
-            src="/brand/logo-mark.png"
+            src="/brand/logo-mark-dark.svg"
             alt="Garden City Specialist Hospital"
             width={72}
             height={72}
             className="h-18 w-18 rounded-md bg-white/10 p-2"
           />
           <div>
-            <h1 className="text-3xl font-extrabold leading-tight text-white">
-              Garden City
-              <br />
-              Specialist Hospital
-            </h1>
+            <Image
+              src="/brand/wordmark-dark.png"
+              alt="Garden City Specialist Hospital"
+              width={340}
+              height={76}
+              className="h-auto w-64 sm:w-72"
+            />
             <p className="mt-3 max-w-sm text-sm text-white/80">
               The Pathway to High-Quality and Affordable Health Care
             </p>
@@ -37,19 +39,36 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
 
       {/* Form panel */}
       <div className="flex flex-1 flex-col items-center justify-center bg-background px-4 py-12">
-        {/* Mobile-only stacked brand mark */}
-        <div className="mb-8 flex flex-col items-center gap-2 md:hidden">
+        {/* Mobile-only stacked brand mark: large logo-full + wordmark */}
+        <div className="mb-8 flex flex-col items-center gap-3 md:hidden">
           <Image
-            src="/brand/logo-mark.png"
+            src="/brand/logo-full.png"
             alt="Garden City Specialist Hospital"
-            width={48}
-            height={48}
-            className="h-12 w-12 rounded-md"
+            width={280}
+            height={295}
+            className="h-auto w-32 dark:hidden"
           />
-          <p className="text-center text-sm font-bold text-foreground">
-            <span>GARDEN</span> <span className="text-brand-red">CITY</span>{" "}
-            <span className="text-brand-green">SPECIALIST HOSPITAL</span>
-          </p>
+          <Image
+            src="/brand/logo-mark-dark.svg"
+            alt="Garden City Specialist Hospital"
+            width={64}
+            height={64}
+            className="hidden h-16 w-16 rounded-md dark:block"
+          />
+          <Image
+            src="/brand/wordmark.png"
+            alt="Garden City Specialist Hospital"
+            width={340}
+            height={76}
+            className="h-auto w-64 dark:hidden"
+          />
+          <Image
+            src="/brand/wordmark-dark.png"
+            alt="Garden City Specialist Hospital"
+            width={340}
+            height={76}
+            className="hidden h-auto w-64 dark:block"
+          />
         </div>
 
         <div className="w-full max-w-sm">{children}</div>

@@ -1,11 +1,12 @@
-import { getLogoDataUri } from "@/lib/pdf-assets";
+import { getLogoMarkDataUri, getWordmarkDataUri } from "@/lib/pdf-assets";
 import { formatDate } from "@/lib/date";
 
 export const BRAND = {
-  black: "#111111",
-  red: "#e3262b",
-  green: "#0b6b3a",
-  orange: "#f7941d",
+  black: "#101010",
+  red: "#b81828",
+  green: "#086838",
+  orange: "#e86828",
+  yellow: "#f8e868",
 };
 
 const HOSPITAL_ADDRESS = "No. 2 Sultan Road, U/Rimi G.R.A., Kaduna";
@@ -19,17 +20,8 @@ const SCANNING_TAGLINE = "... Hospitality in Hospital";
 type LetterheadVariant = "hospital" | "scanning-center";
 
 function letterheadHtml(variant: LetterheadVariant): string {
-  const logo = getLogoDataUri();
-
-  const wordmark = `
-    <span style="color:${BRAND.black}">GARDEN</span>
-    <span style="color:${BRAND.red}">CITY</span>
-    ${
-      variant === "hospital"
-        ? `<span style="color:${BRAND.green}"> SPECIALIST HOSPITAL</span>`
-        : `<span style="color:${BRAND.green}"> SCANNING &amp; DIAGNOSTIC CENTER</span>`
-    }
-  `;
+  const logo = getLogoMarkDataUri();
+  const wordmark = getWordmarkDataUri();
 
   const tagline =
     variant === "hospital"
@@ -46,7 +38,7 @@ function letterheadHtml(variant: LetterheadVariant): string {
       <div class="letterhead-row">
         <img src="${logo}" alt="Garden City" class="logo" />
         <div class="wordmark-block">
-          <div class="wordmark">${wordmark}</div>
+          <img src="${wordmark}" alt="Garden City Specialist Hospital" class="wordmark" />
           <div class="tagline">${tagline}</div>
         </div>
       </div>

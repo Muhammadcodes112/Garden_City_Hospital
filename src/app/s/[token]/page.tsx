@@ -43,16 +43,20 @@ export default async function PublicSharePage(props: {
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="/brand/logo-mark.png"
+              src="/brand/logo-mark-dark.svg"
               alt="Garden City Specialist Hospital"
               width={36}
               height={36}
               className="h-9 w-9 rounded bg-white/10 p-1"
             />
             <div>
-              <h1 className="text-sm font-bold tracking-wide text-white">
-                GARDEN CITY SPECIALIST HOSPITAL
-              </h1>
+              <Image
+                src="/brand/wordmark-dark.png"
+                alt="Garden City Specialist Hospital"
+                width={170}
+                height={38}
+                className="h-auto w-36"
+              />
               <p className="text-[11px] text-slate-400">Official Patient Record</p>
             </div>
           </div>

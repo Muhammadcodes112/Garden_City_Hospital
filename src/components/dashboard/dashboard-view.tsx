@@ -169,7 +169,7 @@ function WelcomeBanner({ userName, todayLabel }: { userName: string; todayLabel:
           </p>
         </div>
         <Image
-          src="/brand/logo-mark.png"
+          src="/brand/logo-mark-dark.svg"
           alt=""
           width={80}
           height={80}

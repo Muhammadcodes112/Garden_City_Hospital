@@ -1,13 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  /* Raw brand hex values — kept alongside the semantic tokens below because
-     server-rendered PDF templates (Puppeteer) can't consume CSS variables
-     from this file and need literal hex values. Keep both in sync. */
-  --brand-black: #111111;
-  --brand-red: #e3262b;
-  --brand-green: #0b6b3a;
-  --brand-orange: #f7941d;
+  /* Raw brand hex values — sampled directly from the supplied logo/wordmark
+     artwork. Kept alongside the semantic tokens below because server-rendered
+     PDF templates (Puppeteer) can't consume CSS variables from this file and
+     need literal hex values. Keep both in sync — see src/lib/pdf-templates. */
+  --brand-black: #101010;
+  --brand-red: #b81828;
+  --brand-green: #086838;
+  --brand-orange: #e86828;
+  --brand-yellow: #f8e868;
 
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -49,16 +51,16 @@
   --popover: #151c2c;
   --popover-foreground: #f8fafc;
 
-  --primary: #14a85a;
+  --primary: #12a352;
   --primary-foreground: #ffffff;
 
-  --accent: #ef4444;
+  --accent: #e8394a;
   --accent-foreground: #ffffff;
 
   --secondary: #1e293b;
   --secondary-foreground: #f8fafc;
 
-  --destructive: #ef4444;
+  --destructive: #e8394a;
   --destructive-foreground: #ffffff;
 
   --muted: #1e293b;
@@ -66,7 +68,7 @@
 
   --border: #27354a;
   --input: #27354a;
-  --ring: #10b981;
+  --ring: #12a352;
 }
 
 @theme inline {
@@ -74,6 +76,7 @@
   --color-brand-red: var(--brand-red);
   --color-brand-green: var(--brand-green);
   --color-brand-orange: var(--brand-orange);
+  --color-brand-yellow: var(--brand-yellow);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

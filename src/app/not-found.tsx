@@ -8,11 +8,18 @@ export default function NotFound() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
       <div className="mb-6 flex items-center justify-center rounded-full bg-muted p-4">
         <Image
-          src="/brand/logo-mark.png"
+          src="/brand/logo-mark.svg"
           alt={HOSPITAL_NAME}
           width={64}
           height={64}
-          className="rounded"
+          className="rounded dark:hidden"
+        />
+        <Image
+          src="/brand/logo-mark-dark.svg"
+          alt={HOSPITAL_NAME}
+          width={64}
+          height={64}
+          className="hidden rounded dark:block"
         />
       </div>
       <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">

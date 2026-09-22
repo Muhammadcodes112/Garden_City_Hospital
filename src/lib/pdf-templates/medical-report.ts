@@ -1,4 +1,4 @@
-import { getLogoDataUri } from "@/lib/pdf-assets";
+import { getLogoFullDataUri, getWordmarkDataUri } from "@/lib/pdf-assets";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import {
@@ -30,7 +30,8 @@ export function medicalReportPdfHtml(opts: {
   isDraft: boolean;
 }): string {
   const { patient, data, isDraft } = opts;
-  const logo = getLogoDataUri();
+  const logoFull = getLogoFullDataUri();
+  const wordmark = getWordmarkDataUri();
   const watermark = isDraft ? `<div class="watermark">DRAFT</div>` : "";
 
   const enabledSectionsHtml = MEDICAL_REPORT_SECTIONS.map(({ key, label }) => {
@@ -59,7 +60,7 @@ export function medicalReportPdfHtml(opts: {
     margin: 0;
     padding: 0;
     font-family: Georgia, "Times New Roman", Times, serif;
-    color: #111111;
+    color: #101010;
     font-size: 10.5pt;
     line-height: 1.45;
     background: #ffffff;
@@ -80,7 +81,7 @@ export function medicalReportPdfHtml(opts: {
     justify-content: center;
     font-size: 80pt;
     font-weight: bold;
-    color: rgba(227, 38, 43, 0.08);
+    color: rgba(184, 24, 40, 0.08);
     transform: rotate(-35deg);
     pointer-events: none;
     z-index: 0;
@@ -108,37 +109,14 @@ export function medicalReportPdfHtml(opts: {
     width: 80px;
     text-align: center;
   }
-  .logo-img { width: 64px; height: 64px; object-fit: contain; }
-  .rc-number {
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    font-weight: bold;
-    color: #333;
-    margin-top: 4px;
-  }
+  .logo-full-img { width: 76px; height: auto; object-fit: contain; }
 
   .header-center {
     flex: 1;
     text-align: center;
     padding: 0 10px;
   }
-  .wordmark {
-    font-family: Arial, sans-serif;
-    font-size: 24pt;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    line-height: 1;
-  }
-  .wordmark .garden { color: #111111; }
-  .wordmark .city { color: #e3262b; }
-  .subtitle {
-    font-family: Arial, sans-serif;
-    font-size: 12pt;
-    font-weight: 800;
-    color: #0b6b3a;
-    letter-spacing: 0.12em;
-    margin-top: 3px;
-  }
+  .wordmark { height: 52px; width: auto; }
   .tagline {
     font-style: italic;
     font-size: 9pt;
@@ -155,7 +133,7 @@ export function medicalReportPdfHtml(opts: {
     font-family: Arial, sans-serif;
     font-size: 8pt;
     font-weight: 600;
-    color: #111111;
+    color: #101010;
     margin-top: 1px;
   }
   .contact-email {
@@ -202,7 +180,7 @@ export function medicalReportPdfHtml(opts: {
     letter-spacing: 0.08em;
     text-decoration: underline;
     margin-bottom: 18px;
-    color: #111111;
+    color: #101010;
   }
 
   /* PATIENT INFORMATION BOX */
@@ -231,7 +209,7 @@ export function medicalReportPdfHtml(opts: {
     min-width: 95px;
   }
   .patient-val {
-    color: #111111;
+    color: #101010;
     font-weight: 600;
   }
 
@@ -248,7 +226,7 @@ export function medicalReportPdfHtml(opts: {
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #0b6b3a;
+    color: #086838;
     border-bottom: 1px solid #e5e7eb;
     padding-bottom: 2px;
     margin: 0 0 6px 0;
@@ -286,7 +264,7 @@ export function medicalReportPdfHtml(opts: {
     font-family: Arial, sans-serif;
     font-size: 10.5pt;
     font-weight: bold;
-    color: #111111;
+    color: #101010;
   }
   .doctor-title {
     font-family: Arial, sans-serif;
@@ -317,7 +295,7 @@ export function medicalReportPdfHtml(opts: {
     left: 0;
     right: 0;
     height: 28px;
-    background: linear-gradient(90deg, #111111 50%, #e3262b 85%, #f97316 100%);
+    background: linear-gradient(90deg, #101010 50%, #b81828 85%, #e86828 100%);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -341,20 +319,18 @@ export function medicalReportPdfHtml(opts: {
   ${watermark}
   
   <!-- Stethoscope watermark SVG -->
-  <svg class="stethoscope-watermark" viewBox="0 0 100 100" fill="none" stroke="#111111" stroke-width="1.5">
+  <svg class="stethoscope-watermark" viewBox="0 0 100 100" fill="none" stroke="#101010" stroke-width="1.5">
     <path d="M30,20 C30,40 45,55 50,70 C55,55 70,40 70,20 M30,20 L30,10 M70,20 L70,10 M50,70 C50,82 65,82 65,70 C65,65 60,65 60,70" />
-    <circle cx="65" cy="70" r="4" fill="#111111" />
+    <circle cx="65" cy="70" r="4" fill="#101010" />
   </svg>
 
   <div class="content">
     <header class="header">
       <div class="header-left">
-        <img class="logo-img" src="${logo}" alt="Logo" />
-        <div class="rc-number">RC: 957820</div>
+        <img class="logo-full-img" src="${logoFull}" alt="Garden City Specialist Hospital" />
       </div>
       <div class="header-center">
-        <div class="wordmark"><span class="garden">GARDEN</span> <span class="city">CITY</span></div>
-        <div class="subtitle">SPECIALIST HOSPITAL</div>
+        <img class="wordmark" src="${wordmark}" alt="Garden City Specialist Hospital" />
         <div class="tagline">The Pathway to High-Quality and Affordable Health Care</div>
         <div class="contact-address">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
         <div class="contact-tel">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
@@ -363,10 +339,10 @@ export function medicalReportPdfHtml(opts: {
       <div class="header-right">
         <!-- SVG Ambulance Icon with Crescent -->
         <svg class="ambulance-icon" viewBox="0 0 64 64" fill="none">
-          <rect x="4" y="16" width="44" height="28" rx="4" fill="#e3262b" />
-          <path d="M48 24h10l4 8v12h-14V24z" fill="#e3262b" />
-          <circle cx="16" cy="46" r="6" fill="#111111" stroke="#ffffff" stroke-width="2" />
-          <circle cx="48" cy="46" r="6" fill="#111111" stroke="#ffffff" stroke-width="2" />
+          <rect x="4" y="16" width="44" height="28" rx="4" fill="#b81828" />
+          <path d="M48 24h10l4 8v12h-14V24z" fill="#b81828" />
+          <circle cx="16" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
+          <circle cx="48" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
           <rect x="8" y="20" width="12" height="10" fill="#ffffff" rx="1" />
           <!-- White Crescent -->
           <path d="M30 24a5 5 0 1 0 6 7 6 6 0 1 1-6-7z" fill="#ffffff" />
@@ -446,9 +422,9 @@ export function medicalReportPdfHtml(opts: {
   </div>
 
   <!-- Bottom Stethoscope Icon -->
-  <svg class="stethoscope-icon-bottom" viewBox="0 0 50 50" fill="none" stroke="#111111" stroke-width="2">
+  <svg class="stethoscope-icon-bottom" viewBox="0 0 50 50" fill="none" stroke="#101010" stroke-width="2">
     <path d="M15,10 C15,25 22,32 25,40 C28,32 35,25 35,10" />
-    <circle cx="25" cy="42" r="5" fill="#111111" />
+    <circle cx="25" cy="42" r="5" fill="#101010" />
   </svg>
 
   <footer class="footer-bar">

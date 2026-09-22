@@ -1,12 +1,12 @@
-import { getLogoDataUri } from "@/lib/pdf-assets";
+import { getLogoMarkDataUri, getWordmarkDataUri } from "@/lib/pdf-assets";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import type { PrescriptionData, PrescriptionItem } from "@/lib/validators/prescription";
 
 const BRAND = {
-  black: "#111111",
-  red: "#e3262b",
-  green: "#0b6b3a",
+  black: "#101010",
+  red: "#b81828",
+  green: "#086838",
   line: "#1a1a1a",
   ink: "#1e3a8a",
 };
@@ -63,7 +63,8 @@ export function prescriptionPdfHtml(opts: {
   isDraft: boolean;
 }): string {
   const { patient, data, isDraft } = opts;
-  const logo = getLogoDataUri();
+  const logoMark = getLogoMarkDataUri();
+  const wordmark = getWordmarkDataUri();
 
   const formattedItems = (data.items || [])
     .map((item, idx) => formatPrescriptionItem(item, idx))
@@ -121,24 +122,11 @@ export function prescriptionPdfHtml(opts: {
   }
   .content { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
   
-  .header { text-align: center; margin-bottom: 8px; }
-  .header-row { display: flex; align-items: flex-start; justify-content: center; gap: 12px; }
+  .header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .header-left { width: 56px; flex-shrink: 0; }
   .logo { width: 56px; height: 56px; object-fit: contain; }
-  .wordmark {
-    font-size: 22pt;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    line-height: 1;
-  }
-  .wordmark .garden { color: ${BRAND.black}; }
-  .wordmark .city { color: ${BRAND.red}; }
-  .subtitle {
-    font-size: 11pt;
-    font-weight: 800;
-    color: ${BRAND.black};
-    letter-spacing: 0.1em;
-    margin-top: 3px;
-  }
+  .header-center { flex: 1; text-align: center; }
+  .wordmark { height: 40px; width: auto; }
   .address { font-size: 8pt; margin-top: 3px; }
   .contact { font-size: 7.5pt; margin-top: 2px; }
   .email { font-size: 7.5pt; font-style: italic; margin-top: 1px; }
@@ -240,16 +228,15 @@ export function prescriptionPdfHtml(opts: {
   ${watermark}
   <div class="content">
     <header class="header">
-      <div class="header-row">
-        <img class="logo" src="${logo}" alt="" />
-        <div>
-          <div class="wordmark"><span class="garden">GARDEN</span> <span class="city">CITY</span></div>
-          <div class="subtitle">SPECIALIST HOSPITAL</div>
-        </div>
+      <div class="header-left">
+        <img class="logo" src="${logoMark}" alt="" />
       </div>
-      <div class="address">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
-      <div class="contact">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
-      <div class="email">e-mail: gardencityspecialisthospital@yahoo.com</div>
+      <div class="header-center">
+        <img class="wordmark" src="${wordmark}" alt="Garden City Specialist Hospital" />
+        <div class="address">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
+        <div class="contact">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
+        <div class="email">e-mail: gardencityspecialisthospital@yahoo.com</div>
+      </div>
     </header>
 
     <div class="title">PRESCRIPTION FORM</div>

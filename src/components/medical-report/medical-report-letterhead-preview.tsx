@@ -34,17 +34,14 @@ export function MedicalReportLetterheadPreview({ patient, data, isDraft }: Props
         {/* HEADER */}
         <div className="flex items-start justify-between border-b border-slate-200 pb-3 mb-4">
           <div className="w-16 text-center">
-            <img src="/brand/logo-mark.png" alt="Logo" className="w-12 h-12 object-contain mx-auto" />
-            <div className="mt-1 text-[9px] font-bold text-slate-700">RC: 957820</div>
+            <img src="/brand/logo-full.png" alt="Garden City Specialist Hospital" className="w-14 mx-auto" />
           </div>
           <div className="flex-1 text-center px-2">
-            <div className="text-lg font-black tracking-wider leading-none">
-              <span className="text-slate-900">GARDEN</span>{" "}
-              <span className="text-red-600">CITY</span>
-            </div>
-            <div className="text-xs font-extrabold text-emerald-800 tracking-wider mt-0.5">
-              SPECIALIST HOSPITAL
-            </div>
+            <img
+              src="/brand/wordmark.png"
+              alt="Garden City Specialist Hospital"
+              className="h-8 mx-auto object-contain"
+            />
             <div className="italic text-[9px] text-slate-700 mt-0.5">
               The Pathway to High-Quality and Affordable Health Care
             </div>

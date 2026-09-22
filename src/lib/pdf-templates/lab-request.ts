@@ -1,12 +1,15 @@
-import { getLogoDataUri } from "@/lib/pdf-assets";
+import {
+  getLogoMarkDataUri,
+  getWordmarkGardenCityDataUri,
+  getRussoOneFontFace,
+} from "@/lib/pdf-assets";
 import { LAB_FORM_COLUMNS, LAB_TEST_BY_ID } from "@/lib/lab-tests/catalog";
 import { formatDate } from "@/lib/date";
 import type { LabRequestData } from "@/lib/validators/lab-request";
 
 const BRAND = {
-  black: "#111111",
-  red: "#e3262b",
-  green: "#0b6b3a",
+  black: "#101010",
+  green: "#086838",
   grey: "#4a4a4a",
   line: "#1a1a1a",
   ink: "#1e3a8a",
@@ -75,7 +78,8 @@ export function labRequestPdfHtml(opts: {
       .filter(Boolean)
       .join(" ") || "";
 
-  const logo = getLogoDataUri();
+  const logoMark = getLogoMarkDataUri();
+  const wordmarkGardenCity = getWordmarkGardenCityDataUri();
 
   const columns = LAB_FORM_COLUMNS.map(
     (col) => `<div class="col">${renderColumn(col.blocks, selected)}</div>`,
@@ -90,6 +94,7 @@ export function labRequestPdfHtml(opts: {
 <head>
 <meta charset="utf-8" />
 <style>
+  ${getRussoOneFontFace()}
   @page { size: A4; margin: 10mm; }
   * { box-sizing: border-box; }
   body {
@@ -114,23 +119,23 @@ export function labRequestPdfHtml(opts: {
     z-index: 0;
   }
   .content { position: relative; z-index: 1; }
-  .header { text-align: center; margin-bottom: 6px; }
-  .header-row { display: flex; align-items: flex-start; justify-content: center; gap: 10px; }
+  .header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .header-left { width: 52px; flex-shrink: 0; }
   .logo { width: 52px; height: 52px; object-fit: contain; }
-  .wordmark {
-    font-size: 22pt;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    line-height: 1;
-  }
-  .wordmark .garden { color: ${BRAND.black}; }
-  .wordmark .city { color: ${BRAND.red}; }
+  .header-center { flex: 1; text-align: center; }
+  .wordmark-block { display: inline-block; width: 230px; }
+  .wordmark { display: block; width: 100%; height: auto; }
   .scanning {
-    font-size: 11pt;
-    font-weight: 800;
-    color: ${BRAND.green};
-    letter-spacing: 0.06em;
+    display: block;
+    width: 100%;
     margin-top: 2px;
+    font-family: "Russo One", Arial, sans-serif;
+    font-size: 12.5pt;
+    font-weight: 400;
+    color: ${BRAND.green};
+    letter-spacing: 0.02em;
+    text-align: center;
+    white-space: nowrap;
   }
   .tagline { font-size: 8pt; font-style: italic; margin-top: 2px; }
   .address { font-size: 7.5pt; margin-top: 3px; }
@@ -241,16 +246,18 @@ export function labRequestPdfHtml(opts: {
   ${watermark}
   <div class="content">
     <header class="header">
-      <div class="header-row">
-        <img class="logo" src="${logo}" alt="" />
-        <div>
-          <div class="wordmark"><span class="garden">GARDEN</span> <span class="city">CITY</span></div>
+      <div class="header-left">
+        <img class="logo" src="${logoMark}" alt="" />
+      </div>
+      <div class="header-center">
+        <div class="wordmark-block">
+          <img class="wordmark" src="${wordmarkGardenCity}" alt="Garden City" />
           <div class="scanning">SCANNING &amp; DIAGNOSTIC CENTER</div>
         </div>
+        <div class="tagline">... Hospitality in Hospital</div>
+        <div class="address">NO: 2 Sultan Road Ungwan Rimi G.R.A., Kaduna.</div>
+        <div class="contact">Tel: 062293293, 08077062451 E-mail: gardencityspecialisthospital@yahoo.com</div>
       </div>
-      <div class="tagline">... Hospitality in Hospital</div>
-      <div class="address">NO: 2 Sultan Road Ungwan Rimi G.R.A., Kaduna.</div>
-      <div class="contact">Tel: 062293293, 08077062451 E-mail: gardencityspecialisthospital@yahoo.com</div>
     </header>
 
     <div class="title-banner">LABORATORY REQUEST FORM</div>
