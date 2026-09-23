@@ -1,11 +1,11 @@
-import { getLogoMarkDataUri, getWordmarkDataUri } from "@/lib/pdf-assets";
+import { getLogoMarkDataUri, getWordmarkDataUri, getBaseFontFaces } from "@/lib/pdf-assets";
+import { pageGeometryCssFlow } from "@/lib/pdf-templates/print-shell";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import type { PrescriptionData, PrescriptionItem } from "@/lib/validators/prescription";
 
 const BRAND = {
   black: "#101010",
-  red: "#b81828",
   green: "#086838",
   line: "#1a1a1a",
   ink: "#1e3a8a",
@@ -92,20 +92,13 @@ export function prescriptionPdfHtml(opts: {
 <head>
 <meta charset="utf-8" />
 <style>
-  @page { size: A4; margin: 10mm; }
-  * { box-sizing: border-box; }
+  ${getBaseFontFaces()}
+  ${pageGeometryCssFlow("10mm 12mm 10mm 20mm")}
   body {
-    margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     color: ${BRAND.black};
     font-size: 9.5pt;
     line-height: 1.3;
-  }
-  .page {
-    position: relative;
-    min-height: 270mm;
-    display: flex;
-    flex-direction: column;
   }
   .watermark {
     position: fixed;
@@ -120,8 +113,16 @@ export function prescriptionPdfHtml(opts: {
     pointer-events: none;
     z-index: 0;
   }
-  .content { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
-  
+  .content { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .margin-rule {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -10mm;
+    width: 0.75pt;
+    background: ${BRAND.black};
+  }
+
   .header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
   .header-left { width: 56px; flex-shrink: 0; }
   .logo { width: 56px; height: 56px; object-fit: contain; }
@@ -159,7 +160,8 @@ export function prescriptionPdfHtml(opts: {
     display: block;
   }
   .patient-table .cell-value {
-    font-family: "Segoe Print", "Comic Sans MS", cursive;
+    font-family: "Caveat", cursive;
+    font-weight: 600;
     color: ${BRAND.ink};
     font-size: 9.5pt;
     margin-top: 2px;
@@ -167,10 +169,7 @@ export function prescriptionPdfHtml(opts: {
 
   .rx-body {
     flex: 1;
-    border-left: 2px solid ${BRAND.red};
-    padding-left: 16px;
-    margin-left: 8px;
-    min-height: 160mm;
+    min-height: 0;
   }
   .rx-list {
     list-style: none;
@@ -209,7 +208,8 @@ export function prescriptionPdfHtml(opts: {
   }
   .footer-row .label { font-weight: 600; font-size: 8.5pt; margin-right: 6px; }
   .footer-row .value {
-    font-family: "Segoe Print", "Comic Sans MS", cursive;
+    font-family: "Caveat", cursive;
+    font-weight: 600;
     color: ${BRAND.ink};
     font-size: 9.5pt;
   }
@@ -227,6 +227,7 @@ export function prescriptionPdfHtml(opts: {
 <div class="page">
   ${watermark}
   <div class="content">
+    <div class="margin-rule"></div>
     <header class="header">
       <div class="header-left">
         <img class="logo" src="${logoMark}" alt="" />

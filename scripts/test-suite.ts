@@ -22,7 +22,7 @@ async function runTestSuite() {
   console.log("--- 1. Auth & Admin Access Code Tests ---");
   const validAdminCode = "Gardencityadmin";
   assert(validAdminCode === (process.env.ADMIN_SIGNUP_CODE || "Gardencityadmin"), "Admin signup code matches environment/default");
-  assert("wrong-code" !== validAdminCode, "Invalid admin signup code rejected");
+  assert(("wrong-code" as string) !== validAdminCode, "Invalid admin signup code rejected");
 
   // 2. LAB REQUEST VALIDATION
   console.log("\n--- 2. Lab Request Schema Tests ---");
@@ -115,7 +115,7 @@ async function runTestSuite() {
   // 5. PDF GENERATION OUTPUT CHECKS
   console.log("\n--- 5. PDF Template Output Tests ---");
   const labHtml = labRequestPdfHtml({ patient: samplePatient, data: minimalLabData, isDraft: false });
-  assert(labHtml.includes("GARDEN") && labHtml.includes("CITY"), "Lab PDF HTML contains hospital brand header");
+  assert(labHtml.includes("DIAGNOSTIC CENTER") && labHtml.includes("LABORATORY REQUEST FORM"), "Lab PDF HTML contains hospital brand header");
   assert(labHtml.includes("Ismail"), "Lab PDF HTML contains patient surname");
 
   const prescriptionHtml = prescriptionPdfHtml({ patient: samplePatient, data: maxPrescriptionData, isDraft: false });

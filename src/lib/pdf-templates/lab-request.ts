@@ -2,7 +2,9 @@ import {
   getLogoMarkDataUri,
   getWordmarkGardenCityDataUri,
   getRussoOneFontFace,
+  getBaseFontFaces,
 } from "@/lib/pdf-assets";
+import { pageGeometryCssFixed } from "@/lib/pdf-templates/print-shell";
 import { LAB_FORM_COLUMNS, LAB_TEST_BY_ID } from "@/lib/lab-tests/catalog";
 import { formatDate } from "@/lib/date";
 import type { LabRequestData } from "@/lib/validators/lab-request";
@@ -31,13 +33,25 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-function fieldLine(label: string, value: string, wide = false) {
-  const v = escapeHtml(value || "");
-  return `<div class="field-row${wide ? " wide" : ""}"><span class="label">${escapeHtml(label)}</span><span class="value">${v}</span><span class="line"></span></div>`;
+type FieldSeg = { label: string; value: string; flex: number; html?: string };
+
+function fieldGroup(fields: FieldSeg[]): string {
+  const segs = fields
+    .map(
+      (f) => `
+        <div class="field-seg" style="flex:${f.flex}">
+          <span class="label">${escapeHtml(f.label)}</span>
+          <span class="value">${f.html ?? escapeHtml(f.value)}</span>
+          <span class="line"></span>
+        </div>
+      `,
+    )
+    .join("");
+  return `<div class="field-group">${segs}</div>`;
 }
 
 function renderTestRow(label: string, checked: boolean) {
-  return `<div class="test-row"><span class="test-label">${escapeHtml(label)}</span><span class="box">${checked ? "✓" : ""}</span></div>`;
+  return `<div class="test-row"><span class="test-label">${escapeHtml(label)}</span><span class="box">${checked ? "&#10003;" : ""}</span></div>`;
 }
 
 function renderColumn(blocks: (typeof LAB_FORM_COLUMNS)[0]["blocks"], selected: Set<string>) {
@@ -85,26 +99,22 @@ export function labRequestPdfHtml(opts: {
     (col) => `<div class="col">${renderColumn(col.blocks, selected)}</div>`,
   ).join("");
 
-  const watermark = isDraft
-    ? `<div class="watermark">DRAFT</div>`
-    : "";
+  const watermark = isDraft ? `<div class="watermark">DRAFT</div>` : "";
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
 <style>
+  ${getBaseFontFaces()}
   ${getRussoOneFontFace()}
-  @page { size: A4; margin: 10mm; }
-  * { box-sizing: border-box; }
+  ${pageGeometryCssFixed("10mm 12mm")}
   body {
-    margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     color: ${BRAND.black};
     font-size: 8.5pt;
     line-height: 1.15;
   }
-  .page { position: relative; padding: 0; }
   .watermark {
     position: fixed;
     inset: 0;
@@ -118,8 +128,15 @@ export function labRequestPdfHtml(opts: {
     pointer-events: none;
     z-index: 0;
   }
-  .content { position: relative; z-index: 1; }
-  .header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .autofit-inner {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; flex-shrink: 0; }
   .header-left { width: 52px; flex-shrink: 0; }
   .logo { width: 52px; height: 52px; object-fit: contain; }
   .header-center { flex: 1; text-align: center; }
@@ -141,6 +158,7 @@ export function labRequestPdfHtml(opts: {
   .address { font-size: 7.5pt; margin-top: 3px; }
   .contact { font-size: 7pt; margin-top: 2px; }
   .title-banner {
+    flex-shrink: 0;
     margin: 8px auto 6px;
     max-width: 280px;
     background: ${BRAND.grey};
@@ -152,21 +170,32 @@ export function labRequestPdfHtml(opts: {
     border-radius: 999px;
     letter-spacing: 0.04em;
   }
-  .field-row {
-    position: relative;
-    margin-bottom: 5px;
-    min-height: 14px;
+  .field-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
   }
-  .field-row.wide { margin-bottom: 6px; }
-  .field-row .label { font-weight: 600; margin-right: 4px; }
-  .field-row .value {
-    font-family: "Segoe Print", "Comic Sans MS", cursive;
+  .field-seg {
+    position: relative;
+    min-width: 0;
+    padding-bottom: 2px;
+  }
+  .field-seg .label { font-weight: 600; margin-right: 4px; white-space: nowrap; }
+  .field-seg .value {
+    font-family: "Caveat", cursive;
+    font-weight: 600;
     color: ${BRAND.ink};
-    font-size: 9pt;
-    position: relative;
-    z-index: 1;
+    font-size: 11pt;
+    display: inline-block;
+    max-width: calc(100% - 2px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
   }
-  .field-row .line {
+  .field-seg .line {
     position: absolute;
     left: 0;
     right: 0;
@@ -174,18 +203,21 @@ export function labRequestPdfHtml(opts: {
     border-bottom: 1px solid ${BRAND.line};
     z-index: 0;
   }
-  .rule-thick { border-top: 2.5px solid ${BRAND.line}; margin: 6px 0; }
+  .rule-thick { border-top: 2.5px solid ${BRAND.line}; margin: 6px 0; flex-shrink: 0; }
   .columns {
+    flex: 1;
+    min-height: 0;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 0;
-    min-height: 0;
   }
   .col {
-    padding: 0 5px;
+    min-width: 0;
+    padding: 0 6px;
     border-right: 2.5px solid ${BRAND.line};
   }
-  .col:last-child { border-right: none; }
+  .col:first-child { padding-left: 0; }
+  .col:last-child { padding-right: 0; border-right: none; }
   .section-title {
     font-weight: 800;
     text-decoration: underline;
@@ -207,7 +239,7 @@ export function labRequestPdfHtml(opts: {
     margin-bottom: 1px;
     font-size: 7.5pt;
   }
-  .test-label { flex: 1; }
+  .test-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .box {
     width: 9px;
     height: 9px;
@@ -218,9 +250,11 @@ export function labRequestPdfHtml(opts: {
     line-height: 7px;
     text-align: center;
   }
-  .footer-fields { margin-top: 4px; }
-  .sig-img { max-height: 28px; max-width: 120px; vertical-align: middle; }
+  .footer-fields { margin-top: 4px; flex-shrink: 0; }
+  .footer-fields .field-group:last-child { margin-bottom: 0; }
+  .sig-img { max-height: 26px; max-width: 140px; vertical-align: bottom; }
   .hours-pill {
+    flex-shrink: 0;
     margin: 8px auto 2px;
     max-width: 320px;
     background: ${BRAND.black};
@@ -232,9 +266,11 @@ export function labRequestPdfHtml(opts: {
     border-radius: 999px;
   }
   .emergency {
+    flex-shrink: 0;
     text-align: center;
-    font-family: "Times New Roman", Times, serif;
-    font-weight: 800;
+    font-family: "Lora", "Times New Roman", serif;
+    font-weight: 700;
+    font-style: italic;
     font-size: 9pt;
     letter-spacing: 0.08em;
     margin-top: 2px;
@@ -242,9 +278,9 @@ export function labRequestPdfHtml(opts: {
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page" data-autofit>
   ${watermark}
-  <div class="content">
+  <div class="autofit-inner">
     <header class="header">
       <div class="header-left">
         <img class="logo" src="${logoMark}" alt="" />
@@ -262,26 +298,41 @@ export function labRequestPdfHtml(opts: {
 
     <div class="title-banner">LABORATORY REQUEST FORM</div>
 
-    ${fieldLine("Patient's Name:", patientName)}
-    ${fieldLine("Age:", patient.age || "")}
-    ${fieldLine("Sex:", patient.sex || "")}
-    ${fieldLine("Provisional Diagnosis/Clinical Information:", data.provisionalDiagnosis || "", true)}
-    ${fieldLine("Time of Collection:", collection, true)}
+    ${fieldGroup([
+      { label: "Patient's Name:", value: patientName, flex: 3 },
+      { label: "Age:", value: patient.age || "", flex: 1 },
+      { label: "Sex:", value: patient.sex || "", flex: 1 },
+    ])}
+    ${fieldGroup([
+      {
+        label: "Provisional Diagnosis/Clinical Information:",
+        value: data.provisionalDiagnosis || "",
+        flex: 3,
+      },
+      { label: "Time of Collection:", value: collection, flex: 1.5 },
+    ])}
 
     <div class="rule-thick"></div>
     <div class="columns">${columns}</div>
     <div class="rule-thick"></div>
 
     <div class="footer-fields">
-      ${fieldLine("Referring Doctor:", data.referringDoctor || "")}
-      ${fieldLine("Phone No.:", data.referringPhone || "")}
-      <div class="field-row wide">
-        <span class="label">Doctor's Signature:</span>
-        <span class="value">${signatureHtml(data.doctorSignature)}</span>
-        <span class="line"></span>
-      </div>
-      ${fieldLine("Hospital/Clinic:", data.hospitalClinic || "")}
-      ${fieldLine("Date:", data.formDate ? formatDate(data.formDate) : "")}
+      ${fieldGroup([
+        { label: "Referring Doctor:", value: data.referringDoctor || "", flex: 2 },
+        { label: "Phone No.:", value: data.referringPhone || "", flex: 1 },
+      ])}
+      ${fieldGroup([
+        {
+          label: "Doctor's Signature:",
+          value: "",
+          html: signatureHtml(data.doctorSignature),
+          flex: 1,
+        },
+      ])}
+      ${fieldGroup([
+        { label: "Hospital/Clinic:", value: data.hospitalClinic || "", flex: 2 },
+        { label: "Date:", value: data.formDate ? formatDate(data.formDate) : "", flex: 1 },
+      ])}
     </div>
 
     <div class="hours-pill">WORKING HOURS 8:00AM - 10:00PM (MON-SUN)</div>

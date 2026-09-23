@@ -1,4 +1,4 @@
-import { getLogoFullDataUri, getWordmarkDataUri } from "@/lib/pdf-assets";
+import { getLogoFullDataUri, getWordmarkDataUri, getBaseFontFaces, getSerifFontFaces } from "@/lib/pdf-assets";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import {
@@ -24,6 +24,59 @@ function signatureHtml(sig: MedicalReportData["doctorSignature"]) {
   return `<span class="sig-text">${escapeHtml(sig.data)}</span>`;
 }
 
+// Reserved via the PDF's real margin (see getBaseFontFaces/pdf.ts) so the
+// header/footer templates below have room to repeat on every page.
+const HEADER_BAND_MM = 40;
+const FOOTER_BAND_MM = 24;
+const SIDE_MARGIN_MM = 15;
+
+/**
+ * Chromium's print-to-PDF does not reliably repeat CSS `position: fixed`
+ * content across physical pages (it paints once, at an unpredictable
+ * position in the overall flow) — so the repeating header/footer use
+ * Puppeteer's own headerTemplate/footerTemplate mechanism instead. These
+ * render in a separate, sandboxed context: no external stylesheets or
+ * @font-face, just inline styles and data-URI images, sized in px against
+ * the page's full width.
+ */
+function headerTemplateHtml(logoFull: string, wordmark: string): string {
+  return `
+    <div style="width:100%; box-sizing:border-box; padding:6px ${SIDE_MARGIN_MM}mm 0; display:flex; align-items:flex-start; justify-content:space-between; font-family:Arial,Helvetica,sans-serif;">
+      <div style="width:80px; text-align:center; flex-shrink:0;">
+        <img src="${logoFull}" style="width:60px; height:auto;" />
+      </div>
+      <div style="flex:1; text-align:center; padding:0 8px;">
+        <img src="${wordmark}" style="height:32px; width:auto;" />
+        <div style="font-style:italic; font-size:7px; color:#222222; margin-top:2px;">The Pathway to High-Quality and Affordable Health Care</div>
+        <div style="font-size:6.5px; color:#333333; margin-top:2px;">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
+        <div style="font-size:6.5px; font-weight:bold; color:#101010; margin-top:1px;">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
+        <div style="font-size:6.5px; font-weight:bold; font-style:italic; color:#1e3a8a; margin-top:1px;">e-mail: gardencityspecialisthospital@yahoo.com</div>
+      </div>
+      <div style="width:50px; flex-shrink:0; display:flex; justify-content:flex-end;">
+        <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
+          <rect x="4" y="16" width="44" height="28" rx="4" fill="#b81828" />
+          <path d="M48 24h10l4 8v12h-14V24z" fill="#b81828" />
+          <circle cx="16" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
+          <circle cx="48" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
+          <rect x="8" y="20" width="12" height="10" fill="#ffffff" rx="1" />
+          <path d="M30 24a5 5 0 1 0 6 7 6 6 0 1 1-6-7z" fill="#ffffff" />
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
+function footerTemplateHtml(): string {
+  return `
+    <div style="width:100%; box-sizing:border-box; padding:0 ${SIDE_MARGIN_MM}mm 6px; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-end; font-family:Arial,Helvetica,sans-serif;">
+      <div style="height:22px; background:linear-gradient(90deg,#101010 50%,#b81828 85%,#e86828 100%); display:flex; align-items:center; justify-content:space-between; padding:0 8px; box-sizing:border-box; color:#ffffff; font-size:7px; font-weight:bold;">
+        <span>Dr. Amir Ahmed Ibrahim (CMD), Nigerian</span>
+        <span>Dr. Tawassul M. El-Amin (Medical Director), Nigerian</span>
+      </div>
+    </div>
+  `;
+}
+
 export function medicalReportPdfHtml(opts: {
   patient: LabPdfPatient & { address?: string };
   data: MedicalReportData;
@@ -33,6 +86,8 @@ export function medicalReportPdfHtml(opts: {
   const logoFull = getLogoFullDataUri();
   const wordmark = getWordmarkDataUri();
   const watermark = isDraft ? `<div class="watermark">DRAFT</div>` : "";
+  const headerB64 = Buffer.from(headerTemplateHtml(logoFull, wordmark), "utf8").toString("base64");
+  const footerB64 = Buffer.from(footerTemplateHtml(), "utf8").toString("base64");
 
   const enabledSectionsHtml = MEDICAL_REPORT_SECTIONS.map(({ key, label }) => {
     const sec = data.sections?.[key];
@@ -53,29 +108,29 @@ export function medicalReportPdfHtml(opts: {
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="pdf-margin" content="${HEADER_BAND_MM}mm ${SIDE_MARGIN_MM}mm ${FOOTER_BAND_MM}mm ${SIDE_MARGIN_MM}mm" />
+<meta name="pdf-header-b64" content="${headerB64}" />
+<meta name="pdf-footer-b64" content="${footerB64}" />
 <style>
+  ${getBaseFontFaces()}
+  ${getSerifFontFaces()}
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  html, body { margin: 0; padding: 0; }
   body {
-    margin: 0;
-    padding: 0;
-    font-family: Georgia, "Times New Roman", Times, serif;
+    font-family: "Lora", Georgia, serif;
     color: #101010;
     font-size: 10.5pt;
     line-height: 1.45;
     background: #ffffff;
   }
-  .page {
-    position: relative;
-    width: 210mm;
-    min-height: 297mm;
-    padding: 12mm 15mm 20mm 15mm;
-    display: flex;
-    flex-direction: column;
-  }
+  .page { position: relative; }
   .watermark {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    top: 120mm;
+    left: 0;
+    right: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -87,94 +142,35 @@ export function medicalReportPdfHtml(opts: {
     z-index: 0;
   }
   .stethoscope-watermark {
-    position: fixed;
-    top: 35%;
+    position: absolute;
+    top: 90mm;
     left: 20%;
     width: 60%;
     opacity: 0.04;
     pointer-events: none;
     z-index: 0;
   }
-  .content { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
-
-  /* HEADER STYLING REPLICATING LETTERHEAD EXACTLY */
-  .header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-  }
-  .header-left {
-    width: 80px;
-    text-align: center;
-  }
-  .logo-full-img { width: 76px; height: auto; object-fit: contain; }
-
-  .header-center {
-    flex: 1;
-    text-align: center;
-    padding: 0 10px;
-  }
-  .wordmark { height: 52px; width: auto; }
-  .tagline {
-    font-style: italic;
-    font-size: 9pt;
-    color: #222222;
-    margin-top: 3px;
-  }
-  .contact-address {
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    color: #333333;
-    margin-top: 2px;
-  }
-  .contact-tel {
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    font-weight: 600;
-    color: #101010;
-    margin-top: 1px;
-  }
-  .contact-email {
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    font-weight: bold;
-    font-style: italic;
-    color: #1e3a8a;
-    margin-top: 1px;
-  }
-
-  .header-right {
-    width: 60px;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .ambulance-icon {
-    width: 48px;
-    height: 48px;
-  }
+  .content { position: relative; z-index: 1; }
 
   /* REPORT METADATA & TITLE */
   .meta-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 9pt;
     font-weight: 600;
-    margin-top: 10px;
     margin-bottom: 12px;
   }
   .addressee {
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 10pt;
     font-weight: bold;
     margin-bottom: 14px;
   }
   .report-title-header {
     text-align: center;
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 13pt;
     font-weight: 900;
     letter-spacing: 0.08em;
@@ -190,8 +186,10 @@ export function medicalReportPdfHtml(opts: {
     padding: 10px 14px;
     margin-bottom: 20px;
     border-radius: 2px;
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 9pt;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
   .patient-grid {
     display: grid;
@@ -214,14 +212,13 @@ export function medicalReportPdfHtml(opts: {
   }
 
   /* REPORT SECTIONS */
-  .sections-container {
-    flex: 1;
-  }
   .section-block {
     margin-bottom: 16px;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
   .section-heading {
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 10pt;
     font-weight: bold;
     text-transform: uppercase;
@@ -243,6 +240,8 @@ export function medicalReportPdfHtml(opts: {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
   .doctor-box {
     min-width: 220px;
@@ -254,20 +253,21 @@ export function medicalReportPdfHtml(opts: {
     margin-bottom: 6px;
   }
   .sig-text {
-    font-family: "Segoe Print", "Comic Sans MS", cursive;
-    font-size: 12pt;
+    font-family: "Caveat", cursive;
+    font-weight: 600;
+    font-size: 15pt;
     color: #1e3a8a;
     display: block;
     margin-bottom: 6px;
   }
   .doctor-name {
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 10.5pt;
     font-weight: bold;
     color: #101010;
   }
   .doctor-title {
-    font-family: Arial, sans-serif;
+    font-family: "Inter", Arial, sans-serif;
     font-size: 9pt;
     color: #555555;
   }
@@ -284,72 +284,17 @@ export function medicalReportPdfHtml(opts: {
     object-fit: contain;
     opacity: 0.85;
   }
-
-  /* FOOTER BAR STYLING */
-  .footer-spacer {
-    height: 40px;
-  }
-  .footer-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    background: linear-gradient(90deg, #101010 50%, #b81828 85%, #e86828 100%);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 15mm;
-    color: #ffffff;
-    font-family: Arial, sans-serif;
-    font-size: 7.5pt;
-    font-weight: bold;
-  }
-  .stethoscope-icon-bottom {
-    position: absolute;
-    bottom: 30px;
-    right: 15mm;
-    width: 42px;
-    opacity: 0.9;
-  }
 </style>
 </head>
 <body>
 <div class="page">
   ${watermark}
-  
-  <!-- Stethoscope watermark SVG -->
   <svg class="stethoscope-watermark" viewBox="0 0 100 100" fill="none" stroke="#101010" stroke-width="1.5">
     <path d="M30,20 C30,40 45,55 50,70 C55,55 70,40 70,20 M30,20 L30,10 M70,20 L70,10 M50,70 C50,82 65,82 65,70 C65,65 60,65 60,70" />
     <circle cx="65" cy="70" r="4" fill="#101010" />
   </svg>
 
   <div class="content">
-    <header class="header">
-      <div class="header-left">
-        <img class="logo-full-img" src="${logoFull}" alt="Garden City Specialist Hospital" />
-      </div>
-      <div class="header-center">
-        <img class="wordmark" src="${wordmark}" alt="Garden City Specialist Hospital" />
-        <div class="tagline">The Pathway to High-Quality and Affordable Health Care</div>
-        <div class="contact-address">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
-        <div class="contact-tel">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
-        <div class="contact-email">e-mail: gardencityspecialisthospital@yahoo.com</div>
-      </div>
-      <div class="header-right">
-        <!-- SVG Ambulance Icon with Crescent -->
-        <svg class="ambulance-icon" viewBox="0 0 64 64" fill="none">
-          <rect x="4" y="16" width="44" height="28" rx="4" fill="#b81828" />
-          <path d="M48 24h10l4 8v12h-14V24z" fill="#b81828" />
-          <circle cx="16" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
-          <circle cx="48" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
-          <rect x="8" y="20" width="12" height="10" fill="#ffffff" rx="1" />
-          <!-- White Crescent -->
-          <path d="M30 24a5 5 0 1 0 6 7 6 6 0 1 1-6-7z" fill="#ffffff" />
-        </svg>
-      </div>
-    </header>
-
     <div class="meta-bar">
       <div>Ref: <strong>${escapeHtml(data.refNo || "GCSH/MR/DRAFT")}</strong></div>
       <div>Date: <strong>${formattedDate}</strong></div>
@@ -417,20 +362,7 @@ export function medicalReportPdfHtml(opts: {
           : ""
       }
     </div>
-
-    <div class="footer-spacer"></div>
   </div>
-
-  <!-- Bottom Stethoscope Icon -->
-  <svg class="stethoscope-icon-bottom" viewBox="0 0 50 50" fill="none" stroke="#101010" stroke-width="2">
-    <path d="M15,10 C15,25 22,32 25,40 C28,32 35,25 35,10" />
-    <circle cx="25" cy="42" r="5" fill="#101010" />
-  </svg>
-
-  <footer class="footer-bar">
-    <div>Dr. Amir Ahmed Ibrahim (CMD), Nigerian</div>
-    <div>Dr. Tawassul M. El-Amin (Medical Director), Nigerian</div>
-  </footer>
 </div>
 </body>
 </html>`;
