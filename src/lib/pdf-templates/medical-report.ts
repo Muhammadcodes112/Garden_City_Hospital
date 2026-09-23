@@ -108,6 +108,7 @@ export function medicalReportPdfHtml(opts: {
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="pdf-margin" content="${HEADER_BAND_MM}mm ${SIDE_MARGIN_MM}mm ${FOOTER_BAND_MM}mm ${SIDE_MARGIN_MM}mm" />
 <meta name="pdf-header-b64" content="${headerB64}" />
 <meta name="pdf-footer-b64" content="${footerB64}" />

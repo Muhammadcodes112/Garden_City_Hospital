@@ -142,11 +142,16 @@ export function PrescriptionFormEditor({ initial }: Props) {
     setCompleteError(null);
     await flushSave();
     try {
-      await completePrescriptionForm({
+      const res = await completePrescriptionForm({
         recordId: initial.recordId,
         patient,
         data,
       });
+      if (!res.success) {
+        setCompleteError(res.error);
+        toast.error(res.error);
+        return;
+      }
       toast.success("Prescription marked as completed!");
       router.refresh();
     } catch (err) {

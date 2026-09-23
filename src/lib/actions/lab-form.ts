@@ -139,39 +139,61 @@ export async function saveLabForm(input: SaveLabFormInput): Promise<{ updatedAt:
   return { updatedAt: updated!.updatedAt.toISOString() };
 }
 
-export async function completeLabForm(input: SaveLabFormInput): Promise<{ updatedAt: string }> {
-  const session = await requireAdmin();
-  const patientParsed = patientSchema.parse(input.patient);
-  const dataParsed = labRequestCompleteSchema.parse(input.data);
+export async function completeLabForm(
+  input: SaveLabFormInput,
+): Promise<{ success: true; updatedAt: string } | { success: false; error: string }> {
+  try {
+    const session = await requireAdmin();
 
-  const existing = await getLabFormRecord(input.recordId);
-  if (!existing) throw new Error("Form not found");
-  if (existing.status === "completed") throw new Error("Already completed");
+    const patientResult = patientSchema.safeParse(input.patient);
+    if (!patientResult.success) {
+      const issue = patientResult.error.issues[0];
+      const msg = issue ? `${issue.message}` : "Please fill in all required patient info";
+      return { success: false, error: `Patient Info Required: ${msg}` };
+    }
 
-  await db
-    .update(patients)
-    .set({ ...patientParsed, updatedAt: new Date() })
-    .where(eq(patients.id, input.patient.id));
+    const dataResult = labRequestCompleteSchema.safeParse(input.data);
+    if (!dataResult.success) {
+      const issue = dataResult.error.issues[0];
+      const msg = issue ? `${issue.message}` : "Please select at least one test and fill in referring doctor";
+      return { success: false, error: `Lab Request Incomplete: ${msg}` };
+    }
 
-  const searchText = buildSearchText(patientParsed, dataParsed, "lab");
-  const now = new Date();
-  const [updated] = await db
-    .update(formRecords)
-    .set({
-      data: dataParsed,
-      status: "completed",
-      searchText,
-      completedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(formRecords.id, input.recordId))
-    .returning({ updatedAt: formRecords.updatedAt });
+    const patientParsed = patientResult.data;
+    const dataParsed = dataResult.data;
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId: input.recordId,
-    action: "completed",
-  });
+    const existing = await getLabFormRecord(input.recordId);
+    if (!existing) return { success: false, error: "Form not found" };
+    if (existing.status === "completed") return { success: false, error: "Already completed" };
 
-  return { updatedAt: updated!.updatedAt.toISOString() };
+    await db
+      .update(patients)
+      .set({ ...patientParsed, updatedAt: new Date() })
+      .where(eq(patients.id, input.patient.id));
+
+    const searchText = buildSearchText(patientParsed, dataParsed, "lab");
+    const now = new Date();
+    const [updated] = await db
+      .update(formRecords)
+      .set({
+        data: dataParsed,
+        status: "completed",
+        searchText,
+        completedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(formRecords.id, input.recordId))
+      .returning({ updatedAt: formRecords.updatedAt });
+
+    await db.insert(activityLogs).values({
+      userId: session.user.id,
+      formRecordId: input.recordId,
+      action: "completed",
+    });
+
+    return { success: true, updatedAt: updated!.updatedAt.toISOString() };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to mark as completed";
+    return { success: false, error: msg };
+  }
 }

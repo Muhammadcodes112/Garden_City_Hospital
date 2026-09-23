@@ -130,11 +130,16 @@ export function MedicalReportEditor({ initial }: Props) {
     setCompleteError(null);
     await flushSave();
     try {
-      await completeMedicalReportForm({
+      const res = await completeMedicalReportForm({
         recordId: initial.recordId,
         patient,
         data,
       });
+      if (!res.success) {
+        setCompleteError(res.error);
+        toast.error(res.error);
+        return;
+      }
       toast.success("Medical report marked as completed!");
       router.refresh();
     } catch (err) {

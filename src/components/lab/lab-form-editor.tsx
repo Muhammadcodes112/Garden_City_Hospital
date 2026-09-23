@@ -142,11 +142,16 @@ export function LabFormEditor({ initial }: Props) {
     setCompleteError(null);
     await flushSave();
     try {
-      await completeLabForm({
+      const res = await completeLabForm({
         recordId: initial.recordId,
         patient,
         data,
       });
+      if (!res.success) {
+        setCompleteError(res.error);
+        toast.error(res.error);
+        return;
+      }
       toast.success("Lab request marked as completed!");
       router.refresh();
     } catch (err) {

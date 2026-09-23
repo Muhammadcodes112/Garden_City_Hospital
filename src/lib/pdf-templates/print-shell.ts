@@ -29,6 +29,19 @@ function baseCss(paddingMm: string): string {
       display: flex;
       flex-direction: column;
       background: #ffffff;
+      margin: 0 auto;
+    }
+    @media screen {
+      html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      .page {
+        width: 100% !important;
+        max-width: 210mm;
+        box-sizing: border-box;
+      }
     }
   `;
 }

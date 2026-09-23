@@ -91,6 +91,7 @@ export function prescriptionPdfHtml(opts: {
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style>
   ${getBaseFontFaces()}
   ${pageGeometryCssFlow("10mm 12mm 10mm 20mm")}

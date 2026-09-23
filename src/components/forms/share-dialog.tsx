@@ -69,27 +69,54 @@ export function ShareDialog({
     }
   }
 
+  async function ensureShareLink(): Promise<{ url: string; expiresAt: string }> {
+    if (shareUrl && linkExpiresAt) {
+      return { url: shareUrl, expiresAt: linkExpiresAt };
+    }
+    const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+    const res = await createShareLink({
+      formRecordId: recordId,
+      expiryDays,
+      origin,
+    });
+    setShareUrl(res.url);
+    setLinkExpiresAt(res.expiresAt);
+    if (onLinkCreated) onLinkCreated();
+    return res;
+  }
+
   async function handleNativeShare() {
     if (!navigator.share) return;
     setNativeSharing(true);
     try {
-      const pdfRes = await fetch(`/api/forms/${recordId}/pdf`);
-      const blob = await pdfRes.blob();
-      const file = new File([blob], filename, { type: "application/pdf" });
+      const linkInfo = await ensureShareLink();
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: filename,
-          text: "Garden City Specialist Hospital Document",
-          files: [file],
-        });
-      } else {
-        await navigator.share({
-          title: filename,
-          text: `Garden City Specialist Hospital Document: ${shareUrl || window.location.href}`,
-        });
+      const pdfRes = await fetch(`/api/forms/${recordId}/pdf`);
+      const contentType = pdfRes.headers.get("content-type") || "";
+
+      if (pdfRes.ok && contentType.includes("application/pdf")) {
+        const blob = await pdfRes.blob();
+        if (blob.size > 0 && blob.type.includes("pdf")) {
+          const file = new File([blob], filename, { type: "application/pdf" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: filename,
+              text: `Garden City Specialist Hospital Document: ${linkInfo.url}`,
+              files: [file],
+            });
+            toast.success("Shared PDF document successfully");
+            return;
+          }
+        }
       }
-      toast.success("Shared successfully");
+
+      // Fallback: Share link if file sharing isn't supported or PDF endpoint returns HTML
+      await navigator.share({
+        title: filename,
+        text: `Here is your ${formTypeLabel} from Garden City Specialist Hospital:\n${linkInfo.url}`,
+        url: linkInfo.url,
+      });
+      toast.success("Shared document link successfully");
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         console.error("Native share failed:", err);
@@ -97,6 +124,21 @@ export function ShareDialog({
       }
     } finally {
       setNativeSharing(false);
+    }
+  }
+
+  async function handleDirectWhatsAppShare() {
+    try {
+      setLoading(true);
+      const linkInfo = await ensureShareLink();
+      const expDate = linkInfo.expiresAt ? formatDate(linkInfo.expiresAt) : "";
+      const msg = `Here is your ${formTypeLabel} from Garden City Specialist Hospital: ${linkInfo.url} (link expires ${expDate})`;
+      const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(wa, "_blank");
+    } catch {
+      toast.error("Failed to generate WhatsApp share link");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -239,14 +281,13 @@ export function ShareDialog({
 
                 <div className="flex items-center gap-2 pt-2 border-t border-border">
                   <Button
-                    asChild
+                    type="button"
                     size="sm"
                     variant="outline"
+                    onClick={handleDirectWhatsAppShare}
                     className="flex-1 gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                   >
-                    <a href={waUrl} target="_blank" rel="noopener noreferrer">
-                      <MessageCircle className="h-4 w-4" /> WhatsApp
-                    </a>
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
                   </Button>
                   <Button
                     asChild
