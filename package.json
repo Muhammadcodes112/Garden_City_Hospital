@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npx tsx scripts/test-suite.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "npx tsx scripts/migrate-db.ts",
     "create-admin": "tsx scripts/create-admin.ts",
     "create-super-admin": "npx tsx scripts/create-super-admin.ts"
   },
