@@ -170,19 +170,19 @@ export function AccessCodeCard() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
         <div>
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" /> Rotating Admin Access Code
+          <h3 className="text-base sm:text-lg font-bold flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary shrink-0" /> Rotating Admin Access Code
           </h3>
           <p className="text-xs text-muted-foreground">
             Gates new admin sign-ups. Only visible to Super Admin.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 flex-1 sm:flex-none"
             onClick={handleCopy}
           >
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -192,7 +192,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant="outline"
-            className="text-xs gap-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+            className="text-xs gap-1.5 flex-1 sm:flex-none text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
             onClick={handleWhatsAppShare}
           >
             <MessageCircle className="h-3.5 w-3.5" /> Share WhatsApp
@@ -201,16 +201,16 @@ export function AccessCodeCard() {
       </div>
 
       {/* CODE DISPLAY & CIRCULAR COUNTDOWN RING */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center rounded-lg border border-border bg-muted/30 p-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center rounded-lg border border-border bg-muted/30 p-4 sm:p-5">
         {/* Monospace Code */}
-        <div className="md:col-span-2 flex flex-col items-center md:items-start space-y-2">
+        <div className="md:col-span-2 flex flex-col items-center md:items-start space-y-2 min-w-0 w-full">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Current Access Code
           </span>
-          <div className="text-3xl sm:text-4xl font-mono font-extrabold tracking-widest text-primary bg-background px-5 py-2.5 rounded-lg border border-border shadow-inner">
+          <div className="text-xl sm:text-3xl md:text-4xl font-mono font-extrabold tracking-wider sm:tracking-widest text-primary bg-background px-3 sm:px-5 py-2.5 rounded-lg border border-border shadow-inner text-center md:text-left break-all max-w-full">
             {data.code}
           </div>
-          <div className="text-xs text-muted-foreground flex items-center gap-2 pt-1">
+          <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1 text-center md:text-left">
             <span>Version: #{data.version}</span>
             <span>·</span>
             <span>Last Updated: {formatDate(data.updatedAt)}</span>
@@ -257,14 +257,14 @@ export function AccessCodeCard() {
       {/* ROTATION SETTINGS & REGENERATE BUTTON */}
       <div className="space-y-3 pt-2">
         <Label className="text-xs font-semibold text-foreground">
-          Rotation Period & Manual Override
+          Rotation Period &amp; Manual Override
         </Label>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant={selectedPeriod === 86400 && !showCustomInput ? "default" : "outline"}
-            className="text-xs"
+            className="text-xs flex-1 sm:flex-none"
             disabled={updating}
             onClick={() => {
               setShowCustomInput(false);
@@ -277,7 +277,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant={selectedPeriod === 604800 && !showCustomInput ? "default" : "outline"}
-            className="text-xs"
+            className="text-xs flex-1 sm:flex-none"
             disabled={updating}
             onClick={() => {
               setShowCustomInput(false);
@@ -290,7 +290,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant={selectedPeriod === 1209600 && !showCustomInput ? "default" : "outline"}
-            className="text-xs"
+            className="text-xs flex-1 sm:flex-none"
             disabled={updating}
             onClick={() => {
               setShowCustomInput(false);
@@ -303,7 +303,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant={selectedPeriod === 2592000 && !showCustomInput ? "default" : "outline"}
-            className="text-xs"
+            className="text-xs flex-1 sm:flex-none"
             disabled={updating}
             onClick={() => {
               setShowCustomInput(false);
@@ -316,7 +316,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant={showCustomInput ? "default" : "outline"}
-            className="text-xs"
+            className="text-xs flex-1 sm:flex-none"
             onClick={() => setShowCustomInput(!showCustomInput)}
           >
             Custom...
@@ -327,7 +327,7 @@ export function AccessCodeCard() {
             type="button"
             size="sm"
             variant="destructive"
-            className="ml-auto text-xs gap-1.5"
+            className="w-full sm:w-auto sm:ml-auto text-xs gap-1.5 mt-2 sm:mt-0"
             disabled={updating}
             onClick={() => setRegenOpen(true)}
           >

@@ -210,7 +210,7 @@ export default function AdminsManagementPage() {
         </div>
 
         {/* TABLE (DESKTOP) */}
-        <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+        <div className="hidden xl:block overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-left text-xs">
             <thead className="bg-muted/60 text-muted-foreground uppercase text-[10px] font-bold">
               <tr>
@@ -317,8 +317,8 @@ export default function AdminsManagementPage() {
           </table>
         </div>
 
-        {/* STACKED CARDS (MOBILE) */}
-        <div className="md:hidden space-y-3">
+        {/* STACKED CARDS (MOBILE & TABLET) */}
+        <div className="xl:hidden space-y-3">
           {filteredUsers.map((u) => (
             <div key={u.id} className="rounded-lg border border-border bg-card p-4 space-y-2">
               <div className="flex items-start justify-between">

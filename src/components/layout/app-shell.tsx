@@ -54,14 +54,14 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
+      <div className="flex min-h-screen flex-1 flex-col min-w-0 lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-card">
           <div
             className="h-1 w-full bg-gradient-to-r from-brand-black via-brand-red to-brand-orange"
             aria-hidden
           />
-          <div className="flex h-14 items-center justify-between gap-3 px-4 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3 flex-1">
               <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
                   <Button
@@ -93,16 +93,16 @@ export function AppShell({
                   </div>
                 </SheetContent>
               </Sheet>
-              <h1 className="truncate text-lg font-semibold text-foreground">{pageTitle}</h1>
+              <h1 className="truncate text-sm sm:text-base md:text-lg font-semibold text-foreground">{pageTitle}</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <GlobalSearch />
               <UserMenu userName={userName} userEmail={userEmail} />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 lg:p-8 min-w-0 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

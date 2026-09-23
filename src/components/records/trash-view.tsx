@@ -183,79 +183,148 @@ export function TrashView() {
             <p className="text-xs mt-1">No deleted medical records found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase tracking-wider">
-                <tr>
-                  <th className="p-3">Patient Name & Hosp No</th>
-                  <th className="p-3">Form Type</th>
-                  <th className="p-3">Deleted Date</th>
-                  <th className="p-3">Deleted By</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {records.map((record) => {
-                  const typeLabel = FORM_TYPE_LABELS[record.type] || record.type;
-                  const isRestoring = restoringId === record.id;
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden xl:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase tracking-wider">
+                  <tr>
+                    <th className="p-3">Patient Name &amp; Hosp No</th>
+                    <th className="p-3">Form Type</th>
+                    <th className="p-3">Deleted Date</th>
+                    <th className="p-3">Deleted By</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {records.map((record) => {
+                    const typeLabel = FORM_TYPE_LABELS[record.type] || record.type;
+                    const isRestoring = restoringId === record.id;
 
-                  return (
-                    <tr key={record.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3">
-                        <div className="font-semibold text-foreground">
+                    return (
+                      <tr key={record.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3">
+                          <div className="font-semibold text-foreground">
+                            {record.patient.surname}, {record.patient.firstNames}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground font-mono">
+                            {record.patient.hospitalNumber}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5 font-medium text-foreground">
+                            {getFormIcon(record.type)}
+                            <span>{typeLabel}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-muted-foreground whitespace-nowrap">
+                          {record.deletedAt ? formatDate(record.deletedAt) : "N/A"}
+                        </td>
+                        <td className="p-3 text-muted-foreground">
+                          {record.createdByName}
+                        </td>
+                        <td className="p-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isRestoring}
+                              onClick={() => handleRestore(record.id)}
+                              className="h-8 text-xs gap-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            >
+                              {isRestoring ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              )}
+                              Restore
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setPermTarget(record);
+                                setConfirmText("");
+                              }}
+                              className="h-8 text-xs gap-1.5"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Permanent Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile / Tablet Stacked Cards */}
+            <div className="block xl:hidden divide-y divide-border">
+              {records.map((record) => {
+                const typeLabel = FORM_TYPE_LABELS[record.type] || record.type;
+                const isRestoring = restoringId === record.id;
+
+                return (
+                  <div key={record.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-sm text-foreground">
                           {record.patient.surname}, {record.patient.firstNames}
                         </div>
-                        <div className="text-[11px] text-muted-foreground font-mono">
+                        <div className="text-xs text-muted-foreground font-mono">
                           {record.patient.hospitalNumber}
                         </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5 font-medium text-foreground">
-                          {getFormIcon(record.type)}
-                          <span>{typeLabel}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-muted-foreground whitespace-nowrap">
-                        {record.deletedAt ? formatDate(record.deletedAt) : "N/A"}
-                      </td>
-                      <td className="p-3 text-muted-foreground">
-                        {record.createdByName}
-                      </td>
-                      <td className="p-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={isRestoring}
-                            onClick={() => handleRestore(record.id)}
-                            className="h-8 text-xs gap-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                          >
-                            {isRestoring ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            )}
-                            Restore
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setPermTarget(record);
-                              setConfirmText("");
-                            }}
-                            className="h-8 text-xs gap-1.5"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Permanent Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <Badge variant="destructive" className="text-[10px]">
+                        In Trash
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {getFormIcon(record.type)}
+                      <span className="font-semibold text-foreground">{typeLabel}</span>
+                      <span>•</span>
+                      <span>Deleted: {record.deletedAt ? formatDate(record.deletedAt) : "N/A"}</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
+                      <span className="text-[11px] text-muted-foreground">
+                        Created by {record.createdByName}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isRestoring}
+                          onClick={() => handleRestore(record.id)}
+                          className="h-7 text-xs gap-1 text-emerald-600 dark:text-emerald-400"
+                        >
+                          {isRestoring ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3 w-3" />
+                          )}
+                          Restore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setPermTarget(record);
+                            setConfirmText("");
+                          }}
+                          className="h-7 text-xs gap-1"
+                        >
+                          <Trash2 className="h-3 w-3" /> Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

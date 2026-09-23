@@ -384,7 +384,7 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden xl:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase tracking-wider">
                   <tr>
@@ -397,7 +397,7 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
                         />
                       </th>
                     )}
-                    <th className="p-3">Patient Name & Hosp No</th>
+                    <th className="p-3">Patient Name &amp; Hosp No</th>
                     <th className="p-3">Form Type</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Details / Doctor</th>
@@ -519,11 +519,10 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
               </table>
             </div>
 
-            {/* Mobile Stacked Card View */}
-            <div className="block md:hidden divide-y divide-border">
+            {/* Mobile / Tablet Stacked Card View */}
+            <div className="block xl:hidden divide-y divide-border">
               {records.map((record) => {
                 const typeLabel = FORM_TYPE_LABELS[record.type] || record.type;
-                const filename = `${typeLabel.replace(/\s+/g, "_")}_${record.patient.surname}_${record.patient.hospitalNumber.replace(/\//g, "-")}.pdf`;
 
                 return (
                   <div key={record.id} className="p-4 space-y-3">
@@ -544,7 +543,7 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
                       </Badge>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {getFormIcon(record.type)}
                       <span className="font-semibold text-foreground">{typeLabel}</span>
                       <span>•</span>
@@ -555,7 +554,7 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
                       {record.summarySnippet}
                     </p>
 
-                    <div className="flex items-center justify-between pt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border">
                       <span className="text-[11px] text-muted-foreground">
                         By {record.createdByName}
                       </span>
