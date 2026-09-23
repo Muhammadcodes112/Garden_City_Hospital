@@ -79,15 +79,30 @@ function ZoomControls({ scale }: { scale: number }) {
 function PageImageItem({
   imageUrlLow,
   imageUrlHigh,
+  htmlUrl,
   pageIndex,
   altText,
 }: {
   imageUrlLow: string;
   imageUrlHigh: string;
+  htmlUrl: string;
   pageIndex: number;
   altText: string;
 }) {
   const [highLoaded, setHighLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="relative w-full aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden">
+        <iframe
+          src={htmlUrl}
+          title={`${altText} - Page ${pageIndex + 1}`}
+          className="w-full h-full border-0 bg-white"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden">
@@ -95,6 +110,7 @@ function PageImageItem({
       <img
         src={imageUrlLow}
         alt={`${altText} - Page ${pageIndex + 1}`}
+        onError={() => setHasError(true)}
         className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
           highLoaded ? "opacity-0" : "opacity-100 filter blur-[1px]"
         }`}
@@ -104,6 +120,7 @@ function PageImageItem({
         src={imageUrlHigh}
         alt={`${altText} - Page ${pageIndex + 1}`}
         onLoad={() => setHighLoaded(true)}
+        onError={() => setHasError(true)}
         className={`relative h-full w-full object-contain transition-opacity duration-300 ${
           highLoaded ? "opacity-100" : "opacity-0"
         }`}
@@ -133,33 +150,35 @@ export function DocumentViewer({
   };
 
   const pdfUrl = isPublic && token ? `/api/share/${token}/pdf` : `/api/forms/${recordId}/pdf`;
+  const htmlUrl = `${pdfUrl}?html=1`;
+
   const getImageApi = (pIdx: number, res: "low" | "high") =>
     isPublic && token
       ? `/api/share/${token}/image?page=${pIdx}&res=${res}`
-      : `/api/forms/${recordId}/pdf?html=1`; // Fallback for in-app
+      : `/api/forms/${recordId}/image?page=${pIdx}&res=${res}`;
 
   useEffect(() => {
     // Fetch headers to determine real page count
-    if (isPublic && token) {
-      fetch(`/api/share/${token}/image?page=0&res=low`)
-        .then((res) => {
-          const countStr = res.headers.get("X-Page-Count");
-          if (countStr) {
-            const cnt = parseInt(countStr, 10);
-            if (cnt > 0) setPageCount(cnt);
-          }
-        })
-        .catch(() => undefined)
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [token, isPublic]);
+    const countUrl = isPublic && token
+      ? `/api/share/${token}/image?page=0&res=low`
+      : `/api/forms/${recordId}/image?page=0&res=low`;
+
+    fetch(countUrl)
+      .then((res) => {
+        const countStr = res.headers.get("X-Page-Count");
+        if (countStr) {
+          const cnt = parseInt(countStr, 10);
+          if (cnt > 0) setPageCount(cnt);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [token, recordId, isPublic]);
 
   const handleSaveImage = (pIdx: number) => {
     const imgUrl = isPublic && token
       ? `/api/share/${token}/image?page=${pIdx}&res=high`
-      : `/api/forms/${recordId}/pdf?html=1`;
+      : `/api/forms/${recordId}/image?page=${pIdx}&res=high`;
     const link = document.createElement("a");
     link.href = imgUrl;
     link.download = filename.replace(/\.pdf$/, `_Page${pIdx + 1}.png`);
@@ -268,6 +287,7 @@ export function DocumentViewer({
                         key={pIdx}
                         imageUrlLow={getImageApi(pIdx, "low")}
                         imageUrlHigh={getImageApi(pIdx, "high")}
+                        htmlUrl={htmlUrl}
                         pageIndex={pIdx}
                         altText={getFormTitle(formType)}
                       />
