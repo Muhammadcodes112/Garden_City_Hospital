@@ -102,6 +102,36 @@ export default function AdminsManagementPage() {
     }
   }
 
+  const [roleTarget, setRoleTarget] = useState<{ user: AdminUser; newRole: "super_admin" | "admin" } | null>(null);
+  const [updatingRole, setUpdatingRole] = useState(false);
+
+  async function handleRoleConfirm() {
+    if (!roleTarget) return;
+    setUpdatingRole(true);
+    try {
+      const res = await fetch(`/api/admin/users/${roleTarget.user.id}/role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: roleTarget.newRole }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const actionLabel = roleTarget.newRole === "super_admin" ? "promoted to Super Admin" : "demoted to Admin";
+        toast.success(`Account for ${json.user.email} ${actionLabel}.`);
+        setRoleTarget(null);
+        fetchAdminData();
+      } else {
+        const json = await res.json().catch(() => null);
+        toast.error(json?.error || "Failed to update role");
+      }
+    } catch {
+      toast.error("Failed to update user role");
+    } finally {
+      setUpdatingRole(false);
+    }
+  }
+
   const filteredUsers = users.filter((u) => {
     const q = search.toLowerCase().trim();
     return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
@@ -164,7 +194,7 @@ export default function AdminsManagementPage() {
           <div>
             <h3 className="text-lg font-bold text-foreground">Admin Accounts</h3>
             <p className="text-xs text-muted-foreground">
-              Manage accounts, view activity, or revoke admin privileges.
+              Manage accounts, view activity, promote roles, or revoke admin privileges.
             </p>
           </div>
           <div className="relative w-full sm:w-64">
@@ -236,19 +266,47 @@ export default function AdminsManagementPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {!u.isSuperAdmin && u.status !== "deleted" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => {
-                          setDeleteTarget(u);
-                          setConfirmEmailInput("");
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                      </Button>
+                    {u.status !== "deleted" ? (
+                      <div className="flex items-center justify-end gap-1">
+                        {!u.isSuperAdmin ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-amber-500/30"
+                            onClick={() => setRoleTarget({ user: u, newRole: "super_admin" })}
+                          >
+                            <Shield className="h-3.5 w-3.5 mr-1" /> Make Super Admin
+                          </Button>
+                        ) : (
+                          u.email.toLowerCase() !== "funguyallen@gmail.com" && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs text-slate-600 dark:text-slate-400"
+                              onClick={() => setRoleTarget({ user: u, newRole: "admin" })}
+                            >
+                              Demote to Admin
+                            </Button>
+                          )
+                        )}
+
+                        {!u.isSuperAdmin && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              setDeleteTarget(u);
+                              setConfirmEmailInput("");
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-[11px] text-muted-foreground italic">Protected</span>
                     )}
@@ -282,20 +340,46 @@ export default function AdminsManagementPage() {
                 <span>Forms: {u.formsCount}</span>
                 <span>Joined: {formatDate(u.createdAt)}</span>
               </div>
-              {!u.isSuperAdmin && u.status !== "deleted" ? (
-                <div className="pt-2 border-t border-border flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    className="text-xs h-7"
-                    onClick={() => {
-                      setDeleteTarget(u);
-                      setConfirmEmailInput("");
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Account
-                  </Button>
+              {u.status !== "deleted" ? (
+                <div className="pt-2 border-t border-border flex items-center justify-end gap-2">
+                  {!u.isSuperAdmin ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      onClick={() => setRoleTarget({ user: u, newRole: "super_admin" })}
+                    >
+                      <Shield className="h-3.5 w-3.5 mr-1" /> Make Super Admin
+                    </Button>
+                  ) : (
+                    u.email.toLowerCase() !== "funguyallen@gmail.com" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-7"
+                        onClick={() => setRoleTarget({ user: u, newRole: "admin" })}
+                      >
+                        Demote to Admin
+                      </Button>
+                    )
+                  )}
+
+                  {!u.isSuperAdmin && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs h-7"
+                      onClick={() => {
+                        setDeleteTarget(u);
+                        setConfirmEmailInput("");
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                    </Button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -303,8 +387,51 @@ export default function AdminsManagementPage() {
         </div>
       </div>
 
+      {/* ROLE PROMOTION / DEMOTION DIALOG */}
+      <DialogPrimitive.Root open={Boolean(roleTarget)} onOpenChange={(open: boolean) => !open && setRoleTarget(null)}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-card p-6 shadow-xl outline-none">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400 mb-3">
+              <Shield className="h-6 w-6" />
+              <DialogPrimitive.Title className="text-base font-bold text-foreground">
+                {roleTarget?.newRole === "super_admin" ? "Promote to Super Admin" : "Demote to Admin"}
+              </DialogPrimitive.Title>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-6">
+              {roleTarget?.newRole === "super_admin" ? (
+                <>
+                  Are you sure you want to promote <strong>{roleTarget.user.name}</strong> (
+                  <span className="font-mono text-foreground">{roleTarget.user.email}</span>) to{" "}
+                  <strong>Super Admin</strong>? They will gain full administrative privileges including managing admin accounts, viewing activity logs, and controlling access codes.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to demote <strong>{roleTarget?.user.name}</strong> back to standard <strong>Admin</strong> role?
+                </>
+              )}
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setRoleTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={roleTarget?.newRole === "super_admin" ? "default" : "outline"}
+                size="sm"
+                disabled={updatingRole}
+                onClick={handleRoleConfirm}
+                className={roleTarget?.newRole === "super_admin" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
+              >
+                {updatingRole ? "Updating Role..." : roleTarget?.newRole === "super_admin" ? "Confirm Super Admin Promotion" : "Confirm Demotion"}
+              </Button>
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
       {/* DELETE CONFIRMATION DIALOG */}
-      <DialogPrimitive.Root open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <DialogPrimitive.Root open={Boolean(deleteTarget)} onOpenChange={(open: boolean) => !open && setDeleteTarget(null)}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
           <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,95vw)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-card p-6 shadow-xl outline-none">

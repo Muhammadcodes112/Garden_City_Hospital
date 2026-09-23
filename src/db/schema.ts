@@ -36,10 +36,6 @@ export const user = pgTable(
   },
   (table) => [
     index("user_role_idx").on(table.role),
-    // Enforce at most ONE super_admin in the database
-    uniqueIndex("unique_super_admin_idx")
-      .on(table.role)
-      .where(sql`role = 'super_admin'`),
   ],
 );
 
@@ -158,6 +154,8 @@ export const activityAction = pgEnum("activity_action", [
   "soft_deleted",
   "restored",
   "permanently_deleted",
+  "super_admin_promoted",
+  "super_admin_demoted",
 ]);
 
 export const patients = pgTable("patients", {

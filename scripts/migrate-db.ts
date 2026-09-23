@@ -87,8 +87,9 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "failed_signups_created_at_idx" ON "failed_signups" USING btree ("created_at");
       CREATE INDEX IF NOT EXISTS "two_factor_user_id_idx" ON "two_factor" USING btree ("user_id");
       CREATE INDEX IF NOT EXISTS "two_factor_secret_idx" ON "two_factor" USING btree ("secret");
-      CREATE INDEX IF NOT EXISTS "user_role_idx" ON "user" USING btree ("role");
-      CREATE UNIQUE INDEX IF NOT EXISTS "unique_super_admin_idx" ON "user" USING btree ("role") WHERE role = 'super_admin';
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'super_admin_promoted';
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'super_admin_demoted';
+      DROP INDEX IF EXISTS "unique_super_admin_idx";
 
       CREATE INDEX IF NOT EXISTS "form_records_deleted_at_idx" ON "form_records" USING btree ("deleted_at");
       CREATE INDEX IF NOT EXISTS "patients_surname_trgm_idx" ON "patients" USING gin ("surname" gin_trgm_ops);
