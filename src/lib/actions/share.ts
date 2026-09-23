@@ -166,6 +166,8 @@ export async function getPublicShareData(token: string): Promise<{
   filename?: string;
   recordId?: string;
   formType?: string;
+  updatedAt?: string;
+  formDate?: string;
   expiresAt?: string;
 }> {
   const rows = await db
@@ -190,6 +192,7 @@ export async function getPublicShareData(token: string): Promise<{
       type: formRecords.type,
       status: formRecords.status,
       data: formRecords.data,
+      updatedAt: formRecords.updatedAt,
       surname: patients.surname,
       firstNames: patients.firstNames,
       age: patients.age,
@@ -216,6 +219,7 @@ export async function getPublicShareData(token: string): Promise<{
 
   let html = "";
   let filename = "";
+  let formDateStr = "";
 
   if (form.type === "lab") {
     const data = labRequestDataSchema.parse(form.data);
@@ -225,6 +229,7 @@ export async function getPublicShareData(token: string): Promise<{
       isDraft: form.status === "draft",
     });
     filename = labRequestPdfFilename(patientObj, data.formDate);
+    formDateStr = data.formDate || "";
   } else if (form.type === "prescription") {
     const data = prescriptionDataSchema.parse(form.data);
     html = prescriptionPdfHtml({
@@ -233,6 +238,7 @@ export async function getPublicShareData(token: string): Promise<{
       isDraft: form.status === "draft",
     });
     filename = prescriptionPdfFilename(patientObj, data.prescriberDate);
+    formDateStr = data.prescriberDate || "";
   } else if (form.type === "medical_report") {
     const data = medicalReportDataSchema.parse(form.data);
     html = medicalReportPdfHtml({
@@ -241,6 +247,7 @@ export async function getPublicShareData(token: string): Promise<{
       isDraft: form.status === "draft",
     });
     filename = medicalReportPdfFilename(patientObj, data.reportDate);
+    formDateStr = data.reportDate || "";
   }
 
   return {
@@ -249,6 +256,8 @@ export async function getPublicShareData(token: string): Promise<{
     filename,
     recordId: form.id,
     formType: form.type,
+    updatedAt: form.updatedAt ? form.updatedAt.toISOString() : new Date().toISOString(),
+    formDate: formDateStr,
     expiresAt: link.expiresAt.toISOString(),
   };
 }

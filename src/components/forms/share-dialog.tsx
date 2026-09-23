@@ -6,6 +6,7 @@ import { Copy, Share2, MessageCircle, Mail, X, Check, Clock, Link2 } from "lucid
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createShareLink } from "@/lib/actions/share";
+import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -31,6 +32,8 @@ export function ShareDialog({
   const [webShareSupported, setWebShareSupported] = useState(false);
   const [nativeSharing, setNativeSharing] = useState(false);
 
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window !== "undefined" && typeof navigator.share === "function") {
       setWebShareSupported(true);
@@ -40,6 +43,7 @@ export function ShareDialog({
   useEffect(() => {
     if (open) {
       setShareUrl(null);
+      setLinkExpiresAt(null);
       setCopied(false);
     }
   }, [open]);
@@ -54,6 +58,7 @@ export function ShareDialog({
         origin,
       });
       setShareUrl(res.url);
+      setLinkExpiresAt(res.expiresAt);
       toast.success(`Share link generated (expires in ${expiryDays} day${expiryDays > 1 ? "s" : ""})`);
       if (onLinkCreated) onLinkCreated();
     } catch (err) {
@@ -103,14 +108,20 @@ export function ShareDialog({
     setTimeout(() => setCopied(false), 2500);
   }
 
-  const waText = encodeURIComponent(
-    `Garden City Specialist Hospital Document:\n${shareUrl || ""}`,
-  );
-  const waUrl = `https://wa.me/?text=${waText}`;
+  const formTypeLabel =
+    filename.includes("LabRequest")
+      ? "Laboratory Request Form"
+      : filename.includes("Prescription")
+        ? "Prescription Form"
+        : "Medical Report";
 
-  const mailSubject = encodeURIComponent("Garden City Specialist Hospital Document");
+  const formattedExpDate = linkExpiresAt ? formatDate(linkExpiresAt) : "";
+  const waMessage = `Here is your ${formTypeLabel} from Garden City Specialist Hospital: ${shareUrl || ""} (link expires ${formattedExpDate})`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
+
+  const mailSubject = encodeURIComponent(`Garden City Specialist Hospital ${formTypeLabel}`);
   const mailBody = encodeURIComponent(
-    `Please click the secure link below to view your hospital document:\n\n${shareUrl || ""}\n\nNote: This link will expire automatically.`,
+    `Here is your ${formTypeLabel} from Garden City Specialist Hospital:\n\n${shareUrl || ""}\n\n(link expires ${formattedExpDate})`,
   );
   const mailUrl = `mailto:?subject=${mailSubject}&body=${mailBody}`;
 

@@ -111,9 +111,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("Failed to render PDF:", err);
-    // If PDF binary rendering fails, fallback to rendering HTML with print auto-trigger
-    const printHtml = html + `<script>window.addEventListener('load', () => window.print());</script>`;
-    return new NextResponse(printHtml, {
+    return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename.replace(/\.pdf$/, ".html")}"`,

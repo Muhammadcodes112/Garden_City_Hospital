@@ -23,7 +23,7 @@ export async function GET(
     return new NextResponse(shareData.html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   }
@@ -35,17 +35,16 @@ export async function GET(
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${shareData.filename || "HospitalDocument.pdf"}"`,
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (err) {
     console.error("Failed to render PDF for share link:", err);
-    const printHtml = shareData.html + `<script>window.addEventListener('load', () => window.print());</script>`;
-    return new NextResponse(printHtml, {
+    return new NextResponse(shareData.html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${(shareData.filename || "HospitalDocument.pdf").replace(/\.pdf$/, ".html")}"`,
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   }
