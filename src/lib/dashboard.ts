@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, patients } from "@/db/schema";
 
@@ -30,14 +30,18 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     db
       .select({ value: count() })
       .from(formRecords)
-      .where(gte(formRecords.createdAt, todayStart)),
-    db.select({ value: count() }).from(formRecords).where(eq(formRecords.status, "draft")),
+      .where(and(gte(formRecords.createdAt, todayStart), isNull(formRecords.deletedAt))),
+    db
+      .select({ value: count() })
+      .from(formRecords)
+      .where(and(eq(formRecords.status, "draft"), isNull(formRecords.deletedAt))),
     db
       .select({ value: count() })
       .from(formRecords)
       .where(
         and(
           eq(formRecords.status, "completed"),
+          isNull(formRecords.deletedAt),
           gte(sql`coalesce(${formRecords.completedAt}, ${formRecords.updatedAt})`, weekStart.toISOString()),
         ),
       ),
@@ -75,6 +79,7 @@ export async function listRecentFormRecords(limit = 50): Promise<RecentFormRow[]
     })
     .from(formRecords)
     .innerJoin(patients, eq(formRecords.patientId, patients.id))
+    .where(isNull(formRecords.deletedAt))
     .orderBy(desc(formRecords.updatedAt))
     .limit(limit);
 }

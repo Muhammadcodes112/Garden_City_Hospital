@@ -12,6 +12,7 @@ import {
 } from "@/lib/validators/lab-request";
 import { draftPatientSchema, patientSchema, type PatientInput } from "@/lib/validators/patient";
 import { createDraftPatient } from "@/lib/actions/patients";
+import { buildSearchText } from "@/lib/search";
 
 export type LabFormBundle = {
   recordId: string;
@@ -34,6 +35,8 @@ export async function createLabDraftRecord(): Promise<{ recordId: string }> {
   const session = await requireAdmin();
   const { patientId } = await createDraftPatient();
   const data = defaultLabRequestData();
+  const patientRow = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
+  const searchText = patientRow[0] ? buildSearchText(patientRow[0], data, "lab") : "";
 
   const [record] = await db
     .insert(formRecords)
@@ -42,6 +45,7 @@ export async function createLabDraftRecord(): Promise<{ recordId: string }> {
       patientId,
       status: "draft",
       data,
+      searchText,
       createdBy: session.user.id,
     })
     .returning({ id: formRecords.id });
@@ -119,10 +123,13 @@ export async function saveLabForm(input: SaveLabFormInput): Promise<{ updatedAt:
     .set({ ...patientParsed, updatedAt: new Date() })
     .where(eq(patients.id, input.patient.id));
 
+  const searchText = buildSearchText(patientParsed, dataParsed, "lab");
+
   const [updated] = await db
     .update(formRecords)
     .set({
       data: dataParsed,
+      searchText,
       updatedAt: new Date(),
     })
     .where(eq(formRecords.id, input.recordId))
@@ -146,12 +153,14 @@ export async function completeLabForm(input: SaveLabFormInput): Promise<{ update
     .set({ ...patientParsed, updatedAt: new Date() })
     .where(eq(patients.id, input.patient.id));
 
+  const searchText = buildSearchText(patientParsed, dataParsed, "lab");
   const now = new Date();
   const [updated] = await db
     .update(formRecords)
     .set({
       data: dataParsed,
       status: "completed",
+      searchText,
       completedAt: now,
       updatedAt: now,
     })

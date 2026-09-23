@@ -6,16 +6,21 @@ async function migrate() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const sql = postgres(process.env.DATABASE_URL, { prepare: false });
+  const sql = postgres(process.env.DATABASE_URL, { prepare: false, connect_timeout: 30, max: 1 });
 
   console.log("Applying database migrations...");
 
   try {
     await sql.unsafe(`
+      CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
       ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'account_deleted';
       ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'admin_created';
       ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'access_code_regenerated';
       ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'access_code_updated';
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'soft_deleted';
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'restored';
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'permanently_deleted';
 
       CREATE TABLE IF NOT EXISTS "access_code_settings" (
         "id" text PRIMARY KEY DEFAULT 'default' NOT NULL,
@@ -52,6 +57,10 @@ async function migrate() {
       ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "ban_expires" timestamp;
       ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "two_factor_enabled" boolean DEFAULT false;
       ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+
+      ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "search_text" text DEFAULT '' NOT NULL;
+      ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+      ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "deleted_by" text;
     `);
 
     // Foreign keys & Indexes
@@ -68,12 +77,46 @@ async function migrate() {
         END IF;
       END $$;
 
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'form_records_deleted_by_user_id_fk') THEN
+          ALTER TABLE "form_records" ADD CONSTRAINT "form_records_deleted_by_user_id_fk" FOREIGN KEY ("deleted_by") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+
       CREATE INDEX IF NOT EXISTS "failed_signups_ip_idx" ON "failed_signups" USING btree ("ip_address");
       CREATE INDEX IF NOT EXISTS "failed_signups_created_at_idx" ON "failed_signups" USING btree ("created_at");
       CREATE INDEX IF NOT EXISTS "two_factor_user_id_idx" ON "two_factor" USING btree ("user_id");
       CREATE INDEX IF NOT EXISTS "two_factor_secret_idx" ON "two_factor" USING btree ("secret");
       CREATE INDEX IF NOT EXISTS "user_role_idx" ON "user" USING btree ("role");
       CREATE UNIQUE INDEX IF NOT EXISTS "unique_super_admin_idx" ON "user" USING btree ("role") WHERE role = 'super_admin';
+
+      CREATE INDEX IF NOT EXISTS "form_records_deleted_at_idx" ON "form_records" USING btree ("deleted_at");
+      CREATE INDEX IF NOT EXISTS "patients_surname_trgm_idx" ON "patients" USING gin ("surname" gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS "patients_first_names_trgm_idx" ON "patients" USING gin ("first_names" gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS "patients_hospital_number_trgm_idx" ON "patients" USING gin ("hospital_number" gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS "form_records_search_text_trgm_idx" ON "form_records" USING gin ("search_text" gin_trgm_ops);
+    `);
+
+    // Backfill search_text for form records
+    await sql.unsafe(`
+      UPDATE "form_records" fr
+      SET "search_text" = LOWER(
+        CONCAT_WS(' ',
+          p."surname",
+          p."first_names",
+          p."hospital_number",
+          fr."data"->>'provisionalDiagnosis',
+          fr."data"->>'referringDoctor',
+          fr."data"->>'prescriberName',
+          fr."data"->>'refNo',
+          fr."data"->>'doctorName',
+          fr."data"->>'hospitalClinic',
+          fr."data"->>'wardClinic',
+          fr."data"::text
+        )
+      )
+      FROM "patients" p
+      WHERE fr."patient_id" = p."id" AND (fr."search_text" IS NULL OR fr."search_text" = '');
     `);
 
     console.log("✅ Database schema migration complete!");

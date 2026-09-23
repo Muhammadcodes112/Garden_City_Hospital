@@ -155,6 +155,9 @@ export const activityAction = pgEnum("activity_action", [
   "admin_created",
   "access_code_regenerated",
   "access_code_updated",
+  "soft_deleted",
+  "restored",
+  "permanently_deleted",
 ]);
 
 export const patients = pgTable("patients", {
@@ -180,18 +183,23 @@ export const formRecords = pgTable(
       .references(() => patients.id),
     status: formStatus("status").notNull().default("draft"),
     data: jsonb("data").notNull().default({}),
+    searchText: text("search_text").notNull().default(""),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     completedAt: timestamp("completed_at"),
+    deletedAt: timestamp("deleted_at"),
+    deletedBy: text("deleted_by").references(() => user.id),
   },
   (table) => [
     index("form_records_type_idx").on(table.type),
     index("form_records_status_idx").on(table.status),
     index("form_records_patient_id_idx").on(table.patientId),
     index("form_records_updated_at_idx").on(table.updatedAt),
+    index("form_records_deleted_at_idx").on(table.deletedAt),
+    index("form_records_search_text_idx").on(table.searchText),
   ],
 );
 

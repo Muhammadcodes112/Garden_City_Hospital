@@ -135,6 +135,14 @@ async function runTestSuite() {
   const formatted = formatAccessCode("23456789");
   assert(formatted === "2345-6789", "formatAccessCode formats 8 chars to XXXX-XXXX");
 
+  // 7. RECORD SEARCH & BUILD SEARCH TEXT CHECKS
+  console.log("\n--- 7. Record Search & Build Search Text Tests ---");
+  const { buildSearchText } = await import("../src/lib/search");
+  const searchText = buildSearchText(samplePatient, minimalLabData, "lab");
+  assert(searchText.includes("ismail"), "buildSearchText includes patient surname");
+  assert(searchText.includes("muhammad"), "buildSearchText includes patient first names");
+  assert(searchText.includes("routine checkup"), "buildSearchText includes provisional diagnosis");
+
   console.log("\n=========================================");
   console.log("  ALL TESTS PASSED SUCCESSFULLY!  ");
   console.log("=========================================\n");
