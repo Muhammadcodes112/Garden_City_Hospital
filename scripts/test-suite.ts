@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { labRequestDataSchema, labRequestCompleteSchema } from "../src/lib/validators/lab-request";
 import { prescriptionDataSchema, prescriptionCompleteSchema } from "../src/lib/validators/prescription";
 import { medicalReportDataSchema, medicalReportCompleteSchema } from "../src/lib/validators/medical-report";
@@ -123,6 +124,16 @@ async function runTestSuite() {
 
   const reportHtml = medicalReportPdfHtml({ patient: samplePatient, data: medicalReportData, isDraft: false });
   assert(reportHtml.includes("Acute Malaria"), "Medical report PDF HTML contains diagnosis");
+
+  // 6. ACCESS CODE HMAC DERIVATION & FORMATTING CHECKS
+  console.log("\n--- 6. Access Code HMAC & Rotation Tests ---");
+  const { deriveAccessCode, formatAccessCode } = await import("../src/lib/access-code");
+  const code1 = deriveAccessCode(1, 0);
+  assert(code1.length === 9, "Derived access code format is 9 chars (XXXX-XXXX)");
+  assert(code1.includes("-"), "Derived access code contains dash separator");
+  
+  const formatted = formatAccessCode("23456789");
+  assert(formatted === "2345-6789", "formatAccessCode formats 8 chars to XXXX-XXXX");
 
   console.log("\n=========================================");
   console.log("  ALL TESTS PASSED SUCCESSFULLY!  ");

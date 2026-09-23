@@ -11,7 +11,8 @@
     "test": "npx tsx scripts/test-suite.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "create-super-admin": "npx tsx scripts/create-super-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

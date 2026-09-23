@@ -25,6 +25,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/lab": "Laboratory Form",
   "/prescription": "Prescription Form",
   "/medical-report": "Medical Report",
+  "/admins": "Admin Management",
 };
 
 export function pageTitleForPath(pathname: string): string {

@@ -4,13 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./nav-items";
+import { useSession } from "@/lib/auth-client";
+import { ShieldCheck } from "lucide-react";
 
 export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as { role?: string } | undefined)?.role === "super_admin";
+
+  const items = [
+    ...NAV_ITEMS,
+    ...(isSuperAdmin ? [{ href: "/admins", label: "Admins", icon: ShieldCheck }] : []),
+  ];
 
   return (
     <nav className={cn("flex flex-col gap-1", className)}>
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
         return (

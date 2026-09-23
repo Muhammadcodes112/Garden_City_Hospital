@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
 import { signUpSchema } from "@/lib/validators/auth";
+import { verifyAccessCode } from "@/lib/access-code";
 
-/**
- * The only way to create an account in this app. Better Auth's own
- * sign-up endpoint is blocked at /api/auth/[...all]/route.ts — registration
- * is gated on ADMIN_SIGNUP_CODE, which that endpoint has no concept of, so
- * the check has to happen here before Better Auth is ever invoked.
- */
 export async function POST(req: Request) {
   const body = await req.json();
   const parsed = signUpSchema.safeParse(body);
@@ -18,9 +14,16 @@ export async function POST(req: Request) {
 
   const { name, email, password, adminCode } = parsed.data;
 
-  if (!process.env.ADMIN_SIGNUP_CODE || adminCode !== process.env.ADMIN_SIGNUP_CODE) {
+  const reqHeaders = await headers();
+  const ipAddress =
+    reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    reqHeaders.get("x-real-ip") ||
+    "127.0.0.1";
+
+  const accessCodeCheck = await verifyAccessCode(adminCode, ipAddress, email);
+  if (!accessCodeCheck.valid) {
     return NextResponse.json(
-      { error: { formErrors: ["Invalid admin access code"], fieldErrors: {} } },
+      { error: { formErrors: [accessCodeCheck.error || "Invalid admin access code"], fieldErrors: {} } },
       { status: 403 },
     );
   }

@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin, twoFactor } from "better-auth/plugins";
 import { db } from "@/db";
 
 export const auth = betterAuth({
@@ -10,6 +11,13 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
+  plugins: [
+    admin({
+      defaultRole: "admin",
+      adminRole: "super_admin",
+    }),
+    twoFactor(),
+  ],
   trustedOrigins: [
     "https://gardencityhospital.vercel.app",
     "https://garden-city.vercel.app",
@@ -17,10 +25,6 @@ export const auth = betterAuth({
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
     ...(process.env.NEXT_PUBLIC_BETTER_AUTH_URL ? [process.env.NEXT_PUBLIC_BETTER_AUTH_URL] : []),
   ],
-  // Rate limiting stored in Postgres (not in-memory) so it still holds up
-  // across serverless invocations on Vercel, where each request can land on
-  // a different instance. Sign-in gets a stricter rule than the global
-  // default since it's the endpoint brute-force attempts actually target.
   rateLimit: {
     enabled: true,
     storage: "database",
