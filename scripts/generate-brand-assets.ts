@@ -1,8 +1,3 @@
-/**
- * One-off asset pipeline: turns the supplied brand photos in
- * public/brand/source/ into the web + PDF assets under public/brand/.
- * Run with: npx tsx scripts/generate-brand-assets.ts
- */
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -13,12 +8,9 @@ const ROOT = path.resolve(__dirname, "..");
 const SRC = path.join(ROOT, "public/brand/source");
 const OUT = path.join(ROOT, "public/brand");
 
-type Rect = { left: number; top: number; width: number; height: number };
 type SharpInstance = ReturnType<typeof sharp>;
 
-/** Colour-distance background removal with edge feathering + colour
- * decontamination, so JPEG compression noise at letter edges doesn't
- * leave a grey/white halo once the background goes transparent. */
+/** Colour-distance background removal with edge feathering + colour decontamination. */
 async function removeBackground(
   input: SharpInstance,
   bg: [number, number, number],
@@ -51,11 +43,57 @@ async function removeBackground(
     let ng = g;
     let nb = b;
     if (a > 0 && a < 1) {
-      // Un-blend the background colour bled into partially-transparent
-      // edge pixels instead of just cutting alpha (avoids grey fringes).
       nr = clamp((r - bg[0] * (1 - a)) / a);
       ng = clamp((g - bg[1] * (1 - a)) / a);
       nb = clamp((b - bg[2] * (1 - a)) / a);
+    }
+
+    out[oo] = nr;
+    out[oo + 1] = ng;
+    out[oo + 2] = nb;
+    out[oo + 3] = alpha;
+  }
+
+  return sharp(out, { raw: { width, height, channels: 4 } });
+}
+
+/** Converts dark/black text pixels (e.g. GARDEN) to white for dark backgrounds. */
+async function removeBackgroundAndMakeDarkWordmark(
+  input: SharpInstance,
+  bg: [number, number, number],
+  { t0 = 18, t1 = 60 }: { t0?: number; t1?: number } = {},
+): Promise<SharpInstance> {
+  const { data, info } = await input
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = info;
+  const out = Buffer.alloc(width * height * 4);
+
+  for (let i = 0; i < width * height; i++) {
+    const o = i * channels;
+    const oo = i * 4;
+    const r = data[o]!;
+    const g = data[o + 1]!;
+    const b = data[o + 2]!;
+    const dr = r - bg[0];
+    const dg = g - bg[1];
+    const db = b - bg[2];
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+
+    let alpha: number;
+    if (dist <= t0) alpha = 0;
+    else if (dist >= t1) alpha = 255;
+    else alpha = Math.round(((dist - t0) / (t1 - t0)) * 255);
+
+    let nr = r;
+    let ng = g;
+    let nb = b;
+    // Invert dark/black pixels to white
+    const brightness = (r + g + b) / 3;
+    if (brightness < 65 && alpha > 0) {
+      nr = 255;
+      ng = 255;
+      nb = 255;
     }
 
     out[oo] = nr;
@@ -77,28 +115,21 @@ async function sampleCorner(file: string): Promise<[number, number, number]> {
   return [data[0]!, data[1]!, data[2]!];
 }
 
-async function cropTrim(file: string, rect: Rect, bg: [number, number, number]) {
-  const cropped = sharp(file).extract(rect);
-  const removed = await removeBackground(cropped, bg);
-  return removed.png().trim({ threshold: 5 });
-}
-
 async function main() {
   await mkdir(OUT, { recursive: true });
 
-  const logoLightPath = path.join(SRC, "logo-light.jpg");
-  const logoDarkPath = path.join(SRC, "logo-dark.jpg");
-  const wordmarkLightPath = path.join(SRC, "wordmark-light.jpg");
-  const wordmarkDarkPath = path.join(SRC, "wordmark-dark.jpg");
+  const logoSourcePath = path.join(SRC, "logo-source.png");
+  const wordmarkSourcePath = path.join(SRC, "wordmark-source.png");
 
-  const whiteBg = await sampleCorner(logoLightPath);
-  const blackBg = await sampleCorner(wordmarkDarkPath);
+  const logoBg = await sampleCorner(logoSourcePath);
+  const wordmarkBg = await sampleCorner(wordmarkSourcePath);
 
   // ---------------------------------------------------------------
   // 1. logo-mark.svg — framed monogram square only, vectorised.
   // ---------------------------------------------------------------
-  const iconCrop = await sharp(logoLightPath)
-    .extract({ left: 0, top: 0, width: 1216, height: 937 })
+  const logoMeta = await sharp(logoSourcePath).metadata();
+  const iconCrop = await sharp(logoSourcePath)
+    .extract({ left: 0, top: 0, width: logoMeta.width ?? 280, height: Math.round((logoMeta.height ?? 227) * 0.9) })
     .trim({ threshold: 10 })
     .png()
     .toBuffer();
@@ -106,58 +137,49 @@ async function main() {
   const markSvgBlack = await new Promise<string>((resolve, reject) => {
     potrace.trace(
       iconCrop,
-      { threshold: 128, color: "#101010", background: "transparent", turdSize: 8 },
+      { threshold: 128, color: "#101010", background: "transparent", turdSize: 4 },
       (err, svg) => (err ? reject(err) : resolve(svg)),
     );
   });
   await writeFile(path.join(OUT, "logo-mark.svg"), markSvgBlack, "utf8");
 
-  // Dark-background counterpart: same traced shape, fill colour sampled
-  // directly from the supplied logo-dark.jpg artwork (no invented colour).
+  // Dark-background counterpart: white/light icon vector for dark mode header/nav.
   const markSvgDark = await new Promise<string>((resolve, reject) => {
     potrace.trace(
       iconCrop,
-      { threshold: 128, color: "#3c3c3c", background: "transparent", turdSize: 8 },
+      { threshold: 128, color: "#FFFFFF", background: "transparent", turdSize: 4 },
       (err, svg) => (err ? reject(err) : resolve(svg)),
     );
   });
   await writeFile(path.join(OUT, "logo-mark-dark.svg"), markSvgDark, "utf8");
 
   // ---------------------------------------------------------------
-  // 2. logo-full.png — icon + GARDEN CITY + RC number, transparent.
+  // 2. logo-full.png — icon + GARDEN CITY text, transparent bg.
   // ---------------------------------------------------------------
-  const logoFull = await cropTrim(
-    logoLightPath,
-    { left: 0, top: 0, width: 1216, height: 1280 },
-    whiteBg,
-  );
+  const logoFullRemoved = await removeBackground(sharp(logoSourcePath), logoBg, { t0: 20, t1: 60 });
+  const logoFull = await logoFullRemoved.png().trim({ threshold: 5 });
   await logoFull.toFile(path.join(OUT, "logo-full.png"));
 
   // ---------------------------------------------------------------
   // 3. wordmark.png / wordmark-dark.png — full wordmark lockups.
   // ---------------------------------------------------------------
-  const wordmarkLight = await cropTrim(
-    wordmarkLightPath,
-    { left: 0, top: 0, width: 1280, height: 286 },
-    whiteBg,
-  );
+  const wordmarkLightRemoved = await removeBackground(sharp(wordmarkSourcePath), wordmarkBg, { t0: 20, t1: 60 });
+  const wordmarkLight = await wordmarkLightRemoved.png().trim({ threshold: 5 });
   await wordmarkLight.toFile(path.join(OUT, "wordmark.png"));
 
-  const wordmarkDark = await cropTrim(
-    wordmarkDarkPath,
-    { left: 0, top: 0, width: 1056, height: 236 },
-    blackBg,
-  );
+  const wordmarkDarkRemoved = await removeBackgroundAndMakeDarkWordmark(sharp(wordmarkSourcePath), wordmarkBg, { t0: 20, t1: 60 });
+  const wordmarkDark = await wordmarkDarkRemoved.png().trim({ threshold: 5 });
   await wordmarkDark.toFile(path.join(OUT, "wordmark-dark.png"));
 
   // ---------------------------------------------------------------
-  // 4. wordmark-gardencity.png — just the "GARDEN CITY" line.
+  // 4. wordmark-gardencity.png — just the "GARDEN CITY" top line.
   // ---------------------------------------------------------------
-  const wordmarkGardenCity = await cropTrim(
-    wordmarkLightPath,
-    { left: 0, top: 0, width: 1280, height: 168 },
-    whiteBg,
-  );
+  const wmMeta = await sharp(wordmarkSourcePath).metadata();
+  const topHalf = await sharp(wordmarkSourcePath)
+    .extract({ left: 0, top: 0, width: wmMeta.width ?? 1024, height: Math.round((wmMeta.height ?? 341) * 0.62) })
+    .toBuffer();
+  const wmGcRemoved = await removeBackground(sharp(topHalf), wordmarkBg, { t0: 20, t1: 60 });
+  const wordmarkGardenCity = await wmGcRemoved.png().trim({ threshold: 5 });
   await wordmarkGardenCity.toFile(path.join(OUT, "wordmark-gardencity.png"));
 
   // ---------------------------------------------------------------
@@ -177,7 +199,6 @@ async function main() {
     .toBuffer();
   await writeFile(path.join(OUT, "icon-512.png"), icon512);
 
-  // Apple wants an opaque background (no alpha) behind the icon.
   const appleTouchIcon = await sharp({
     create: { width: 180, height: 180, channels: 4, background: "#ffffff" },
   })
@@ -227,7 +248,6 @@ async function main() {
   const groupWidth = (ogMarkMeta.width ?? 0) + gap + (ogWordmarkMeta.width ?? 0);
   const groupHeight = Math.max(ogMarkMeta.height ?? 0, ogWordmarkMeta.height ?? 0);
   const startX = Math.round((1200 - groupWidth) / 2);
-  const startY = Math.round((630 - groupHeight) / 2);
 
   await sharp({
     create: { width: 1200, height: 630, channels: 4, background: "#ffffff" },
@@ -247,10 +267,11 @@ async function main() {
     .png()
     .toFile(path.join(OUT, "og-default.png"));
 
-  console.log("Brand assets written to", OUT);
+  console.log("Brand assets successfully generated in", OUT);
 }
 
 main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
