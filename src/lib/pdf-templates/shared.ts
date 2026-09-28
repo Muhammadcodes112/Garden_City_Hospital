@@ -72,7 +72,7 @@ const BASE_CSS = `
     gap: 14px;
   }
   .logo { width: 56px; height: 56px; object-fit: contain; }
-  .wordmark { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; font-family: Arial, sans-serif; }
+  .wordmark { width: 460px; max-width: 80%; height: auto; display: block; transform: scaleX(1.12); transform-origin: center; }
   .tagline { font-size: 10px; font-style: italic; color: #444; margin-top: 2px; }
   .contact-line { font-size: 9px; color: #333; margin-top: 8px; }
   .letterhead-rule {

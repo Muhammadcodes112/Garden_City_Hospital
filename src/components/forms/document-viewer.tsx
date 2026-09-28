@@ -248,20 +248,21 @@ export function DocumentViewer({
         </div>
       ) : null}
 
-      {/* DOCUMENT VIEWER MAIN CANVAS WITH ZOOM PAN PINCH */}
-      <main className="relative flex-1 bg-slate-950 overflow-hidden flex flex-col items-center justify-center">
+      {/* DOCUMENT VIEWER MAIN CANVAS WITH ZOOM PAN PINCH & SCROLL */}
+      <main className="relative flex-1 bg-slate-950 overflow-auto flex flex-col items-center">
         <TransformWrapper
           initialScale={1}
-          minScale={1}
+          minScale={0.5}
           maxScale={5}
           centerOnInit={true}
-          wheel={{ step: 0.1 }}
-          doubleClick={{ mode: "toggle" }}
+          wheel={{ disabled: false, step: 0.08 }}
+          panning={{ disabled: false }}
+          doubleClick={{ mode: "reset" }}
         >
           {({ state }) => (
             <>
-              {/* Floating Zoom Bar */}
-              <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
+              {/* Floating Zoom Controls Bar */}
+              <div className="sticky bottom-4 z-30 my-2 flex justify-center pointer-events-auto">
                 <ZoomControls scale={state.scale} />
               </div>
 
@@ -273,8 +274,8 @@ export function DocumentViewer({
               ) : null}
 
               <TransformComponent
-                wrapperClass="!w-full !h-full"
-                contentClass="!w-full !h-full flex items-center justify-center p-4 md:p-8"
+                wrapperClass="!w-full !min-h-full overflow-visible"
+                contentClass="!w-full min-h-full flex flex-col items-center justify-start p-4 md:p-8"
               >
                 <div className="w-full max-w-[850px] flex flex-col items-center gap-6 my-auto">
                   {loading ? (

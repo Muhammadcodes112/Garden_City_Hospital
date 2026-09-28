@@ -141,17 +141,17 @@ export function labRequestPdfHtml(opts: {
   .header-left { width: 52px; flex-shrink: 0; }
   .logo { width: 52px; height: 52px; object-fit: contain; }
   .header-center { flex: 1; text-align: center; }
-  .wordmark-block { display: inline-block; width: 230px; }
-  .wordmark { display: block; width: 100%; height: auto; }
+  .wordmark-block { display: inline-block; width: 460px; max-width: 80%; }
+  .wordmark { display: block; width: 100%; height: auto; transform: scaleX(1.12); transform-origin: center; }
   .scanning {
     display: block;
     width: 100%;
     margin-top: 2px;
     font-family: "Russo One", Arial, sans-serif;
-    font-size: 12.5pt;
+    font-size: 13.5pt;
     font-weight: 400;
     color: ${BRAND.green};
-    letter-spacing: 0.02em;
+    letter-spacing: 0.06em;
     text-align: center;
     white-space: nowrap;
   }

@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000"),
   title: "Garden City Specialist Hospital — Admin",
   description: "Internal forms portal for Garden City Specialist Hospital, Kaduna.",
+  icons: {
+    icon: [
+      { url: "/brand/favicon.ico" },
+      { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/brand/favicon.ico"],
+  },
   openGraph: {
     title: "Garden City Specialist Hospital — Admin",
     description: "Internal forms portal for Garden City Specialist Hospital, Kaduna.",

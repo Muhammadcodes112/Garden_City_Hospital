@@ -46,7 +46,7 @@ function headerTemplateHtml(logoFull: string, wordmark: string): string {
         <img src="${logoFull}" style="width:60px; height:auto;" />
       </div>
       <div style="flex:1; text-align:center; padding:0 8px;">
-        <img src="${wordmark}" style="height:32px; width:auto;" />
+        <img src="${wordmark}" style="width:460px; max-width:80%; height:auto; transform:scaleX(1.12); transform-origin:center;" />
         <div style="font-style:italic; font-size:7px; color:#222222; margin-top:2px;">The Pathway to High-Quality and Affordable Health Care</div>
         <div style="font-size:6.5px; color:#333333; margin-top:2px;">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
         <div style="font-size:6.5px; font-weight:bold; color:#101010; margin-top:1px;">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>

@@ -128,7 +128,7 @@ export function prescriptionPdfHtml(opts: {
   .header-left { width: 56px; flex-shrink: 0; }
   .logo { width: 56px; height: 56px; object-fit: contain; }
   .header-center { flex: 1; text-align: center; }
-  .wordmark { height: 40px; width: auto; }
+  .wordmark { width: 460px; max-width: 80%; height: auto; display: block; margin: 0 auto; transform: scaleX(1.12); transform-origin: center; }
   .address { font-size: 8pt; margin-top: 3px; }
   .contact { font-size: 7.5pt; margin-top: 2px; }
   .email { font-size: 7.5pt; font-style: italic; margin-top: 1px; }

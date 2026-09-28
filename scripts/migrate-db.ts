@@ -61,6 +61,26 @@ async function migrate() {
       ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "search_text" text DEFAULT '' NOT NULL;
       ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
       ALTER TABLE "form_records" ADD COLUMN IF NOT EXISTS "deleted_by" text;
+
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "dob" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "marital_status" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "next_of_kin_name" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "next_of_kin_relationship" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "next_of_kin_phone" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "next_of_kin_address" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "x_ray_number" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "place_of_origin" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "tribe" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "occupation" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "religion" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "blood_group" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "rhesus" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "genotype" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "allergies" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "status" text DEFAULT 'Outpatient';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "doctor" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "last_visit" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "case_file_data" jsonb DEFAULT '{}'::jsonb;
     `);
 
     // Foreign keys & Indexes

@@ -22,6 +22,7 @@ export function formNewHref(type: FormType) {
 
 export const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
+  "/patients": "Patients",
   "/records": "Medical Records",
   "/records/trash": "Trash Bin",
   "/lab": "Laboratory Form",

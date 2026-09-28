@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, FlaskConical, Pill, Search, Users, FileCheck, FilePen } from "lucide-react";
+import { FileText, FlaskConical, Pill, Search, Users, FileCheck, FilePen, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -158,14 +158,17 @@ function WelcomeBanner({ userName, todayLabel }: { userName: string; todayLabel:
         aria-hidden
       />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-2xl space-y-2">
+        <div className="max-w-2xl space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3.5 py-1 text-xs font-semibold text-white backdrop-blur shadow-xs">
+            <Calendar className="h-3.5 w-3.5 text-emerald-200" />
+            <span>{todayLabel}</span>
+          </div>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Welcome to {HOSPITAL_NAME}
           </h2>
           <p className="text-sm text-white/85">{TAGLINE}</p>
           <p className="text-sm text-white/90">
             Signed in as <span className="font-semibold">{userName}</span>
-            <span className="text-white/70"> · {todayLabel}</span>
           </p>
         </div>
         <Image

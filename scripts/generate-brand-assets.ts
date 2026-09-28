@@ -183,29 +183,51 @@ async function main() {
   await wordmarkGardenCity.toFile(path.join(OUT, "wordmark-gardencity.png"));
 
   // ---------------------------------------------------------------
-  // 5. Favicon + app icons, rasterised from the vector mark.
+  // 5. Favicon + app icons, rasterised with white logo mark on dark bg.
   // ---------------------------------------------------------------
-  const markSvgBuffer = Buffer.from(markSvgBlack, "utf8");
+  const darkMarkSvgBuffer = Buffer.from(markSvgDark, "utf8");
 
-  const icon192 = await sharp(markSvgBuffer, { density: 384 })
-    .resize(192, 192, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  // PWA app icons (192x192 & 512x512) with solid dark background & white mark
+  const icon192 = await sharp({
+    create: { width: 192, height: 192, channels: 4, background: "#101010" },
+  })
+    .composite([
+      {
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(150, 150, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer(),
+        gravity: "center",
+      },
+    ])
     .png()
     .toBuffer();
   await writeFile(path.join(OUT, "icon-192.png"), icon192);
 
-  const icon512 = await sharp(markSvgBuffer, { density: 384 })
-    .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  const icon512 = await sharp({
+    create: { width: 512, height: 512, channels: 4, background: "#101010" },
+  })
+    .composite([
+      {
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(400, 400, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer(),
+        gravity: "center",
+      },
+    ])
     .png()
     .toBuffer();
   await writeFile(path.join(OUT, "icon-512.png"), icon512);
 
+  // Apple Touch Icon (180x180) with dark background & white mark
   const appleTouchIcon = await sharp({
-    create: { width: 180, height: 180, channels: 4, background: "#ffffff" },
+    create: { width: 180, height: 180, channels: 4, background: "#101010" },
   })
     .composite([
       {
-        input: await sharp(markSvgBuffer, { density: 384 })
-          .resize(150, 150, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(140, 140, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .png()
           .toBuffer(),
         gravity: "center",
@@ -215,24 +237,59 @@ async function main() {
     .toBuffer();
   await writeFile(path.join(OUT, "apple-touch-icon.png"), appleTouchIcon);
 
-  const favicon16 = await sharp(markSvgBuffer, { density: 384 })
-    .resize(16, 16, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  // Favicons
+  const favicon16 = await sharp({
+    create: { width: 16, height: 16, channels: 4, background: "#101010" },
+  })
+    .composite([
+      {
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(12, 12, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer(),
+        gravity: "center",
+      },
+    ])
     .png()
     .toBuffer();
-  const favicon32 = await sharp(markSvgBuffer, { density: 384 })
-    .resize(32, 32, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+
+  const favicon32 = await sharp({
+    create: { width: 32, height: 32, channels: 4, background: "#101010" },
+  })
+    .composite([
+      {
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(24, 24, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer(),
+        gravity: "center",
+      },
+    ])
     .png()
     .toBuffer();
-  const favicon48 = await sharp(markSvgBuffer, { density: 384 })
-    .resize(48, 48, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+
+  const favicon48 = await sharp({
+    create: { width: 48, height: 48, channels: 4, background: "#101010" },
+  })
+    .composite([
+      {
+        input: await sharp(darkMarkSvgBuffer, { density: 384 })
+          .resize(38, 38, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer(),
+        gravity: "center",
+      },
+    ])
     .png()
     .toBuffer();
+
   const icoBuffer = await pngToIco([favicon16, favicon32, favicon48]);
   await writeFile(path.join(OUT, "favicon.ico"), icoBuffer);
 
   // ---------------------------------------------------------------
   // 6. og-default.png — logo + wordmark lockup on white, 1200x630.
   // ---------------------------------------------------------------
+  const markSvgBuffer = Buffer.from(markSvgBlack, "utf8");
   const ogMark = await sharp(markSvgBuffer, { density: 384 })
     .resize(220, 220, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
