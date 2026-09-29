@@ -12,10 +12,10 @@ type Props = {
 
 export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props) {
   const patientName = `${patient.surname} ${patient.firstNames}`.trim() || "Unnamed Patient";
-  const formattedDate = data.formDate ? formatDate(data.formDate) : formatDate(new Date());
+  const formattedDate = data.prescriberDate ? formatDate(data.prescriberDate) : formatDate(new Date());
 
   const activeItems = (data.items || []).filter(
-    (item) => item.medicationName || item.dosage || item.frequency || item.duration,
+    (item) => item.drugName || item.dose || item.frequency || item.duration,
   );
 
   return (
@@ -90,12 +90,6 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
               <span className="font-bold text-slate-600">Address: </span>
               <span className="font-semibold text-slate-900">{patient.address || "N/A"}</span>
             </div>
-            {data.diagnosis ? (
-              <div className="col-span-2 mt-1">
-                <span className="font-bold text-slate-600">Diagnosis / Clinical Notes: </span>
-                <span className="font-semibold text-slate-900">{data.diagnosis}</span>
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -116,7 +110,7 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
                 <tr className="bg-slate-100 text-slate-700 border-b border-slate-300">
                   <th className="py-1.5 px-2 font-bold w-7 text-center">#</th>
                   <th className="py-1.5 px-2 font-bold">Medication Name</th>
-                  <th className="py-1.5 px-2 font-bold">Dosage</th>
+                  <th className="py-1.5 px-2 font-bold">Dose</th>
                   <th className="py-1.5 px-2 font-bold">Frequency</th>
                   <th className="py-1.5 px-2 font-bold">Duration</th>
                 </tr>
@@ -125,8 +119,10 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
                 {activeItems.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
                     <td className="py-1.5 px-2 text-center text-slate-500 font-bold">{idx + 1}</td>
-                    <td className="py-1.5 px-2 font-bold text-slate-900">{item.medicationName || "—"}</td>
-                    <td className="py-1.5 px-2 text-slate-700">{item.dosage || "—"}</td>
+                    <td className="py-1.5 px-2 font-bold text-slate-900">
+                      {item.drugName || "—"} {item.strength ? `(${item.strength})` : ""}
+                    </td>
+                    <td className="py-1.5 px-2 text-slate-700">{item.dose || "—"}</td>
                     <td className="py-1.5 px-2 text-slate-700">{item.frequency || "—"}</td>
                     <td className="py-1.5 px-2 text-slate-700">{item.duration || "—"}</td>
                   </tr>
@@ -134,13 +130,6 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
               </tbody>
             </table>
           )}
-
-          {data.notes ? (
-            <div className="mt-3 p-2 bg-amber-50/70 border border-amber-200 rounded text-[10px] text-amber-900">
-              <span className="font-bold">Instructions / Notes: </span>
-              {data.notes}
-            </div>
-          ) : null}
         </div>
 
         {/* DOCTOR SIGN-OFF */}
@@ -148,20 +137,17 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
           <div>
             <div className="font-bold text-slate-600 text-[10px]">Prescriber:</div>
             <div className="font-extrabold text-slate-900 text-xs">
-              {data.doctorName || "Dr. Medical Officer"}
+              {data.prescriberName || "Dr. Medical Officer"}
             </div>
-            {data.doctorDesignation ? (
-              <div className="text-[9px] text-slate-600">{data.doctorDesignation}</div>
-            ) : null}
           </div>
 
           <div>
-            {data.doctorSignature?.data ? (
-              data.doctorSignature.mode === "draw" ? (
-                <img src={data.doctorSignature.data} alt="Sig" className="h-8 max-w-[140px] mb-1" />
+            {data.prescriberSignature?.data ? (
+              data.prescriberSignature.mode === "draw" ? (
+                <img src={data.prescriberSignature.data} alt="Sig" className="h-8 max-w-[140px] mb-1" />
               ) : (
                 <div className="font-serif italic text-blue-900 font-bold text-sm mb-1">
-                  {data.doctorSignature.data}
+                  {data.prescriberSignature.data}
                 </div>
               )
             ) : (
