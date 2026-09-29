@@ -30,8 +30,9 @@ import { prescriptionPdfFilename } from "@/lib/pdf-templates/prescription";
 import { ShareDialog } from "@/components/forms/share-dialog";
 import { ActiveShareLinks } from "@/components/forms/active-share-links";
 import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
-import { Download, Share2, Unlock } from "lucide-react";
+import { Download, Share2, Unlock, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { PrescriptionLetterheadPreview } from "./prescription-letterhead-preview";
 
 type AutosavePayload = {
   patient: PatientFields;
@@ -48,6 +49,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
   const [patient, setPatient] = useState<PatientFields>(initial.patient);
   const [data, setData] = useState<PrescriptionData>(initial.data);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRefreshKey, setShareRefreshKey] = useState(0);
   const [reopening, setReopening] = useState(false);
@@ -184,9 +186,19 @@ export function PrescriptionFormEditor({ initial }: Props) {
 
   return (
     <div className="flex flex-col gap-6 pb-24">
+      {/* ACTION BAR */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SaveStatus status={status} />
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="lg:hidden"
+            onClick={() => setMobilePreviewOpen(!mobilePreviewOpen)}
+          >
+            <Eye className="mr-1.5 h-4 w-4" />
+            {mobilePreviewOpen ? "Hide Live Preview" : "Live Preview"}
+          </Button>
           <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
             Preview PDF
           </Button>
@@ -231,7 +243,19 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </p>
       ) : null}
 
-      <Card>
+      {/* MOBILE LIVE PREVIEW TOGGLE CONTAINER */}
+      {mobilePreviewOpen ? (
+        <div className="lg:hidden my-4 p-2 bg-slate-900 rounded-lg border border-slate-800">
+          <div className="text-xs font-semibold text-slate-400 mb-2 px-2">Live Letterhead Preview</div>
+          <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
+        </div>
+      ) : null}
+
+      {/* TWO-COLUMN LAYOUT: EDITOR LEFT, LIVE PREVIEW RIGHT */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-12 items-start">
+        {/* LEFT PANE: FORM INPUTS */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          <Card>
         <CardHeader>
           <CardTitle>Patient</CardTitle>
         </CardHeader>
@@ -633,7 +657,14 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </CardContent>
       </Card>
 
-      <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
+          <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
+        </div>
+
+        {/* RIGHT PANE: LIVE A4 LETTERHEAD PREVIEW */}
+        <div className="lg:col-span-5 hidden lg:block sticky top-20">
+          <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
+        </div>
+      </div>
 
       <PdfPreviewDialog
         open={previewOpen}

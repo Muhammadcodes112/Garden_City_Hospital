@@ -79,52 +79,74 @@ function ZoomControls({ scale }: { scale: number }) {
 function PageImageItem({
   imageUrlLow,
   imageUrlHigh,
+  htmlContent,
   htmlUrl,
   pageIndex,
   altText,
 }: {
   imageUrlLow: string;
   imageUrlHigh: string;
+  htmlContent?: string;
   htmlUrl: string;
   pageIndex: number;
   altText: string;
 }) {
   const [highLoaded, setHighLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
-  if (hasError) {
+  // If image fails or htmlContent is available, render instant srcDoc iframe (100% reliable)
+  if (imgError || !imageUrlHigh) {
     return (
-      <div className="relative w-full aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden">
-        <iframe
-          src={htmlUrl}
-          title={`${altText} - Page ${pageIndex + 1}`}
-          className="w-full h-full border-0 bg-white"
-        />
+      <div className="relative w-full max-w-[794px] min-h-[1050px] aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden border border-slate-700">
+        {htmlContent ? (
+          <iframe
+            srcDoc={htmlContent}
+            title={`${altText} - Page ${pageIndex + 1}`}
+            className="w-full h-full min-h-[1050px] border-0 bg-white"
+            sandbox="allow-same-origin allow-scripts"
+          />
+        ) : (
+          <iframe
+            src={htmlUrl}
+            title={`${altText} - Page ${pageIndex + 1}`}
+            className="w-full h-full min-h-[1050px] border-0 bg-white"
+          />
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative w-full aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden">
-      {/* Low-res preview (shows immediately while high-res loads) */}
-      <img
-        src={imageUrlLow}
-        alt={`${altText} - Page ${pageIndex + 1}`}
-        onError={() => setHasError(true)}
-        className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
-          highLoaded ? "opacity-0" : "opacity-100 filter blur-[1px]"
-        }`}
-      />
-      {/* High-res image (deviceScaleFactor 3) */}
+    <div className="relative w-full max-w-[794px] min-h-[1050px] aspect-[210/297] rounded-sm bg-white shadow-2xl overflow-hidden border border-slate-700">
+      {/* High-res image */}
       <img
         src={imageUrlHigh}
         alt={`${altText} - Page ${pageIndex + 1}`}
         onLoad={() => setHighLoaded(true)}
-        onError={() => setHasError(true)}
-        className={`relative h-full w-full object-contain transition-opacity duration-300 ${
+        onError={() => setImgError(true)}
+        className={`relative w-full h-full object-contain transition-opacity duration-300 ${
           highLoaded ? "opacity-100" : "opacity-0"
         }`}
       />
+      {/* Fallback instant HTML iframe while high-res image is loading */}
+      {!highLoaded && (
+        <div className="absolute inset-0 z-10 w-full h-full bg-white">
+          {htmlContent ? (
+            <iframe
+              srcDoc={htmlContent}
+              title={`${altText} - Preview`}
+              className="w-full h-full border-0 bg-white"
+              sandbox="allow-same-origin allow-scripts"
+            />
+          ) : (
+            <iframe
+              src={htmlUrl}
+              title={`${altText} - Preview`}
+              className="w-full h-full border-0 bg-white"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -141,6 +163,7 @@ export function DocumentViewer({
 }: DocumentViewerProps) {
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [loading, setLoading] = useState(true);
+  const [htmlContent, setHtmlContent] = useState<string>("");
 
   const getFormTitle = (type?: string) => {
     if (type === "lab") return "Laboratory Request Form";
@@ -158,6 +181,14 @@ export function DocumentViewer({
       : `/api/forms/${recordId}/image?page=${pIdx}&res=${res}`;
 
   useEffect(() => {
+    // Fetch HTML content for instant fallback rendering
+    fetch(htmlUrl)
+      .then((res) => (res.ok ? res.text() : ""))
+      .then((html) => {
+        if (html) setHtmlContent(html);
+      })
+      .catch(() => undefined);
+
     // Fetch headers to determine real page count
     const countUrl = isPublic && token
       ? `/api/share/${token}/image?page=0&res=low`
@@ -173,7 +204,7 @@ export function DocumentViewer({
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, [token, recordId, isPublic]);
+  }, [token, recordId, isPublic, htmlUrl]);
 
   const handleSaveImage = (pIdx: number) => {
     const imgUrl = isPublic && token
@@ -288,6 +319,7 @@ export function DocumentViewer({
                         key={pIdx}
                         imageUrlLow={getImageApi(pIdx, "low")}
                         imageUrlHigh={getImageApi(pIdx, "high")}
+                        htmlContent={htmlContent}
                         htmlUrl={htmlUrl}
                         pageIndex={pIdx}
                         altText={getFormTitle(formType)}

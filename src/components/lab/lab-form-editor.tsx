@@ -34,8 +34,9 @@ import { cn } from "@/lib/utils";
 import { ShareDialog } from "@/components/forms/share-dialog";
 import { ActiveShareLinks } from "@/components/forms/active-share-links";
 import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
-import { Download, Share2, Unlock } from "lucide-react";
+import { Download, Share2, Unlock, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { LabLetterheadPreview } from "./lab-letterhead-preview";
 
 type AutosavePayload = {
   patient: PatientFields;
@@ -53,6 +54,7 @@ export function LabFormEditor({ initial }: Props) {
   const [data, setData] = useState<LabRequestData>(initial.data);
   const [testSearch, setTestSearch] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRefreshKey, setShareRefreshKey] = useState(0);
   const [reopening, setReopening] = useState(false);
@@ -183,207 +185,228 @@ export function LabFormEditor({ initial }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-24 lg:flex-row lg:items-start lg:gap-8 lg:pb-8">
-      <div className="min-w-0 flex-1 space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <SaveStatus status={status} />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPreviewOpen(true)}
-            >
-              Preview PDF
+    <div className="flex flex-col gap-6 pb-24">
+      {/* ACTION BAR */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SaveStatus status={status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="lg:hidden"
+            onClick={() => setMobilePreviewOpen(!mobilePreviewOpen)}
+          >
+            <Eye className="mr-1.5 h-4 w-4" />
+            {mobilePreviewOpen ? "Hide Live Preview" : "Live Preview"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPreviewOpen(true)}
+          >
+            Preview PDF
+          </Button>
+          {readOnly ? (
+            <Button asChild variant="outline">
+              <a
+                href={`/api/forms/${initial.recordId}/pdf?download=1`}
+                download={pdfFilename}
+                onClick={handleDownloadClick}
+              >
+                <Download className="mr-1.5 h-4 w-4" /> Download PDF
+              </a>
             </Button>
-            {readOnly ? (
-              <Button asChild variant="outline">
-                <a
-                  href={`/api/forms/${initial.recordId}/pdf?download=1`}
-                  download={pdfFilename}
-                  onClick={handleDownloadClick}
-                >
-                  <Download className="mr-1.5 h-4 w-4" /> Download PDF
-                </a>
-              </Button>
-            ) : null}
-            <Button type="button" variant="outline" onClick={() => setShareOpen(true)}>
-              <Share2 className="mr-1.5 h-4 w-4" /> Share
+          ) : null}
+          <Button type="button" variant="outline" onClick={() => setShareOpen(true)}>
+            <Share2 className="mr-1.5 h-4 w-4" /> Share
+          </Button>
+          {!readOnly ? (
+            <Button type="button" onClick={handleComplete}>
+              Mark as Completed
             </Button>
-            {!readOnly ? (
-              <Button type="button" onClick={handleComplete}>
-                Mark as Completed
+          ) : (
+            <div className="flex items-center gap-2">
+              <Badge variant="completed">Completed</Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={reopening}
+                onClick={handleReopen}
+                className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Unlock className="h-3.5 w-3.5" /> {reopening ? "Reopening..." : "Edit"}
               </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Badge variant="completed">Completed</Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={reopening}
-                  onClick={handleReopen}
-                  className="gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Unlock className="h-3.5 w-3.5" /> {reopening ? "Reopening..." : "Edit"}
-                </Button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        {completeError ? (
-          <p className="text-sm text-destructive" role="alert">
-            {completeError}
-          </p>
-        ) : null}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Patient</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PatientPicker
-              patient={patient}
-              onPatientChange={setPatient}
-              disabled={readOnly}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Clinical information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="diagnosis">Provisional diagnosis / clinical information</Label>
-              <Textarea
-                id="diagnosis"
-                value={data.provisionalDiagnosis}
-                onChange={(e) => setData((d) => ({ ...d, provisionalDiagnosis: e.target.value }))}
-                disabled={readOnly}
-                className="mt-1 min-h-[88px]"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="collection-date">Time of collection — date</Label>
-                <Input
-                  id="collection-date"
-                  type="date"
-                  value={data.collectionDate}
-                  onChange={(e) => setData((d) => ({ ...d, collectionDate: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="collection-time">Time</Label>
-                <Input
-                  id="collection-time"
-                  type="time"
-                  value={data.collectionTime}
-                  onChange={(e) => setData((d) => ({ ...d, collectionTime: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Tests requested</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              placeholder="Search tests across all sections…"
-              value={testSearch}
-              onChange={(e) => setTestSearch(e.target.value)}
-            />
-            <div className="space-y-3">
-              {LAB_UI_SECTIONS.filter((s) => sectionMatchesSearch(s, q)).map((section) => (
-                <TestSectionCard
-                  key={section.id}
-                  section={section}
-                  selectedSet={selectedSet}
-                  searchQuery={q}
-                  disabled={readOnly}
-                  selectedCount={sectionSelectedCount(section)}
-                  onToggle={toggleTest}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Referring doctor</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="ref-doc">Referring doctor</Label>
-                <Input
-                  id="ref-doc"
-                  value={data.referringDoctor}
-                  onChange={(e) => setData((d) => ({ ...d, referringDoctor: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="ref-phone">Phone no.</Label>
-                <Input
-                  id="ref-phone"
-                  value={data.referringPhone}
-                  onChange={(e) => setData((d) => ({ ...d, referringPhone: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <SignaturePad
-              value={data.doctorSignature}
-              onChange={(doctorSignature) => setData((d) => ({ ...d, doctorSignature }))}
-              disabled={readOnly}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="hospital">Hospital / clinic</Label>
-                <Input
-                  id="hospital"
-                  value={data.hospitalClinic}
-                  onChange={(e) => setData((d) => ({ ...d, hospitalClinic: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="form-date">Date</Label>
-                <Input
-                  id="form-date"
-                  type="date"
-                  value={data.formDate}
-                  onChange={(e) => setData((d) => ({ ...d, formDate: e.target.value }))}
-                  disabled={readOnly}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
       </div>
 
-      <SelectedTestsPanel
-        tests={selectedTests}
-        onRemove={removeTest}
-        disabled={readOnly}
-        className="hidden lg:block lg:w-72 lg:shrink-0"
-      />
+      {completeError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {completeError}
+        </p>
+      ) : null}
+
+      {/* MOBILE LIVE PREVIEW TOGGLE CONTAINER */}
+      {mobilePreviewOpen ? (
+        <div className="lg:hidden my-4 p-2 bg-slate-900 rounded-lg border border-slate-800">
+          <div className="text-xs font-semibold text-slate-400 mb-2 px-2">Live Letterhead Preview</div>
+          <LabLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
+        </div>
+      ) : null}
+
+      {/* TWO-COLUMN LAYOUT: EDITOR LEFT, LIVE PREVIEW RIGHT */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-12 items-start">
+        {/* LEFT PANE: FORM INPUTS */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Patient</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PatientPicker
+                patient={patient}
+                onPatientChange={setPatient}
+                disabled={readOnly}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Clinical information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="diagnosis">Provisional diagnosis / clinical information</Label>
+                <Textarea
+                  id="diagnosis"
+                  value={data.provisionalDiagnosis}
+                  onChange={(e) => setData((d) => ({ ...d, provisionalDiagnosis: e.target.value }))}
+                  disabled={readOnly}
+                  className="mt-1 min-h-[88px]"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="collection-date">Time of collection — date</Label>
+                  <Input
+                    id="collection-date"
+                    type="date"
+                    value={data.collectionDate}
+                    onChange={(e) => setData((d) => ({ ...d, collectionDate: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="collection-time">Time</Label>
+                  <Input
+                    id="collection-time"
+                    type="time"
+                    value={data.collectionTime}
+                    onChange={(e) => setData((d) => ({ ...d, collectionTime: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tests requested</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input
+                placeholder="Search tests across all sections…"
+                value={testSearch}
+                onChange={(e) => setTestSearch(e.target.value)}
+              />
+              <div className="space-y-3">
+                {LAB_UI_SECTIONS.filter((s) => sectionMatchesSearch(s, q)).map((section) => (
+                  <TestSectionCard
+                    key={section.id}
+                    section={section}
+                    selectedSet={selectedSet}
+                    searchQuery={q}
+                    disabled={readOnly}
+                    selectedCount={sectionSelectedCount(section)}
+                    onToggle={toggleTest}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Referring doctor</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="ref-doc">Referring doctor</Label>
+                  <Input
+                    id="ref-doc"
+                    value={data.referringDoctor}
+                    onChange={(e) => setData((d) => ({ ...d, referringDoctor: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ref-phone">Phone no.</Label>
+                  <Input
+                    id="ref-phone"
+                    value={data.referringPhone}
+                    onChange={(e) => setData((d) => ({ ...d, referringPhone: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <SignaturePad
+                value={data.doctorSignature}
+                onChange={(doctorSignature) => setData((d) => ({ ...d, doctorSignature }))}
+                disabled={readOnly}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="hospital">Hospital / clinic</Label>
+                  <Input
+                    id="hospital"
+                    value={data.hospitalClinic}
+                    onChange={(e) => setData((d) => ({ ...d, hospitalClinic: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="form-date">Date</Label>
+                  <Input
+                    id="form-date"
+                    type="date"
+                    value={data.formDate}
+                    onChange={(e) => setData((d) => ({ ...d, formDate: e.target.value }))}
+                    disabled={readOnly}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
+        </div>
+
+        {/* RIGHT PANE: LIVE A4 LETTERHEAD PREVIEW */}
+        <div className="lg:col-span-5 hidden lg:block sticky top-20">
+          <LabLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
+        </div>
+      </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card p-3 lg:hidden">
         <Sheet>

@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/patient-case-file-modal";
+import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
 
@@ -43,6 +44,7 @@ export function PatientsView() {
   // Modals state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCaseFileModal, setShowCaseFileModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Fetch patients list
   const fetchPatients = async () => {
@@ -131,7 +133,7 @@ export function PatientsView() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 text-xs">
+          <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)} className="gap-2 text-xs">
             <Download className="h-3.5 w-3.5" /> Export
           </Button>
           <Button
@@ -422,6 +424,12 @@ export function PatientsView() {
           onUpdated={fetchPatients}
         />
       )}
+
+      {/* Export Hospital Records Modal */}
+      <ExportPatientsModal
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+      />
     </div>
   );
 }
