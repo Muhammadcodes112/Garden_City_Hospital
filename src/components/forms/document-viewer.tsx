@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/date";
+import { toast } from "sonner";
 
 type DocumentViewerProps = {
   token?: string;
@@ -206,14 +207,77 @@ export function DocumentViewer({
       .finally(() => setLoading(false));
   }, [token, recordId, isPublic, htmlUrl]);
 
-  const handleSaveImage = (pIdx: number) => {
+  const handleSaveImage = async (pIdx: number) => {
+    toast.info("Preparing image download...");
     const imgUrl = isPublic && token
       ? `/api/share/${token}/image?page=${pIdx}&res=high`
       : `/api/forms/${recordId}/image?page=${pIdx}&res=high`;
-    const link = document.createElement("a");
-    link.href = imgUrl;
-    link.download = filename.replace(/\.pdf$/, `_Page${pIdx + 1}.png`);
-    link.click();
+
+    try {
+      const res = await fetch(imgUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.type.includes("image") || blob.size > 1000) {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = filename.replace(/\.pdf$/, `_Page${pIdx + 1}.png`);
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+          toast.success("Image downloaded!");
+          return;
+        }
+      }
+    } catch {
+      // Fallback to client-side SVG/Canvas rendering
+    }
+
+    // Client-side SVG foreignObject to PNG rasterizer fallback
+    try {
+      let rawHtml = htmlContent;
+      if (!rawHtml) {
+        const htmlRes = await fetch(htmlUrl);
+        if (htmlRes.ok) rawHtml = await htmlRes.text();
+      }
+
+      if (rawHtml) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width:794px;height:1123px;background:#ffffff;">
+              ${rawHtml}
+            </div>
+          </foreignObject>
+        </svg>`;
+
+        const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const img = new window.Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 794;
+          canvas.height = 1123;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 794, 1123);
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            const pngUrl = canvas.toDataURL("image/png");
+            const link = document.createElement("a");
+            link.href = pngUrl;
+            link.download = filename.replace(/\.pdf$/, `_Page${pIdx + 1}.png`);
+            link.click();
+            toast.success("Image downloaded!");
+          }
+        };
+        img.src = url;
+        return;
+      }
+    } catch (err) {
+      console.error("Client side image capture error:", err);
+    }
+    toast.error("Could not generate image file");
   };
 
   const handlePrint = () => {

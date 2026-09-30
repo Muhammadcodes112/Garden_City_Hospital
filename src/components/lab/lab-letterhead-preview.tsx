@@ -119,13 +119,27 @@ export function LabLetterheadPreview({ patient, data, isDraft }: Props) {
               (No lab tests selected yet)
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-1.5 pt-1">
+            <div
+              className={`grid gap-1 pt-1 ${
+                selectedTests.length > 14
+                  ? "grid-cols-3 text-[8px]"
+                  : selectedTests.length > 8
+                  ? "grid-cols-2 text-[9px]"
+                  : "grid-cols-2 text-[10px]"
+              }`}
+            >
               {selectedTests.map((t) => (
                 <div
                   key={t?.id}
-                  className="flex items-center gap-1.5 bg-slate-100/80 rounded px-2 py-1 text-[10px] text-slate-800 font-medium border border-slate-200"
+                  className={`flex items-center gap-1 bg-slate-100/80 rounded font-medium border border-slate-200 text-slate-800 ${
+                    selectedTests.length > 14
+                      ? "px-1 py-0.5"
+                      : selectedTests.length > 8
+                      ? "px-1.5 py-0.5"
+                      : "px-2 py-1"
+                  }`}
                 >
-                  <span className="text-emerald-600 font-bold">✓</span>
+                  <span className="text-emerald-600 font-bold shrink-0">✓</span>
                   <span className="truncate">{t?.label}</span>
                 </div>
               ))}

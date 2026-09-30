@@ -223,6 +223,30 @@ export function prescriptionPdfHtml(opts: {
   }
   .sig-img { max-height: 26px; max-width: 120px; vertical-align: middle; }
 </style>
+<script>
+  function autoFitToPage() {
+    var pages = document.querySelectorAll('.page');
+    pages.forEach(function(page) {
+      var inner = page.querySelector('.content, .rx-body');
+      if (!inner) return;
+      inner.style.transform = 'none';
+      inner.style.width = '100%';
+      var style = window.getComputedStyle(page);
+      var paddingV = parseFloat(style.paddingTop || 0) + parseFloat(style.paddingBottom || 0);
+      var budgetPx = page.clientHeight - paddingV;
+      var actualPx = inner.scrollHeight;
+      if (budgetPx > 0 && actualPx > budgetPx) {
+        var scale = Math.max(0.55, budgetPx / actualPx);
+        inner.style.transformOrigin = 'top left';
+        inner.style.transform = 'scale(' + scale + ')';
+        inner.style.width = (100 / scale) + '%';
+      }
+    });
+  }
+  window.addEventListener('DOMContentLoaded', autoFitToPage);
+  window.addEventListener('load', autoFitToPage);
+  window.addEventListener('resize', autoFitToPage);
+</script>
 </head>
 <body>
 <div class="page">
