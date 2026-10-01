@@ -42,18 +42,18 @@ const SIDE_MARGIN_MM = 15;
 function headerTemplateHtml(logoFull: string, wordmark: string): string {
   return `
     <div style="width:100%; box-sizing:border-box; padding:6px ${SIDE_MARGIN_MM}mm 0; display:flex; align-items:flex-start; justify-content:space-between; font-family:Arial,Helvetica,sans-serif;">
-      <div style="width:80px; text-align:center; flex-shrink:0;">
-        <img src="${logoFull}" style="width:60px; height:auto;" />
+      <div style="width:70px; text-align:center; flex-shrink:0;">
+        <img src="${logoFull}" style="width:50px; height:auto;" />
       </div>
-      <div style="flex:1; text-align:center; padding:0 8px;">
-        <img src="${wordmark}" style="width:460px; max-width:80%; height:auto; transform:scaleX(1.12); transform-origin:center;" />
+      <div style="flex:1; text-align:center; padding:0 8px; min-width:0;">
+        <img src="${wordmark}" style="width:100%; max-width:100%; height:auto; object-fit:contain; margin:0 auto;" />
         <div style="font-style:italic; font-size:7px; color:#222222; margin-top:2px;">The Pathway to High-Quality and Affordable Health Care</div>
         <div style="font-size:6.5px; color:#333333; margin-top:2px;">No. 2 Sultan Road, U/Rimi G.R.A., Kaduna.</div>
         <div style="font-size:6.5px; font-weight:bold; color:#101010; margin-top:1px;">Tel: 0807 237 2888, 0802 309 5497, 0807 500 4800</div>
         <div style="font-size:6.5px; font-weight:bold; font-style:italic; color:#1e3a8a; margin-top:1px;">e-mail: gardencityspecialisthospital@yahoo.com</div>
       </div>
-      <div style="width:50px; flex-shrink:0; display:flex; justify-content:flex-end;">
-        <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
+      <div style="width:40px; flex-shrink:0; display:flex; justify-content:flex-end;">
+        <svg width="30" height="30" viewBox="0 0 64 64" fill="none">
           <rect x="4" y="16" width="44" height="28" rx="4" fill="#b81828" />
           <path d="M48 24h10l4 8v12h-14V24z" fill="#b81828" />
           <circle cx="16" cy="46" r="6" fill="#101010" stroke="#ffffff" stroke-width="2" />
@@ -118,15 +118,27 @@ export function medicalReportPdfHtml(opts: {
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
   html { color-scheme: light; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; background: #ffffff; }
   body {
     font-family: "Lora", Georgia, serif;
     color: #101010;
     font-size: 10.5pt;
     line-height: 1.45;
-    background: #ffffff;
   }
-  .page { position: relative; }
+  .page { position: relative; margin: 0 auto; }
+  @media screen {
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    .page {
+      width: 100% !important;
+      max-width: 210mm;
+      box-sizing: border-box;
+      margin: 0 auto;
+    }
+  }
   .watermark {
     position: absolute;
     top: 120mm;

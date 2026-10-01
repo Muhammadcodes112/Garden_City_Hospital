@@ -141,8 +141,8 @@ export function labRequestPdfHtml(opts: {
   .header-left { width: 52px; flex-shrink: 0; }
   .logo { width: 52px; height: 52px; object-fit: contain; }
   .header-center { flex: 1; text-align: center; }
-  .wordmark-block { display: inline-block; width: 460px; max-width: 80%; }
-  .wordmark { display: block; width: 100%; height: auto; transform: scaleX(1.12); transform-origin: center; }
+  .wordmark-block { display: block; width: 100%; max-width: 100%; margin: 0 auto; text-align: center; }
+  .wordmark { display: block; width: 100%; max-width: 100%; height: auto; object-fit: contain; margin: 0 auto; }
   .scanning {
     display: block;
     width: 100%;

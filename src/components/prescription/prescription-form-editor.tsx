@@ -186,6 +186,25 @@ export function PrescriptionFormEditor({ initial }: Props) {
 
   return (
     <div className="flex flex-col gap-6 pb-24">
+      {/* MOBILE LIVE PREVIEW TOGGLE CONTAINER AT VERY TOP */}
+      {mobilePreviewOpen ? (
+        <div className="lg:hidden my-2 p-2 bg-slate-900 rounded-lg border border-slate-800">
+          <div className="text-xs font-semibold text-slate-400 mb-2 px-2 flex items-center justify-between">
+            <span>Live Letterhead Preview</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] text-slate-400 hover:text-white"
+              onClick={() => setMobilePreviewOpen(false)}
+            >
+              Close Preview
+            </Button>
+          </div>
+          <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
+        </div>
+      ) : null}
+
       {/* ACTION BAR */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SaveStatus status={status} />
@@ -243,13 +262,6 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </p>
       ) : null}
 
-      {/* MOBILE LIVE PREVIEW TOGGLE CONTAINER */}
-      {mobilePreviewOpen ? (
-        <div className="lg:hidden my-4 p-2 bg-slate-900 rounded-lg border border-slate-800">
-          <div className="text-xs font-semibold text-slate-400 mb-2 px-2">Live Letterhead Preview</div>
-          <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
-        </div>
-      ) : null}
 
       {/* TWO-COLUMN LAYOUT: EDITOR LEFT, LIVE PREVIEW RIGHT */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-12 items-start">
