@@ -75,7 +75,7 @@ export async function GET(
 
   try {
     const pdfBuffer = await renderPdf(html);
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,

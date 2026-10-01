@@ -281,7 +281,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
               {formData.hasOperations ? (
                 <Badge className="bg-emerald-600 text-white text-[9px] px-1 py-0">Active</Badge>
               ) : (
-                <Badge variant="outline" className="border-pink-400 text-pink-700 text-[9px] px-1 py-0">Optional</Badge>
+                <Badge variant="secondary" className="border border-pink-400 text-pink-700 text-[9px] px-1 py-0">Optional</Badge>
               )}
             </button>
           </div>
