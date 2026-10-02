@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
-import { patients, formRecords } from "@/db/schema";
-import { gte, lte, and, eq, desc } from "drizzle-orm";
+import { patients } from "@/db/schema";
+import { gte, lte, and, eq, desc, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -13,25 +13,40 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
-  const exportType = searchParams.get("type") || "all"; // all, patients, lab, prescription, medical_report
+  const exportType = searchParams.get("type") || "all"; // all, outpatient, inpatient, discharged
 
   try {
-    let conditions = [];
+    const conditions = [];
+
+    // Exclude unpopulated draft records (records without surname & firstNames, or DRAFT- without surname)
+    conditions.push(
+      sql`(${patients.surname} != '' OR ${patients.firstNames} != '')`
+    );
+    conditions.push(
+      sql`NOT (${patients.hospitalNumber} LIKE 'DRAFT-%' AND (${patients.surname} = '' OR ${patients.surname} IS NULL))`
+    );
 
     if (startDate) {
       conditions.push(gte(patients.createdAt, new Date(startDate)));
     }
     if (endDate) {
-      // Include the entire end date till 23:59:59
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       conditions.push(lte(patients.createdAt, end));
     }
 
+    if (exportType === "outpatient") {
+      conditions.push(eq(patients.status, "Outpatient"));
+    } else if (exportType === "inpatient") {
+      conditions.push(sql`${patients.status} LIKE 'Admitted%'`);
+    } else if (exportType === "discharged") {
+      conditions.push(eq(patients.status, "Discharged"));
+    }
+
     const patientRows = await db
       .select()
       .from(patients)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .orderBy(desc(patients.createdAt));
 
     // Build CSV Headers & Rows
@@ -74,13 +89,16 @@ export async function GET(req: NextRequest) {
       escapeCsv(p.allergies || ""),
       escapeCsv(p.status || ""),
       escapeCsv(p.doctor || ""),
-      escapeCsv(new Date(p.createdAt).toISOString().split("T")[0]),
+      escapeCsv(p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : ""),
     ]);
 
-    const csvContent = [
-      csvHeaders.join(","),
-      ...csvRows.map((row) => row.join(",")),
-    ].join("\n");
+    // Prepend UTF-8 BOM (\uFEFF) so Excel opens and formats columns cleanly
+    const csvContent =
+      "\uFEFF" +
+      [
+        csvHeaders.join(","),
+        ...csvRows.map((row) => row.join(",")),
+      ].join("\r\n");
 
     const dateSuffix = `${startDate || "all"}_to_${endDate || "present"}`;
     const filename = `GardenCity_Patients_Export_${dateSuffix}.csv`;
@@ -98,8 +116,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function escapeCsv(str: string): string {
+function escapeCsv(str: string | null | undefined): string {
   if (!str) return '""';
-  const cleaned = str.replace(/"/g, '""');
+  const cleaned = String(str).replace(/"/g, '""');
   return `"${cleaned}"`;
 }

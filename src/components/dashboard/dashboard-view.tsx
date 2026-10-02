@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, FlaskConical, Pill, Search, Users, FileCheck, FilePen, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FileText, FlaskConical, Pill, Search, Users, FileCheck, FilePen, Calendar, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   formNewHref,
 } from "@/lib/routes";
 import type { DashboardStats } from "@/lib/dashboard";
+import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 
 export type RecentFormItem = {
   id: string;
@@ -35,7 +37,9 @@ type Props = {
 };
 
 export function DashboardView({ userName, todayLabel, stats, recentForms }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [registerModalOpen, setRegisterModalOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,7 +52,11 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
 
   return (
     <div className="flex flex-col gap-8">
-      <WelcomeBanner userName={userName} todayLabel={todayLabel} />
+      <WelcomeBanner
+        userName={userName}
+        todayLabel={todayLabel}
+        onAddPatient={() => setRegisterModalOpen(true)}
+      />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -70,7 +78,15 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
           Quick actions
         </h2>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button asChild>
+          <Button
+            type="button"
+            onClick={() => setRegisterModalOpen(true)}
+            className="bg-brand-green hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add New Patient
+          </Button>
+          <Button asChild variant="outline">
             <Link href={formNewHref("lab")} prefetch={false}>
               <FlaskConical className="h-4 w-4" />
               New Lab Request
@@ -90,6 +106,12 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
           </Button>
         </div>
       </section>
+
+      <RegisterPatientModal
+        open={registerModalOpen}
+        onOpenChange={setRegisterModalOpen}
+        onRegistered={() => router.refresh()}
+      />
 
       <Card>
         <CardHeader className="gap-4 space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between">
@@ -145,7 +167,15 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
   );
 }
 
-function WelcomeBanner({ userName, todayLabel }: { userName: string; todayLabel: string }) {
+function WelcomeBanner({
+  userName,
+  todayLabel,
+  onAddPatient,
+}: {
+  userName: string;
+  todayLabel: string;
+  onAddPatient?: () => void;
+}) {
   return (
     <div className="relative overflow-hidden rounded-xl bg-brand-green px-6 py-8 text-white shadow-sm">
       <div
@@ -171,13 +201,25 @@ function WelcomeBanner({ userName, todayLabel }: { userName: string; todayLabel:
             Signed in as <span className="font-semibold">{userName}</span>
           </p>
         </div>
-        <Image
-          src="/brand/logo-mark-dark.svg"
-          alt=""
-          width={80}
-          height={80}
-          className="hidden h-20 w-20 shrink-0 rounded-md bg-white/15 p-2 sm:block"
-        />
+        <div className="flex items-center gap-3">
+          {onAddPatient && (
+            <Button
+              type="button"
+              onClick={onAddPatient}
+              className="bg-white text-brand-green hover:bg-emerald-50 font-bold shadow-md gap-1.5 text-xs h-9 px-4"
+            >
+              <UserPlus className="h-4 w-4 text-brand-green" />
+              Add New Patient
+            </Button>
+          )}
+          <Image
+            src="/brand/logo-mark-dark.svg"
+            alt=""
+            width={80}
+            height={80}
+            className="hidden h-20 w-20 shrink-0 rounded-md bg-white/15 p-2 sm:block"
+          />
+        </div>
       </div>
     </div>
   );
