@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck } from "lucide-react";
+import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2 } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
 export type PatientRecord = {
@@ -52,9 +53,44 @@ type Props = {
 };
 
 export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }: Props) {
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as { role?: string })?.role === "super_admin";
+
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<"cover" | "inside" | "operations">("inside");
+
+  const handleDelete = async () => {
+    if (!isSuperAdmin) {
+      toast.error("Only Super Admin accounts can delete patient records");
+      return;
+    }
+    if (!confirm(`Are you sure you want to permanently delete patient file ${patient.hospitalNumber}? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/patients/${patient.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success(`Patient file ${patient.hospitalNumber} deleted`);
+        onOpenChange(false);
+        if (onUpdated) onUpdated();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to delete patient");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting patient");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Form State initialized from patient props
   const [formData, setFormData] = useState({
@@ -246,6 +282,18 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                 <Download className="h-3.5 w-3.5" /> Download PDF
               </a>
             </Button>
+            {isSuperAdmin && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={deleting}
+                onClick={handleDelete}
+                className="border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-semibold gap-1.5"
+              >
+                {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-rose-600" />}
+                Delete File
+              </Button>
+            )}
           </div>
         </div>
 

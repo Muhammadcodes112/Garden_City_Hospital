@@ -90,14 +90,19 @@ export async function DELETE(
 
   const isSuperAdmin = (session.user as { role?: string }).role === "super_admin";
   if (!isSuperAdmin) {
-    return NextResponse.json({ error: "Only Super Admin can delete patients" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Access denied. Only Super Admin accounts can delete patient records." },
+      { status: 403 }
+    );
   }
 
   const { id } = await params;
 
   try {
+    // Delete associated medical form records first to prevent FK constraint errors
+    await db.delete(formRecords).where(eq(formRecords.patientId, id));
     await db.delete(patients).where(eq(patients.id, id));
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Patient file deleted successfully" });
   } catch (err) {
     console.error("Failed to delete patient:", err);
     return NextResponse.json({ error: "Failed to delete patient" }, { status: 500 });

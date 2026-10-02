@@ -19,17 +19,30 @@ import {
   ExternalLink,
   UserCheck,
   FolderOpen,
+  Trash2,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/patient-case-file-modal";
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
+import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
 
 export function PatientsView() {
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as { role?: string })?.role === "super_admin";
+
   const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPatient, setSelectedPatient] = useState<PatientRecord | null>(null);
@@ -45,6 +58,10 @@ export function PatientsView() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCaseFileModal, setShowCaseFileModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+
+  // Deletion state
+  const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch patients list
   const fetchPatients = async () => {
@@ -73,6 +90,38 @@ export function PatientsView() {
       toast.error("Failed to load patients");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!deletingPatient) return;
+    if (!isSuperAdmin) {
+      toast.error("Only Super Admin accounts can delete patient records");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/patients/${deletingPatient.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast.success(`Patient case file ${deletingPatient.hospitalNumber} deleted successfully`);
+        if (selectedPatient?.id === deletingPatient.id) {
+          setSelectedPatient(null);
+        }
+        setDeletingPatient(null);
+        fetchPatients();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to delete patient");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting patient file");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -393,13 +442,30 @@ export function PatientsView() {
               </div>
             </div>
 
-            {/* Primary Action: Open Full Case File Folder (Image 1 & Image 3) */}
-            <Button
-              onClick={() => setShowCaseFileModal(true)}
-              className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs"
-            >
-              <FolderOpen className="h-4 w-4" /> Open full record / Case File
-            </Button>
+            {/* Primary Action: Open Full Case File Folder */}
+            <div className="space-y-2 pt-1">
+              <Button
+                onClick={() => setShowCaseFileModal(true)}
+                className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs"
+              >
+                <FolderOpen className="h-4 w-4" /> Open full record / Case File
+              </Button>
+
+              {isSuperAdmin ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeletingPatient(selectedPatient)}
+                  className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950 text-xs gap-1.5 h-9 font-semibold"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete Patient File (Super Admin)
+                </Button>
+              ) : (
+                <p className="text-[11px] text-center text-muted-foreground/70 italic pt-1">
+                  🔒 Patient file deletion is restricted to Super Admin accounts.
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-xs text-muted-foreground">
@@ -415,7 +481,7 @@ export function PatientsView() {
         onRegistered={fetchPatients}
       />
 
-      {/* Full Patient Case File Folder Modal (Matching Image 1) */}
+      {/* Full Patient Case File Folder Modal */}
       {selectedPatient && (
         <PatientCaseFileModal
           open={showCaseFileModal}
@@ -430,6 +496,47 @@ export function PatientsView() {
         open={showExportModal}
         onOpenChange={setShowExportModal}
       />
+
+      {/* Super Admin Delete Patient Confirmation Dialog */}
+      <Dialog open={Boolean(deletingPatient)} onOpenChange={(open) => !open && setDeletingPatient(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-5 w-5" /> Delete Patient File
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs pt-2 text-foreground">
+            <p className="leading-relaxed font-medium">
+              Are you sure you want to permanently delete the patient file for{" "}
+              <strong className="text-foreground font-bold">
+                {deletingPatient?.firstNames} {deletingPatient?.surname}
+              </strong>{" "}
+              (<code className="font-mono text-xs">{deletingPatient?.hospitalNumber}</code>)?
+            </p>
+
+            <div className="rounded-md border border-rose-200 bg-rose-50 dark:bg-rose-950/40 p-3 text-rose-800 dark:text-rose-300 text-[11px] leading-relaxed">
+              <strong>Warning:</strong> This will permanently erase the patient&apos;s case file, medical history, lab requests, prescriptions, and medical reports. This action cannot be undone.
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeletingPatient(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isDeleting}
+                onClick={handleDeletePatient}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold gap-1.5"
+              >
+                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Confirm Delete
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
