@@ -1,9 +1,24 @@
 import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { conversationParticipants, conversations, messages, user } from "@/db/schema";
+import { activityLogs, conversationParticipants, conversations, messageAttachments, messages, user } from "@/db/schema";
+import { hydrateAttachments, type SerializedAttachment } from "@/lib/message-attachments";
+import type { MessageAttachmentInput } from "@/lib/validators/message";
 
 export function dmKeyFor(userIdA: string, userIdB: string): string {
   return [userIdA, userIdB].sort().join(":");
+}
+
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+/** Shared by sendMessage (1 message) and the bulk send-to-colleagues action (N messages at once). */
+export async function isUnderSendRateLimit(userId: string, additional = 1): Promise<boolean> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+  const recentSent = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.senderId, userId), gt(messages.createdAt, windowStart)));
+  return recentSent.length + additional <= RATE_LIMIT_MAX;
 }
 
 export type MessageRow = {
@@ -24,9 +39,10 @@ export type SerializedMessage = {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  attachments: SerializedAttachment[];
 };
 
-export function serializeMessage(m: MessageRow): SerializedMessage {
+function baseSerialize(m: MessageRow): Omit<SerializedMessage, "attachments"> {
   return {
     id: m.id,
     conversationId: m.conversationId,
@@ -36,6 +52,18 @@ export function serializeMessage(m: MessageRow): SerializedMessage {
     editedAt: m.editedAt ? m.editedAt.toISOString() : null,
     deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
   };
+}
+
+/** Serializes a single message, hydrating its attachment(s) fresh. */
+export async function serializeMessage(m: MessageRow): Promise<SerializedMessage> {
+  const attachmentsByMessage = await hydrateAttachments([m.id]);
+  return { ...baseSerialize(m), attachments: attachmentsByMessage.get(m.id) ?? [] };
+}
+
+/** Serializes a batch of messages, hydrating all their attachments in one query. */
+export async function serializeMessages(rows: MessageRow[]): Promise<SerializedMessage[]> {
+  const attachmentsByMessage = await hydrateAttachments(rows.map((r) => r.id));
+  return rows.map((r) => ({ ...baseSerialize(r), attachments: attachmentsByMessage.get(r.id) ?? [] }));
 }
 
 export type PersonSummary = {
@@ -56,7 +84,7 @@ export type PersonSummary = {
 async function getLastMessageByConversation(conversationIds: string[]) {
   const map = new Map<
     string,
-    { id: string; senderId: string; body: string | null; createdAt: Date; deletedAt: Date | null }
+    { id: string; senderId: string; body: string | null; createdAt: Date; deletedAt: Date | null; attachmentKind: string | null }
   >();
   if (conversationIds.length === 0) return map;
 
@@ -65,10 +93,11 @@ async function getLastMessageByConversation(conversationIds: string[]) {
     sql`, `,
   );
   const rows = (await db.execute(sql`
-    SELECT DISTINCT ON (conversation_id) id, conversation_id, sender_id, body, created_at, deleted_at
-    FROM messages
-    WHERE conversation_id IN (${idList})
-    ORDER BY conversation_id, created_at DESC
+    SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id, m.sender_id, m.body, m.created_at, m.deleted_at, ma.kind AS attachment_kind
+    FROM messages m
+    LEFT JOIN message_attachments ma ON ma.message_id = m.id
+    WHERE m.conversation_id IN (${idList})
+    ORDER BY m.conversation_id, m.created_at DESC
   `)) as unknown as Array<{
     id: string;
     conversation_id: string;
@@ -76,6 +105,7 @@ async function getLastMessageByConversation(conversationIds: string[]) {
     body: string | null;
     created_at: Date;
     deleted_at: Date | null;
+    attachment_kind: string | null;
   }>;
 
   for (const r of rows) {
@@ -85,10 +115,17 @@ async function getLastMessageByConversation(conversationIds: string[]) {
       body: r.body,
       createdAt: new Date(r.created_at),
       deletedAt: r.deleted_at ? new Date(r.deleted_at) : null,
+      attachmentKind: r.attachment_kind,
     });
   }
   return map;
 }
+
+const ATTACHMENT_PREVIEW_LABEL: Record<string, string> = {
+  form_record: "Shared a record",
+  share_link: "Shared a link",
+  file: "Sent a file",
+};
 
 async function getUnreadCounts(
   conversationIds: string[],
@@ -180,7 +217,11 @@ export async function listMessagePeople(meId: string): Promise<PersonSummary[]> 
       otherLastReadAt: conversationId ? otherLastReadByUser.get(u.id)?.toISOString() ?? null : null,
       lastMessage: last
         ? {
-            preview: last.deletedAt ? "This message was deleted" : last.body?.trim() || "Sent an attachment",
+            preview: last.deletedAt
+              ? "This message was deleted"
+              : last.body?.trim() ||
+                (last.attachmentKind && ATTACHMENT_PREVIEW_LABEL[last.attachmentKind]) ||
+                "Sent an attachment",
             at: last.createdAt.toISOString(),
             fromMe: last.senderId === meId,
           }
@@ -227,6 +268,56 @@ export async function getOrCreateDmConversation(meId: string, targetUserId: stri
     .onConflictDoNothing();
 
   return conversationId;
+}
+
+/**
+ * Inserts a message (+ optional attachment) and bumps the conversation's
+ * last_message_at, all in one transaction. Shared by the composer's
+ * sendMessage action and the bulk "send record to colleagues" action so the
+ * write path — and its atomicity guarantees — only exists once.
+ */
+export async function insertMessageWithAttachment(params: {
+  conversationId: string;
+  senderId: string;
+  body: string | null;
+  attachment?: MessageAttachmentInput;
+  activityLog?: { action: "message_sent" | "record_shared_internally"; formRecordId?: string };
+}): Promise<MessageRow> {
+  const { conversationId, senderId, body, attachment, activityLog } = params;
+
+  return db.transaction(async (tx) => {
+    const [message] = await tx.insert(messages).values({ conversationId, senderId, body }).returning();
+
+    if (attachment) {
+      await tx.insert(messageAttachments).values(
+        attachment.kind === "form_record"
+          ? { messageId: message!.id, kind: "form_record", formRecordId: attachment.formRecordId }
+          : attachment.kind === "share_link"
+            ? { messageId: message!.id, kind: "share_link", shareLinkId: attachment.shareLinkId }
+            : {
+                messageId: message!.id,
+                kind: "file",
+                fileUrl: attachment.fileUrl,
+                fileName: attachment.fileName,
+                fileSize: attachment.fileSize,
+                mimeType: attachment.mimeType,
+              },
+      );
+    }
+
+    await tx.update(conversations).set({ lastMessageAt: message!.createdAt }).where(eq(conversations.id, conversationId));
+
+    if (activityLog) {
+      await tx.insert(activityLogs).values({
+        userId: senderId,
+        conversationId,
+        formRecordId: activityLog.formRecordId,
+        action: activityLog.action,
+      });
+    }
+
+    return message!;
+  });
 }
 
 export async function isParticipant(conversationId: string, userId: string): Promise<boolean> {

@@ -1,22 +1,23 @@
 "use server";
 
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, conversationParticipants, conversations, messageAttachments, messages, user } from "@/db/schema";
+import { conversationParticipants, messages, user } from "@/db/schema";
 import { requireAdmin } from "@/lib/session";
 import { sendMessageSchema, type SendMessageInput } from "@/lib/validators/message";
+import { checkFormRecordAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
 import {
   findDmConversationId,
   getMessagesPage,
   getOrCreateDmConversation,
   getParticipantLastReadAt,
+  insertMessageWithAttachment,
   isParticipant,
+  isUnderSendRateLimit,
   listMessagePeople,
   serializeMessage,
+  serializeMessages,
 } from "@/lib/messages";
-
-const RATE_LIMIT_MAX = 30;
-const RATE_LIMIT_WINDOW_MS = 60_000;
 
 export async function listPeople() {
   const session = await requireAdmin();
@@ -52,7 +53,7 @@ export async function getConversationWithUser(targetUserId: string) {
     },
     conversationId,
     readOnly: removed,
-    messages: page.map(serializeMessage),
+    messages: await serializeMessages(page),
     otherLastReadAt: otherLastReadAt ? otherLastReadAt.toISOString() : null,
     hasMore: page.length === 30,
   };
@@ -64,7 +65,7 @@ export async function loadOlderMessages(conversationId: string, beforeIso: strin
   if (!ok) throw new Error("Forbidden");
 
   const page = await getMessagesPage(conversationId, new Date(beforeIso));
-  return { messages: page.map(serializeMessage), hasMore: page.length === 30 };
+  return { messages: await serializeMessages(page), hasMore: page.length === 30 };
 }
 
 export async function sendMessage(input: SendMessageInput) {
@@ -92,47 +93,19 @@ export async function sendMessage(input: SendMessageInput) {
     throw new Error("This conversation is read-only — the other admin's account is no longer active");
   }
 
-  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
-  const recentSent = await db
-    .select({ id: messages.id })
-    .from(messages)
-    .where(and(eq(messages.senderId, meId), gt(messages.createdAt, windowStart)));
-  if (recentSent.length >= RATE_LIMIT_MAX) {
+  if (!(await isUnderSendRateLimit(meId))) {
     throw new Error("You're sending messages too fast. Please wait a moment and try again.");
   }
 
   const body = parsed.body && parsed.body.length > 0 ? parsed.body : null;
-  const attachment = parsed.attachment;
 
-  const created = await db.transaction(async (tx) => {
-    const [message] = await tx
-      .insert(messages)
-      .values({ conversationId: conversationId!, senderId: meId, body })
-      .returning();
-
-    if (attachment) {
-      await tx.insert(messageAttachments).values(
-        attachment.kind === "form_record"
-          ? { messageId: message!.id, kind: "form_record", formRecordId: attachment.formRecordId }
-          : attachment.kind === "share_link"
-            ? { messageId: message!.id, kind: "share_link", shareLinkId: attachment.shareLinkId }
-            : {
-                messageId: message!.id,
-                kind: "file",
-                fileUrl: attachment.fileUrl,
-                fileName: attachment.fileName,
-                fileSize: attachment.fileSize,
-                mimeType: attachment.mimeType,
-              },
-      );
-    }
-
-    await tx.update(conversations).set({ lastMessageAt: message!.createdAt }).where(eq(conversations.id, conversationId!));
-
-    // Activity log records that a message was sent, who sent it, and which conversation — never the content.
-    await tx.insert(activityLogs).values({ userId: meId, conversationId: conversationId!, action: "message_sent" });
-
-    return message!;
+  // Activity log records that a message was sent, who sent it, and which conversation — never the content.
+  const created = await insertMessageWithAttachment({
+    conversationId: conversationId!,
+    senderId: meId,
+    body,
+    attachment: parsed.attachment,
+    activityLog: { action: "message_sent" },
   });
 
   return serializeMessage(created);
@@ -149,6 +122,24 @@ export async function deleteMessage(messageId: string) {
     await db.update(messages).set({ deletedAt: new Date() }).where(eq(messages.id, messageId));
   }
   return { success: true };
+}
+
+/** "Shared with" line on a record's page — visible to any admin who can see the record. */
+export async function getSharedWith(formRecordId: string): Promise<SharedWithEntry[]> {
+  await requireAdmin();
+  return getRecordShareRecipients(formRecordId);
+}
+
+/** Live re-check used by an attachment card right before Open/Preview/Download act on it. */
+export async function checkFormRecordAvailability(formRecordId: string) {
+  await requireAdmin();
+  return checkFormRecordAvailable(formRecordId);
+}
+
+/** Live re-check for a share_link attachment — catches a since-revoked or expired link. */
+export async function checkShareLinkAvailability(shareLinkId: string) {
+  await requireAdmin();
+  return checkShareLinkAvailable(shareLinkId);
 }
 
 export async function markConversationRead(conversationId: string) {

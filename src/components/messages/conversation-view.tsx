@@ -11,9 +11,13 @@ import { PrivacyNote } from "./privacy-note";
 import { useMessagesPoll } from "@/hooks/use-messages-poll";
 import { deleteMessage, loadOlderMessages, markConversationRead, sendMessage } from "@/lib/actions/messages";
 import type { SerializedMessage } from "@/lib/messages";
+import type { SerializedAttachment } from "@/lib/message-attachments";
+import type { MessageAttachmentInput } from "@/lib/validators/message";
 
 export type ClientMessage = SerializedMessage & {
   status?: "pending" | "sent" | "failed";
+  /** Kept client-side only so a failed file send can be retried without re-uploading. */
+  pendingAttachmentInput?: MessageAttachmentInput;
 };
 
 type TargetUser = { id: string; name: string; email: string; isSuperAdmin: boolean };
@@ -155,17 +159,23 @@ export function ConversationView({
     if (e.currentTarget.scrollTop < 60) void loadMore();
   }
 
-  async function handleSend(body: string) {
+  async function handleSend(body: string, attachment?: MessageAttachmentInput) {
     const clientId = `pending-${crypto.randomUUID()}`;
+    const optimisticAttachments: SerializedAttachment[] =
+      attachment && attachment.kind === "file"
+        ? [{ kind: "file", id: clientId, fileName: attachment.fileName, fileSize: attachment.fileSize, mimeType: attachment.mimeType }]
+        : [];
     const optimistic: ClientMessage = {
       id: clientId,
       conversationId: conversationId ?? "",
       senderId: meId,
-      body,
+      body: body || null,
       createdAt: new Date().toISOString(),
       editedAt: null,
       deletedAt: null,
+      attachments: optimisticAttachments,
       status: "pending",
+      pendingAttachmentInput: attachment,
     };
     setMessages((prev) => [...prev, optimistic]);
     requestAnimationFrame(() => {
@@ -173,7 +183,7 @@ export function ConversationView({
     });
 
     try {
-      const sent = await sendMessage({ targetUserId: targetUser.id, body });
+      const sent = await sendMessage({ targetUserId: targetUser.id, body: body || undefined, attachment });
       setConversationId(sent.conversationId);
       setMessages((prev) => prev.map((m) => (m.id === clientId ? { ...sent, status: "sent" } : m)));
     } catch (err) {
@@ -183,9 +193,9 @@ export function ConversationView({
   }
 
   function handleRetry(message: ClientMessage) {
-    if (!message.body) return;
+    if (!message.body && !message.pendingAttachmentInput) return;
     setMessages((prev) => prev.filter((m) => m.id !== message.id));
-    void handleSend(message.body);
+    void handleSend(message.body ?? "", message.pendingAttachmentInput);
   }
 
   async function handleDelete(id: string) {

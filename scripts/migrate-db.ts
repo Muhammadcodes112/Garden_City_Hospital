@@ -267,6 +267,11 @@ async function migrate() {
         EXECUTE FUNCTION messages_require_content();
     `);
 
+    // Internal record-sharing (Step 14): log who sent which record to whom.
+    await sql.unsafe(`
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'record_shared_internally';
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

@@ -729,6 +729,10 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
           onOpenChange={(o) => !o && setShareTarget(null)}
           recordId={shareTarget.id}
           filename={`${FORM_TYPE_LABELS[shareTarget.type] || shareTarget.type}_${shareTarget.patient.surname}_${shareTarget.patient.hospitalNumber.replace(/\//g, "-")}.pdf`}
+          formType={shareTarget.type}
+          patientName={`${shareTarget.patient.surname}, ${shareTarget.patient.firstNames}`}
+          hospitalNumber={shareTarget.patient.hospitalNumber}
+          status={shareTarget.status}
         />
       )}
     </div>

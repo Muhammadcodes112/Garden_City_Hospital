@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 import { ShareDialog } from "@/components/forms/share-dialog";
 import { ActiveShareLinks } from "@/components/forms/active-share-links";
+import { SharedWithLine } from "@/components/forms/shared-with-line";
 import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
 import { Download, Share2, Unlock, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -405,6 +406,7 @@ export function LabFormEditor({ initial }: Props) {
           </Card>
 
           <ActiveShareLinks recordId={initial.recordId} refreshKey={shareRefreshKey} />
+          <SharedWithLine recordId={initial.recordId} refreshKey={shareRefreshKey} />
         </div>
 
         {/* RIGHT PANE: LIVE A4 LETTERHEAD PREVIEW */}
@@ -439,7 +441,11 @@ export function LabFormEditor({ initial }: Props) {
         onOpenChange={setShareOpen}
         recordId={initial.recordId}
         filename={pdfFilename}
-        onLinkCreated={() => setShareRefreshKey((k) => k + 1)}
+        formType="lab"
+        patientName={`${patient.surname}, ${patient.firstNames}`}
+        hospitalNumber={patient.hospitalNumber}
+        status={initial.status}
+        onShared={() => setShareRefreshKey((k) => k + 1)}
       />
     </div>
   );

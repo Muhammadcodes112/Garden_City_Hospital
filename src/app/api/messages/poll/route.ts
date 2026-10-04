@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/session";
-import { getMessageUpdatesSince, listMessagePeople, serializeMessage } from "@/lib/messages";
+import { getMessageUpdatesSince, listMessagePeople, serializeMessages } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       serverTime: serverTime.toISOString(),
       people,
       unreadTotal,
-      messages: updates.map(serializeMessage),
+      messages: await serializeMessages(updates),
     });
   } catch (err) {
     console.error("Failed to poll messages:", err);

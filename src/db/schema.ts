@@ -158,6 +158,7 @@ export const activityAction = pgEnum("activity_action", [
   "super_admin_promoted",
   "super_admin_demoted",
   "message_sent",
+  "record_shared_internally",
 ]);
 
 export const patients = pgTable("patients", {

@@ -2,20 +2,26 @@
 
 import { useEffect, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Copy, Share2, MessageCircle, Mail, X, Check, Clock, Link2 } from "lucide-react";
+import { Copy, Share2, MessageCircle, Mail, X, Check, Clock, Link2, Users, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createShareLink } from "@/lib/actions/share";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { SendToColleaguePanel } from "@/components/forms/send-to-colleague-panel";
+import type { FormType } from "@/lib/validators/form-data";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recordId: string;
   filename: string;
-  onLinkCreated?: () => void;
+  formType: FormType;
+  patientName: string;
+  hospitalNumber: string;
+  status: "draft" | "completed";
+  onShared?: () => void;
 };
 
 export function ShareDialog({
@@ -23,8 +29,13 @@ export function ShareDialog({
   onOpenChange,
   recordId,
   filename,
-  onLinkCreated,
+  formType,
+  patientName,
+  hospitalNumber,
+  status,
+  onShared,
 }: Props) {
+  const [destination, setDestination] = useState<"colleague" | "external">("colleague");
   const [expiryDays, setExpiryDays] = useState<1 | 7 | 30>(7);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -42,6 +53,7 @@ export function ShareDialog({
 
   useEffect(() => {
     if (open) {
+      setDestination("colleague");
       setShareUrl(null);
       setLinkExpiresAt(null);
       setCopied(false);
@@ -60,7 +72,7 @@ export function ShareDialog({
       setShareUrl(res.url);
       setLinkExpiresAt(res.expiresAt);
       toast.success(`Share link generated (expires in ${expiryDays} day${expiryDays > 1 ? "s" : ""})`);
-      if (onLinkCreated) onLinkCreated();
+      if (onShared) onShared();
     } catch (err) {
       console.error("Failed to generate share link:", err);
       toast.error(err instanceof Error ? err.message : "Failed to generate share link");
@@ -81,7 +93,7 @@ export function ShareDialog({
     });
     setShareUrl(res.url);
     setLinkExpiresAt(res.expiresAt);
-    if (onLinkCreated) onLinkCreated();
+    if (onShared) onShared();
     return res;
   }
 
@@ -187,7 +199,49 @@ export function ShareDialog({
             </DialogPrimitive.Close>
           </div>
 
-          <div className="space-y-5 pt-4">
+          <div className="space-y-5 pt-4 max-h-[75vh] overflow-y-auto pr-1">
+            {/* Destination picker */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDestination("colleague")}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition-colors",
+                  destination === "colleague"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                <Users className="h-3.5 w-3.5" /> Send to a colleague
+              </button>
+              <button
+                type="button"
+                onClick={() => setDestination("external")}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition-colors",
+                  destination === "external"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted/50",
+                )}
+              >
+                <Globe className="h-3.5 w-3.5" /> Share outside the hospital
+              </button>
+            </div>
+
+            {destination === "colleague" ? (
+              <SendToColleaguePanel
+                formRecordId={recordId}
+                formType={formType}
+                patientName={patientName}
+                hospitalNumber={hospitalNumber}
+                status={status}
+                onSent={() => {
+                  onShared?.();
+                  onOpenChange(false);
+                }}
+              />
+            ) : (
+              <>
             {/* Native Mobile Share if supported */}
             {webShareSupported ? (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
@@ -301,6 +355,8 @@ export function ShareDialog({
                   </Button>
                 </div>
               </div>
+            )}
+              </>
             )}
           </div>
         </DialogPrimitive.Content>

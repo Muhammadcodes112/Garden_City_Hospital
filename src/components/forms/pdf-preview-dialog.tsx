@@ -11,14 +11,14 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   recordId: string;
   filename: string;
+  /** Skips filename-sniffing when the real form type is already known (e.g. from a message attachment). */
+  formType?: "lab" | "prescription" | "medical_report";
 };
 
-export function PdfPreviewDialog({ open, onOpenChange, recordId, filename }: Props) {
-  const formType = filename.includes("LabRequest")
-    ? "lab"
-    : filename.includes("Prescription")
-      ? "prescription"
-      : "medical_report";
+export function PdfPreviewDialog({ open, onOpenChange, recordId, filename, formType: formTypeProp }: Props) {
+  const formType =
+    formTypeProp ??
+    (filename.includes("LabRequest") ? "lab" : filename.includes("Prescription") ? "prescription" : "medical_report");
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
