@@ -51,13 +51,49 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
   }, [query, recentForms]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <WelcomeBanner
         userName={userName}
         todayLabel={todayLabel}
         onAddPatient={() => setRegisterModalOpen(true)}
       />
 
+      {/* QUICK ACTIONS IMMEDIATELY BELOW WELCOME BANNER FOR EASY REACH */}
+      <section>
+        <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Quick actions
+        </h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button
+            type="button"
+            onClick={() => setRegisterModalOpen(true)}
+            className="bg-brand-green hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs text-xs h-9"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add New Patient
+          </Button>
+          <Button asChild variant="outline" className="text-xs h-9">
+            <Link href={formNewHref("lab")} prefetch={false}>
+              <FlaskConical className="h-4 w-4 text-emerald-600" />
+              New Lab Request
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="text-xs h-9">
+            <Link href={formNewHref("prescription")} prefetch={false}>
+              <Pill className="h-4 w-4 text-blue-600" />
+              New Prescription
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="text-xs h-9">
+            <Link href={formNewHref("medical_report")} prefetch={false}>
+              <FileText className="h-4 w-4 text-amber-600" />
+              New Medical Report
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* STAT CARDS SECTION */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Forms created today"
@@ -71,40 +107,6 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
           icon={FileCheck}
         />
         <StatCard label="Total patients" value={stats.totalPatients} icon={Users} />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Quick actions
-        </h2>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button
-            type="button"
-            onClick={() => setRegisterModalOpen(true)}
-            className="bg-brand-green hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs"
-          >
-            <UserPlus className="h-4 w-4" />
-            Add New Patient
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={formNewHref("lab")} prefetch={false}>
-              <FlaskConical className="h-4 w-4" />
-              New Lab Request
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={formNewHref("prescription")} prefetch={false}>
-              <Pill className="h-4 w-4" />
-              New Prescription
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={formNewHref("medical_report")} prefetch={false}>
-              <FileText className="h-4 w-4" />
-              New Medical Report
-            </Link>
-          </Button>
-        </div>
       </section>
 
       <RegisterPatientModal
@@ -177,7 +179,7 @@ function WelcomeBanner({
   onAddPatient?: () => void;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-xl bg-brand-green px-6 py-8 text-white shadow-sm">
+    <div className="relative overflow-hidden rounded-xl bg-brand-green px-5 py-6 text-white shadow-sm">
       <div
         className="pointer-events-none absolute inset-0 opacity-30"
         style={{
@@ -187,17 +189,17 @@ function WelcomeBanner({
         }}
         aria-hidden
       />
-      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3.5 py-1 text-xs font-semibold text-white backdrop-blur shadow-xs">
-            <Calendar className="h-3.5 w-3.5 text-emerald-200" />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-0.5 text-[10px] font-semibold text-white backdrop-blur shadow-xs">
+            <Calendar className="h-3 w-3 text-emerald-200" />
             <span>{todayLabel}</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 className="text-lg font-bold tracking-tight sm:text-xl">
             Welcome to {HOSPITAL_NAME}
           </h2>
-          <p className="text-sm text-white/85">{TAGLINE}</p>
-          <p className="text-sm text-white/90">
+          <p className="text-xs text-white/80">{TAGLINE}</p>
+          <p className="text-xs text-white/85">
             Signed in as <span className="font-semibold">{userName}</span>
           </p>
         </div>
@@ -206,18 +208,18 @@ function WelcomeBanner({
             <Button
               type="button"
               onClick={onAddPatient}
-              className="bg-white text-brand-green hover:bg-emerald-50 font-bold shadow-md gap-1.5 text-xs h-9 px-4"
+              className="bg-white text-brand-green hover:bg-emerald-50 font-bold shadow-md gap-1.5 text-xs h-8 px-3"
             >
-              <UserPlus className="h-4 w-4 text-brand-green" />
+              <UserPlus className="h-3.5 w-3.5 text-brand-green" />
               Add New Patient
             </Button>
           )}
           <Image
             src="/brand/logo-mark-dark.svg"
             alt=""
-            width={80}
-            height={80}
-            className="hidden h-20 w-20 shrink-0 rounded-md bg-white/15 p-2 sm:block"
+            width={64}
+            height={64}
+            className="hidden h-16 w-16 shrink-0 rounded-md bg-white/15 p-2 sm:block"
           />
         </div>
       </div>
@@ -238,8 +240,8 @@ function StatCard({
     <Card>
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{value}</p>
+          <p className="text-xs text-muted-foreground font-medium">{label}</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</p>
         </div>
         <div className="rounded-lg bg-primary/10 p-2 text-primary">
           <Icon className="h-5 w-5" />
@@ -264,23 +266,14 @@ function RecentRow({
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
       {isDraft ? (
-        <Button asChild size="sm" variant="default">
+        <Button asChild size="sm" variant="default" className="text-xs h-8">
           <Link href={formEditHref(row.type, row.id)}>Continue</Link>
         </Button>
       ) : (
-        <Button asChild size="sm" variant="outline">
+        <Button asChild size="sm" variant="outline" className="text-xs h-8">
           <Link href={formEditHref(row.type, row.id)}>View</Link>
         </Button>
       )}
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={isDraft}
-        title={isDraft ? "Complete the form to preview PDF" : "PDF export coming soon"}
-        className="text-muted-foreground"
-      >
-        Preview PDF
-      </Button>
     </div>
   );
 

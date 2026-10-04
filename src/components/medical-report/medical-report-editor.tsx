@@ -204,9 +204,6 @@ export function MedicalReportEditor({ initial }: Props) {
             <Eye className="mr-1.5 h-4 w-4" />
             {mobilePreviewOpen ? "Hide Live Preview" : "Live Preview"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
-            Preview PDF
-          </Button>
           {readOnly ? (
             <Button asChild variant="outline">
               <a

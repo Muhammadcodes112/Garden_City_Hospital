@@ -90,6 +90,7 @@ async function main() {
         frequency: "TDS",
         duration: "5 days",
         quantity: "30",
+        unitPrice: 0,
         instructions: "Take after meals",
       },
     ],
@@ -132,6 +133,7 @@ async function main() {
     frequency: "BD",
     duration: "7 days",
     quantity: "14",
+    unitPrice: 0,
     instructions: `Specific instruction for item #${i + 1}: Take with plenty of water.`,
   }));
 

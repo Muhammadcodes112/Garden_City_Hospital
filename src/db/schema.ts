@@ -243,3 +243,26 @@ export const activityLogs = pgTable("activity_logs", {
   action: activityAction("action").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const inventoryItems = pgTable(
+  "inventory_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    category: text("category").notNull().default("Medication"),
+    unit: text("unit").default("Tablet"),
+    strength: text("strength").default(""),
+    dosageForm: text("dosage_form").default("Oral"),
+    unitPrice: integer("unit_price").notNull().default(0), // Price in NGN (Naira)
+    defaultFrequency: text("default_frequency").default("TDS (3x daily)"),
+    defaultDuration: text("default_duration").default("5 days"),
+    stockQuantity: integer("stock_quantity").default(100),
+    isAvailable: boolean("is_available").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("inventory_items_category_idx").on(table.category),
+    index("inventory_items_name_idx").on(table.name),
+  ]
+);

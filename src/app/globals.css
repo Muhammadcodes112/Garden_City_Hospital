@@ -112,3 +112,10 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
 }
+
+/* Reduce mobile viewport font-size by 10% for mobile responsiveness */
+@media (max-width: 640px) {
+  html {
+    font-size: 90%;
+  }
+}

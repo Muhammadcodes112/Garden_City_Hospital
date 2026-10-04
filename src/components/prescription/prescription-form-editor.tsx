@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, ArrowUp, ArrowDown, Pill } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +107,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
           frequency: "",
           duration: "",
           quantity: "",
+          unitPrice: 0,
           instructions: "",
         },
       ],
@@ -277,14 +278,16 @@ export function PrescriptionFormEditor({ initial }: Props) {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Pill className="h-5 w-5 text-primary" /> Prescribed Medications ({data.items.length})
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+            <Pill className="h-5 w-5 text-brand-green" /> Prescribed Medications ({data.items.length})
           </CardTitle>
           {!readOnly ? (
-            <Button type="button" size="sm" onClick={addItem}>
-              <Plus className="mr-1 h-4 w-4" /> Add Drug
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" onClick={addItem} variant="outline" className="text-xs h-8">
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add Blank Row
+              </Button>
+            </div>
           ) : null}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -315,6 +318,20 @@ export function PrescriptionFormEditor({ initial }: Props) {
                       <DrugInput
                         value={item.drugName}
                         onChange={(val) => updateItem(index, "drugName", val)}
+                        onSelectInventoryItem={(inv) => {
+                          setData((prev) => {
+                            const nextItems = [...prev.items];
+                            nextItems[index] = {
+                              ...nextItems[index],
+                              drugName: inv.name,
+                              strength: inv.strength || nextItems[index].strength,
+                              frequency: inv.defaultFrequency || nextItems[index].frequency,
+                              duration: inv.defaultDuration || nextItems[index].duration,
+                              unitPrice: inv.unitPrice,
+                            };
+                            return { ...prev, items: nextItems };
+                          });
+                        }}
                         disabled={readOnly}
                       />
                     </td>
@@ -488,6 +505,20 @@ export function PrescriptionFormEditor({ initial }: Props) {
                   <DrugInput
                     value={item.drugName}
                     onChange={(val) => updateItem(index, "drugName", val)}
+                    onSelectInventoryItem={(inv) => {
+                      setData((prev) => {
+                        const nextItems = [...prev.items];
+                        nextItems[index] = {
+                          ...nextItems[index],
+                          drugName: inv.name,
+                          strength: inv.strength || nextItems[index].strength,
+                          frequency: inv.defaultFrequency || nextItems[index].frequency,
+                          duration: inv.defaultDuration || nextItems[index].duration,
+                          unitPrice: inv.unitPrice,
+                        };
+                        return { ...prev, items: nextItems };
+                      });
+                    }}
                     disabled={readOnly}
                   />
                 </div>
@@ -696,33 +727,56 @@ export function PrescriptionFormEditor({ initial }: Props) {
   );
 }
 
+type InventoryPreset = {
+  id: string;
+  name: string;
+  strength?: string | null;
+  dosageForm?: string | null;
+  unitPrice: number;
+  defaultFrequency?: string | null;
+  defaultDuration?: string | null;
+};
+
 function DrugInput({
   value,
   onChange,
+  onSelectInventoryItem,
   disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
+  onSelectInventoryItem?: (item: InventoryPreset) => void;
   disabled: boolean;
 }) {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [catalogItems, setCatalogItems] = useState<InventoryPreset[]>([]);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!value || value.length < 2) {
-      setSuggestions([]);
-      return;
-    }
     let active = true;
-    getDrugAutocompleteSuggestions(value).then((res) => {
-      if (active) {
-        setSuggestions(res);
-      }
-    });
+    fetch("/api/inventory")
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => {
+        if (active && data.items) {
+          setCatalogItems(data.items);
+        }
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };
-  }, [value]);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = (value || "").toLowerCase().trim();
+    if (!q) return catalogItems.slice(0, 8);
+    return catalogItems
+      .filter(
+        (item) =>
+          item.name.toLowerCase().includes(q) ||
+          (item.strength && item.strength.toLowerCase().includes(q))
+      )
+      .slice(0, 10);
+  }, [value, catalogItems]);
 
   return (
     <div className="relative">
@@ -734,23 +788,37 @@ function DrugInput({
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
-        placeholder="Amoxicillin"
+        placeholder="Search drug or select from catalog..."
         disabled={disabled}
-        className="h-9"
+        className="h-9 text-xs"
       />
-      {open && suggestions.length > 0 ? (
-        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-auto rounded-md border border-border bg-popover py-1 text-sm shadow-md text-popover-foreground">
-          {suggestions.map((drug) => (
+      {open && filtered.length > 0 ? (
+        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-auto rounded-md border border-border bg-popover py-1 text-xs shadow-lg text-popover-foreground">
+          {filtered.map((item) => (
             <li
-              key={drug}
-              className="cursor-pointer px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              key={item.id || item.name}
+              className="cursor-pointer px-3 py-2 hover:bg-accent hover:text-accent-foreground flex items-center justify-between gap-2 border-b border-border/40 last:border-0"
               onMouseDown={(e) => {
                 e.preventDefault();
-                onChange(drug);
+                onChange(item.name);
+                if (onSelectInventoryItem) {
+                  onSelectInventoryItem(item);
+                }
                 setOpen(false);
               }}
             >
-              {drug}
+              <div>
+                <div className="font-bold text-foreground text-xs">{item.name}</div>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  {item.strength && <span className="font-semibold text-emerald-600">{item.strength}</span>}
+                  {item.defaultFrequency && <span>· {item.defaultFrequency}</span>}
+                </div>
+              </div>
+              {item.unitPrice > 0 && (
+                <Badge variant="secondary" className="text-[11px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
+                  ₦{item.unitPrice.toLocaleString("en-NG")}
+                </Badge>
+              )}
             </li>
           ))}
         </ul>

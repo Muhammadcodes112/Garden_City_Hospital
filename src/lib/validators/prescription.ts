@@ -37,6 +37,7 @@ export const prescriptionItemSchema = z.object({
   frequency: z.string().optional().default(""),
   duration: z.string().optional().default(""),
   quantity: z.string().optional().default(""),
+  unitPrice: z.union([z.number(), z.string()]).optional().default(0),
   instructions: z.string().optional().default(""),
 });
 
@@ -89,6 +90,7 @@ export function defaultPrescriptionData(): PrescriptionData {
         frequency: "",
         duration: "",
         quantity: "",
+        unitPrice: 0,
         instructions: "",
       },
     ],
