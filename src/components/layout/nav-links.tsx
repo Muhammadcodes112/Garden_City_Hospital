@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./nav-items";
 import { useSession } from "@/lib/auth-client";
+import { useMessagesPoll } from "@/hooks/use-messages-poll";
 import { ShieldCheck } from "lucide-react";
 
 export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { unreadTotal } = useMessagesPoll();
   const isSuperAdmin = (session?.user as { role?: string } | undefined)?.role === "super_admin";
 
   const items = [
@@ -33,7 +35,12 @@ export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; c
             )}
           >
             <Icon className="h-4 w-4" />
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {item.href === "/messages" && unreadTotal > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1.5 text-[10px] font-bold text-white">
+                {unreadTotal > 99 ? "99+" : unreadTotal}
+              </span>
+            )}
           </Link>
         );
       })}

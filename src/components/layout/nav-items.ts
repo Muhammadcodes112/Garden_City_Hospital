@@ -1,7 +1,8 @@
-import { LayoutDashboard, Users, FlaskConical, Pill, FileText, FolderOpen, PackageCheck } from "lucide-react";
+import { LayoutDashboard, Users, FlaskConical, Pill, FileText, FolderOpen, PackageCheck, MessageSquare } from "lucide-react";
 
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/patients", label: "Patients", icon: Users },
   { href: "/records", label: "Records", icon: FolderOpen },
   { href: "/inventory", label: "Pharmacy & Prices", icon: PackageCheck },

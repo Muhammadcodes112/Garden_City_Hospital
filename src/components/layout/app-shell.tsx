@@ -13,6 +13,7 @@ import { authClient } from "@/lib/auth-client";
 import { pageTitleForPath } from "@/lib/routes";
 import { useRouter } from "next/navigation";
 import { HOSPITAL_NAME } from "@/lib/brand";
+import { useMessagesPoll } from "@/hooks/use-messages-poll";
 
 export function AppShell({
   userName,
@@ -27,6 +28,7 @@ export function AppShell({
   const pathname = usePathname();
   const pageTitle = pageTitleForPath(pathname);
   const router = useRouter();
+  const { unreadTotal } = useMessagesPoll();
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -67,10 +69,15 @@ export function AppShell({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 lg:hidden"
+                    className="relative shrink-0 lg:hidden"
                     aria-label="Open navigation menu"
                   >
                     <Menu className="h-5 w-5" />
+                    {unreadTotal > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[9px] font-bold text-white">
+                        {unreadTotal > 99 ? "99+" : unreadTotal}
+                      </span>
+                    )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent className="flex flex-col">

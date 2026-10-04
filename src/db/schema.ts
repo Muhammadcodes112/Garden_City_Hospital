@@ -10,6 +10,7 @@ import {
   bigint,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -156,6 +157,7 @@ export const activityAction = pgEnum("activity_action", [
   "permanently_deleted",
   "super_admin_promoted",
   "super_admin_demoted",
+  "message_sent",
 ]);
 
 export const patients = pgTable("patients", {
@@ -240,6 +242,7 @@ export const activityLogs = pgTable("activity_logs", {
     .notNull()
     .references(() => user.id),
   formRecordId: uuid("form_record_id").references(() => formRecords.id),
+  conversationId: uuid("conversation_id").references(() => conversations.id),
   action: activityAction("action").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -266,3 +269,76 @@ export const inventoryItems = pgTable(
     index("inventory_items_name_idx").on(table.name),
   ]
 );
+
+// ---------------------------------------------------------------------------
+// Internal admin-to-admin messaging
+// ---------------------------------------------------------------------------
+
+export const messageAttachmentKind = pgEnum("message_attachment_kind", [
+  "form_record",
+  "share_link",
+  "file",
+]);
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dmKey: text("dm_key").unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastMessageAt: timestamp("last_message_at").notNull().defaultNow(),
+  },
+  (table) => [index("conversations_last_message_at_idx").on(table.lastMessageAt)],
+);
+
+export const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at"),
+    muted: boolean("muted").notNull().default(false),
+  },
+  (table) => [
+    primaryKey({ columns: [table.conversationId, table.userId] }),
+    index("conversation_participants_user_id_idx").on(table.userId),
+  ],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id),
+    body: text("body"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    editedAt: timestamp("edited_at"),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [
+    index("messages_conversation_id_created_at_idx").on(table.conversationId, table.createdAt),
+  ],
+);
+
+export const messageAttachments = pgTable("message_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: uuid("message_id")
+    .notNull()
+    .references(() => messages.id, { onDelete: "cascade" }),
+  kind: messageAttachmentKind("kind").notNull(),
+  formRecordId: uuid("form_record_id").references(() => formRecords.id),
+  shareLinkId: uuid("share_link_id").references(() => shareLinks.id),
+  fileUrl: text("file_url"),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+});

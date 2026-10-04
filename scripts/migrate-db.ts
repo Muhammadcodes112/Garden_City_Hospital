@@ -140,6 +140,133 @@ async function migrate() {
       WHERE fr."patient_id" = p."id" AND (fr."search_text" IS NULL OR fr."search_text" = '');
     `);
 
+    // Internal admin-to-admin messaging
+    await sql.unsafe(`
+      ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'message_sent';
+
+      DO $$ BEGIN
+        CREATE TYPE "public"."message_attachment_kind" AS ENUM('form_record', 'share_link', 'file');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      CREATE TABLE IF NOT EXISTS "conversations" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "dm_key" text UNIQUE,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "last_message_at" timestamp DEFAULT now() NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "conversation_participants" (
+        "conversation_id" uuid NOT NULL,
+        "user_id" text NOT NULL,
+        "last_read_at" timestamp,
+        "muted" boolean DEFAULT false NOT NULL,
+        PRIMARY KEY ("conversation_id", "user_id")
+      );
+
+      CREATE TABLE IF NOT EXISTS "messages" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "conversation_id" uuid NOT NULL,
+        "sender_id" text NOT NULL,
+        "body" text,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "edited_at" timestamp,
+        "deleted_at" timestamp
+      );
+
+      CREATE TABLE IF NOT EXISTS "message_attachments" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "message_id" uuid NOT NULL,
+        "kind" "public"."message_attachment_kind" NOT NULL,
+        "form_record_id" uuid,
+        "share_link_id" uuid,
+        "file_url" text,
+        "file_name" text,
+        "file_size" integer,
+        "mime_type" text
+      );
+
+      ALTER TABLE "activity_logs" ADD COLUMN IF NOT EXISTS "conversation_id" uuid;
+    `);
+
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'conversation_participants_conversation_id_conversations_id_fk') THEN
+          ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'conversation_participants_user_id_user_id_fk') THEN
+          ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'messages_conversation_id_conversations_id_fk') THEN
+          ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'messages_sender_id_user_id_fk') THEN
+          ALTER TABLE "messages" ADD CONSTRAINT "messages_sender_id_user_id_fk" FOREIGN KEY ("sender_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'message_attachments_message_id_messages_id_fk') THEN
+          ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_message_id_messages_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."messages"("id") ON DELETE cascade ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'message_attachments_form_record_id_form_records_id_fk') THEN
+          ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_form_record_id_form_records_id_fk" FOREIGN KEY ("form_record_id") REFERENCES "public"."form_records"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'message_attachments_share_link_id_share_links_id_fk') THEN
+          ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_share_link_id_share_links_id_fk" FOREIGN KEY ("share_link_id") REFERENCES "public"."share_links"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'activity_logs_conversation_id_conversations_id_fk') THEN
+          ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+
+      CREATE INDEX IF NOT EXISTS "conversations_last_message_at_idx" ON "conversations" USING btree ("last_message_at");
+      CREATE INDEX IF NOT EXISTS "conversation_participants_user_id_idx" ON "conversation_participants" USING btree ("user_id");
+      CREATE INDEX IF NOT EXISTS "messages_conversation_id_created_at_idx" ON "messages" USING btree ("conversation_id", "created_at" desc);
+
+      -- A message must have a body, an attachment, or both. Postgres CHECK
+      -- constraints can't reference other tables, so this is enforced with a
+      -- deferred constraint trigger checked at transaction commit — this lets
+      -- sendMessage() insert the message row then its attachment row(s) in
+      -- the same transaction without tripping the check mid-transaction.
+      CREATE OR REPLACE FUNCTION messages_require_content() RETURNS trigger AS $BODY$
+      BEGIN
+        IF NEW.body IS NULL AND NOT EXISTS (
+          SELECT 1 FROM message_attachments WHERE message_id = NEW.id
+        ) THEN
+          RAISE EXCEPTION 'message % must have a body or at least one attachment', NEW.id;
+        END IF;
+        RETURN NEW;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS messages_require_content_trigger ON "messages";
+      CREATE CONSTRAINT TRIGGER messages_require_content_trigger
+        AFTER INSERT OR UPDATE ON "messages"
+        DEFERRABLE INITIALLY DEFERRED
+        FOR EACH ROW
+        EXECUTE FUNCTION messages_require_content();
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);
