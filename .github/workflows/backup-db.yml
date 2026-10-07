@@ -1,0 +1,63 @@
+name: Daily database backup
+
+# 01:00 UTC = 02:00 WAT (Nigeria) — off-peak for a hospital system.
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (for the retention script)
+        uses: actions/checkout@v4
+
+      - name: Dump the database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/backup
+          # postgres:18-alpine matches Neon's server major version — pg_dump
+          # refuses to run against a newer server than itself, and Ubuntu's
+          # apt postgresql-client is usually older than Neon's current major,
+          # so a matching Docker image is the reliable way to get this right.
+          docker run --rm -e DATABASE_URL -v /tmp/backup:/backup postgres:18-alpine \
+            sh -c 'pg_dump "$DATABASE_URL" -F c -f /backup/dump.pgdump --no-owner --no-privileges'
+          ls -la /tmp/backup
+
+      - name: Upload to Vercel Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install --no-save @vercel/blob
+          node -e "
+            const { put } = require('@vercel/blob');
+            const fs = require('fs');
+            (async () => {
+              const body = fs.readFileSync('/tmp/backup/dump.pgdump');
+              // This repo is public, so Action logs are world-readable — a
+              // backup blob's URL is effectively a bearer credential for the
+              // whole patient database (Vercel Blob has no private-ACL
+              // concept), so the random suffix stays on and we never log the
+              // resulting pathname or url anywhere.
+              await put('backups/db/garden-city.pgdump', body, {
+                access: 'public',
+                contentType: 'application/octet-stream',
+                addRandomSuffix: true,
+              });
+              console.log('Backup uploaded.');
+            })().catch((err) => { console.error('Upload failed:', err?.message ?? 'unknown error'); process.exit(1); });
+          "
+
+      - name: Apply retention policy
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: node scripts/backup-retention.mjs
+
+      - name: Clean up local dump
+        if: always()
+        run: rm -rf /tmp/backup

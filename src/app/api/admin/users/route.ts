@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq, gte, sql, desc } from "drizzle-orm";
+import { gte, sql, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { user, session as sessionTable, formRecords } from "@/db/schema";
 import { requireSuperAdminApi } from "@/lib/session";
@@ -23,6 +23,7 @@ export async function GET() {
         banned: user.banned,
         deletedAt: user.deletedAt,
         createdAt: user.createdAt,
+        twoFactorEnabled: user.twoFactorEnabled,
       })
       .from(user)
       .orderBy(desc(user.createdAt));
@@ -60,6 +61,19 @@ export async function GET() {
 
     const lastActiveMap = new Map(lastActiveRows.map((r) => [r.userId, r.lastActive]));
 
+    // Last sign-in: when their most recent session was CREATED, as distinct
+    // from lastActiveAt (session.updatedAt, which also moves on ongoing
+    // token refresh within an existing session, not just at sign-in).
+    const lastSignInRows = await db
+      .select({
+        userId: sessionTable.userId,
+        lastSignIn: sql<string>`max(${sessionTable.createdAt})`,
+      })
+      .from(sessionTable)
+      .groupBy(sessionTable.userId);
+
+    const lastSignInMap = new Map(lastSignInRows.map((r) => [r.userId, r.lastSignIn]));
+
     const usersList = allUsers.map((u) => {
       const isDeleted = Boolean(u.deletedAt);
       const status = isDeleted ? "deleted" : u.banned ? "banned" : "active";
@@ -74,6 +88,8 @@ export async function GET() {
         status,
         formsCount: formCountMap.get(u.id) || 0,
         lastActiveAt: lastActiveMap.get(u.id) || null,
+        lastSignInAt: lastSignInMap.get(u.id) || null,
+        twoFactorEnabled: Boolean(u.twoFactorEnabled),
         isSuperAdmin: u.role === "super_admin",
       };
     });

@@ -141,3 +141,40 @@ The app UI search, mobile selector, PDF renderer, and database validators will a
    - `NEXT_PUBLIC_BETTER_AUTH_URL` (e.g. `https://gardencityhospital.vercel.app`)
    - `ADMIN_SIGNUP_CODE`
 4. Deploy! Next.js and `@sparticuz/chromium` will automatically handle PDF rendering in serverless functions.
+
+---
+
+## Operations — for the hospital's IT contact
+
+**IT contact:** _fill in a name, phone, and email here before handing this
+system over._
+
+### Add a new admin
+Either have them register at `/sign-up` with the shared `ADMIN_SIGNUP_CODE`
+(treat that code like a password — change it in Vercel's env vars if it
+leaks), or run from a machine with `DATABASE_URL` configured:
+```bash
+npm run create-admin -- --name "Jane Doe" --email jane@gardencity.com --password "..."
+```
+New accounts start as a regular Admin. A Super Admin can promote them to
+Super Admin from the **Admins** tab (`/admins`).
+
+### Rotate the access code
+The access code (used for `/sign-up`) rotates on a timer automatically. To
+force an immediate rotation, or to change the rotation period, go to the
+**Admins** tab → Access Code card. Only Super Admins can do this.
+
+### Restore a backup
+Full step-by-step procedure, including how to list backups without ever
+exposing a backup's URL anywhere public, is in **[docs/RESTORE.md](docs/RESTORE.md)**.
+Short version: you need Docker and the real `BLOB_READ_WRITE_TOKEN`, then
+list → download → `pg_restore` into either a scratch database (to inspect)
+or the real replacement database (disaster recovery).
+
+### Where things are documented
+- **docs/RESTORE.md** — backup mechanism and the tested restore procedure.
+- **docs/DATA.md** — what personal data this system stores, where it's
+  hosted, who can access it, how long each category is kept, and how a
+  record is permanently deleted. Needed for NDPA compliance review.
+- **`/api/health`** — unauthenticated endpoint an uptime monitor can poll;
+  returns database connectivity and the app's version.

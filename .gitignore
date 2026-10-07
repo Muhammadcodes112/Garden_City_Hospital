@@ -37,6 +37,9 @@ dev.log
 dev.err.log
 dev-pid.txt
 
+# generated page-preview cache (src/app/api/forms/[id]/pdf, records-actions.ts)
+/public/cache/
+
 # vercel
 .vercel
 

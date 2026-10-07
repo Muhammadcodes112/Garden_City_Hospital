@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TRASH_RETENTION_DAYS } from "@/lib/retention";
 import {
   Dialog,
   DialogContent,
@@ -142,7 +143,7 @@ export function TrashView() {
             </Badge>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Soft-deleted medical records. Records in Trash are automatically purged after 30 days.
+            Soft-deleted medical records. Records in Trash are automatically purged after {TRASH_RETENTION_DAYS} days.
           </p>
         </div>
       </div>

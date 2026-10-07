@@ -32,6 +32,8 @@ type AdminUser = {
   status: "active" | "banned" | "deleted";
   formsCount: number;
   lastActiveAt: string | null;
+  lastSignInAt: string | null;
+  twoFactorEnabled: boolean;
   isSuperAdmin: boolean;
 };
 
@@ -218,7 +220,8 @@ export default function AdminsManagementPage() {
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3">Last Active</th>
+                <th className="px-4 py-3">Last Sign-In</th>
+                <th className="px-4 py-3 text-center">2FA</th>
                 <th className="px-4 py-3 text-center">Forms Created</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -258,7 +261,18 @@ export default function AdminsManagementPage() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(u.createdAt)}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {u.lastActiveAt ? formatDate(u.lastActiveAt) : "Never"}
+                    {u.lastSignInAt ? formatDate(u.lastSignInAt) : "Never"}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {u.twoFactorEnabled ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <CheckCircle className="h-3.5 w-3.5" /> On
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <XCircle className="h-3.5 w-3.5" /> Off
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center font-semibold text-foreground">
                     <span className="inline-flex items-center gap-1">
@@ -339,6 +353,12 @@ export default function AdminsManagementPage() {
               <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
                 <span>Forms: {u.formsCount}</span>
                 <span>Joined: {formatDate(u.createdAt)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Last sign-in: {u.lastSignInAt ? formatDate(u.lastSignInAt) : "Never"}</span>
+                <span className={u.twoFactorEnabled ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""}>
+                  2FA: {u.twoFactorEnabled ? "On" : "Off"}
+                </span>
               </div>
               {u.status !== "deleted" ? (
                 <div className="pt-2 border-t border-border flex items-center justify-end gap-2">

@@ -4,6 +4,7 @@ import path from "path";
 import { and, inArray, lte, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, shareLinks } from "@/db/schema";
+import { TRASH_RETENTION_DAYS } from "@/lib/retention";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -17,13 +18,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const retentionCutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
-    // Find records in Trash for > 30 days
+    // Find records that have been in Trash longer than the retention window
     const expiredRecords = await db
       .select({ id: formRecords.id })
       .from(formRecords)
-      .where(and(isNotNull(formRecords.deletedAt), lte(formRecords.deletedAt, thirtyDaysAgo)));
+      .where(and(isNotNull(formRecords.deletedAt), lte(formRecords.deletedAt, retentionCutoff)));
 
     if (expiredRecords.length === 0) {
       return NextResponse.json({ message: "No expired trash records to clean up", count: 0 });
