@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { SaveStatus } from "@/components/forms/save-status";
-import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import { MedicalReportLetterheadPreview } from "./medical-report-letterhead-preview";
 import {
@@ -46,7 +45,6 @@ export function MedicalReportEditor({ initial }: Props) {
   const readOnly = initial.status === "completed";
   const [patient, setPatient] = useState<PatientFields>(initial.patient);
   const [data, setData] = useState<MedicalReportData>(initial.data);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRefreshKey, setShareRefreshKey] = useState(0);
@@ -570,13 +568,6 @@ export function MedicalReportEditor({ initial }: Props) {
           </Card>
         </div>
       ) : null}
-
-      <PdfPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        recordId={initial.recordId}
-        filename={pdfFilename}
-      />
 
       <ShareDialog
         open={shareOpen}

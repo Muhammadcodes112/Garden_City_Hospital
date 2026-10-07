@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { SaveStatus } from "@/components/forms/save-status";
-import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
   completePrescriptionForm,
@@ -49,7 +48,6 @@ export function PrescriptionFormEditor({ initial }: Props) {
   const readOnly = initial.status === "completed";
   const [patient, setPatient] = useState<PatientFields>(initial.patient);
   const [data, setData] = useState<PrescriptionData>(initial.data);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRefreshKey, setShareRefreshKey] = useState(0);
@@ -219,9 +217,6 @@ export function PrescriptionFormEditor({ initial }: Props) {
           >
             <Eye className="mr-1.5 h-4 w-4" />
             {mobilePreviewOpen ? "Hide Live Preview" : "Live Preview"}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
-            Preview PDF
           </Button>
           {readOnly ? (
             <Button asChild variant="outline">
@@ -710,13 +705,6 @@ export function PrescriptionFormEditor({ initial }: Props) {
           <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
         </div>
       </div>
-
-      <PdfPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        recordId={initial.recordId}
-        filename={pdfFilename}
-      />
 
       <ShareDialog
         open={shareOpen}

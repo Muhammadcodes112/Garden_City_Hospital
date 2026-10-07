@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { ImageLightbox } from "./image-lightbox";
 import { checkFormRecordAvailability, checkShareLinkAvailability } from "@/lib/actions/messages";
-import { FORM_TYPE_LABELS, formEditHref } from "@/lib/routes";
+import { FORM_TYPE_LABELS } from "@/lib/routes";
 import { formatDate } from "@/lib/date";
 import type { SerializedAttachment } from "@/lib/message-attachments";
 
@@ -75,7 +75,10 @@ function FormRecordAttachment({ attachment }: { attachment: Extract<SerializedAt
   async function handleOpen() {
     setBusy("open");
     try {
-      if (await recheck()) router.push(formEditHref(formType, formRecordId));
+      // Opens the full-screen, read-only document viewer — not the editable
+      // form page. Editing from here is reserved for super admins (via a
+      // button inside that viewer), since the receiver didn't create this record.
+      if (await recheck()) router.push(`/documents/${formRecordId}`);
     } finally {
       setBusy(null);
     }

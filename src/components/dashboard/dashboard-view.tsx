@@ -63,28 +63,28 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
         <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Quick actions
         </h2>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="grid grid-cols-2 gap-2 justify-items-center items-center">
           <Button
             type="button"
             onClick={() => setRegisterModalOpen(true)}
-            className="bg-brand-green hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs text-xs h-9"
+            className="w-full bg-brand-green hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs text-xs h-9"
           >
             <UserPlus className="h-4 w-4" />
             Add New Patient
           </Button>
-          <Button asChild variant="outline" className="text-xs h-9">
+          <Button asChild variant="outline" className="w-full text-xs h-9">
             <Link href={formNewHref("lab")} prefetch={false}>
               <FlaskConical className="h-4 w-4 text-emerald-600" />
               New Lab Request
             </Link>
           </Button>
-          <Button asChild variant="outline" className="text-xs h-9">
+          <Button asChild variant="outline" className="w-full text-xs h-9">
             <Link href={formNewHref("prescription")} prefetch={false}>
               <Pill className="h-4 w-4 text-blue-600" />
               New Prescription
             </Link>
           </Button>
-          <Button asChild variant="outline" className="text-xs h-9">
+          <Button asChild variant="outline" className="w-full text-xs h-9">
             <Link href={formNewHref("medical_report")} prefetch={false}>
               <FileText className="h-4 w-4 text-amber-600" />
               New Medical Report

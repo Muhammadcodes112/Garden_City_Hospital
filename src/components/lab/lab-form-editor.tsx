@@ -14,7 +14,6 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { SaveStatus } from "@/components/forms/save-status";
-import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
   completeLabForm,
@@ -54,7 +53,6 @@ export function LabFormEditor({ initial }: Props) {
   const [patient, setPatient] = useState<PatientFields>(initial.patient);
   const [data, setData] = useState<LabRequestData>(initial.data);
   const [testSearch, setTestSearch] = useState("");
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareRefreshKey, setShareRefreshKey] = useState(0);
@@ -428,13 +426,6 @@ export function LabFormEditor({ initial }: Props) {
           </SheetContent>
         </Sheet>
       </div>
-
-      <PdfPreviewDialog
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        recordId={initial.recordId}
-        filename={pdfFilename}
-      />
 
       <ShareDialog
         open={shareOpen}
