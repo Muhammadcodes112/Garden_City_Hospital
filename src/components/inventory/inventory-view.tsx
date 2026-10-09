@@ -234,76 +234,134 @@ export function InventoryView() {
             <p className="mt-1">Click &quot;Add Drug / Hospital Item&quot; to add a new item.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th className="p-3">ITEM NAME &amp; STRENGTH</th>
-                  <th className="p-3">CATEGORY</th>
-                  <th className="p-3">UNIT PRICE (NGN ₦)</th>
-                  <th className="p-3">SUGGESTED DOSAGE</th>
-                  <th className="p-3">STOCK</th>
-                  <th className="p-3 text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {items.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-3">
-                      <div className="font-bold text-foreground text-xs">{item.name}</div>
-                      <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+          <>
+            {/* DESKTOP TABLE */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[720px] text-left text-xs">
+                <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="p-3">ITEM NAME &amp; STRENGTH</th>
+                    <th className="p-3">CATEGORY</th>
+                    <th className="p-3">UNIT PRICE (NGN ₦)</th>
+                    <th className="p-3">SUGGESTED DOSAGE</th>
+                    <th className="p-3">STOCK</th>
+                    <th className="p-3 text-right">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {items.map((item) => (
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-3">
+                        <div className="font-bold text-foreground text-xs">{item.name}</div>
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                          {item.strength && <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">{item.strength}</span>}
+                          {item.unit && <span>· {item.unit}</span>}
+                          {item.dosageForm && <span>({item.dosageForm})</span>}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="secondary" className="text-[11px] font-medium">
+                          {item.category}
+                        </Badge>
+                      </td>
+                      <td className="p-3 font-bold text-emerald-700 dark:text-emerald-400 text-sm tabular-nums">
+                        ₦{item.unitPrice.toLocaleString("en-NG")}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {item.defaultFrequency && (
+                          <div className="text-[11px]">
+                            <strong className="text-foreground">{item.defaultFrequency}</strong> for {item.defaultDuration || "5 days"}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <span className="font-semibold text-foreground text-xs tabular-nums">
+                          {item.stockQuantity ?? 100} units
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleOpenEdit(item)}
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title="Edit Item"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setDeletingItem(item)}
+                            className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950"
+                            title="Delete Item"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* MOBILE CARD LIST */}
+            <ul className="flex flex-col gap-3 p-3 md:hidden">
+              {items.map((item) => (
+                <li key={item.id} className="rounded-lg border border-border bg-background p-3 shadow-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-foreground text-sm truncate">{item.name}</div>
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {item.strength && <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">{item.strength}</span>}
                         {item.unit && <span>· {item.unit}</span>}
                         {item.dosageForm && <span>({item.dosageForm})</span>}
                       </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant="secondary" className="text-[11px] font-medium">
-                        {item.category}
-                      </Badge>
-                    </td>
-                    <td className="p-3 font-bold text-emerald-700 dark:text-emerald-400 text-sm tabular-nums">
+                    </div>
+                    <Badge variant="secondary" className="text-[11px] font-medium shrink-0">
+                      {item.category}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-2.5 flex items-center justify-between gap-2">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400 text-base tabular-nums">
                       ₦{item.unitPrice.toLocaleString("en-NG")}
-                    </td>
-                    <td className="p-3 text-muted-foreground">
-                      {item.defaultFrequency && (
-                        <div className="text-[11px]">
-                          <strong className="text-foreground">{item.defaultFrequency}</strong> for {item.defaultDuration || "5 days"}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <span className="font-semibold text-foreground text-xs tabular-nums">
-                        {item.stockQuantity ?? 100} units
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleOpenEdit(item)}
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          title="Edit Item"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setDeletingItem(item)}
-                          className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950"
-                          title="Delete Item"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </span>
+                    <span className="font-semibold text-foreground text-xs tabular-nums shrink-0">
+                      {item.stockQuantity ?? 100} units
+                    </span>
+                  </div>
+
+                  {item.defaultFrequency && (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      <strong className="text-foreground">{item.defaultFrequency}</strong> for {item.defaultDuration || "5 days"}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-2.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenEdit(item)}
+                      className="h-7 text-[11px] gap-1"
+                    >
+                      <Edit2 className="h-3 w-3" /> Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setDeletingItem(item)}
+                      className="h-7 text-[11px] gap-1 text-rose-600 border-rose-200 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-950"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 

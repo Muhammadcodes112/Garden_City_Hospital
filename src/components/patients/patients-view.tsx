@@ -198,32 +198,32 @@ export function PatientsView() {
       {/* FILTER TABS & SEARCH BAR (IMAGE 3) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold">
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
           <button
             type="button"
             onClick={() => { setActiveTab("all"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all ${activeTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
             All <span className="ml-1 text-[11px] opacity-70">{total}</span>
           </button>
           <button
             type="button"
             onClick={() => { setActiveTab("outpatient"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all ${activeTab === "outpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "outpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
             Outpatient <span className="ml-1 text-[11px] opacity-70">{outpatientCount}</span>
           </button>
           <button
             type="button"
             onClick={() => { setActiveTab("inpatient"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all ${activeTab === "inpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "inpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
             Inpatient <span className="ml-1 text-[11px] opacity-70">{inpatientCount}</span>
           </button>
           <button
             type="button"
             onClick={() => { setActiveTab("discharged"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all ${activeTab === "discharged" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "discharged" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
             Discharged <span className="ml-1 text-[11px] opacity-70">{dischargedCount}</span>
           </button>
@@ -261,61 +261,102 @@ export function PatientsView() {
               <p className="mt-1">Click &quot;Register patient&quot; to create a new Patient Case File.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="p-3">PATIENT</th>
-                    <th className="p-3">AGE / SEX</th>
-                    <th className="p-3">LAST VISIT</th>
-                    <th className="p-3">DOCTOR</th>
-                    <th className="p-3">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {patients.map((p) => {
-                    const isSelected = selectedPatient?.id === p.id;
-                    const initials = getInitials(p.surname, p.firstNames);
+            <>
+              {/* DESKTOP TABLE */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[560px] text-left text-xs">
+                  <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
+                    <tr>
+                      <th className="p-3">PATIENT</th>
+                      <th className="p-3">AGE / SEX</th>
+                      <th className="p-3">LAST VISIT</th>
+                      <th className="p-3">DOCTOR</th>
+                      <th className="p-3">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {patients.map((p) => {
+                      const isSelected = selectedPatient?.id === p.id;
+                      const initials = getInitials(p.surname, p.firstNames);
 
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => setSelectedPatient(p)}
-                        className={`cursor-pointer transition-colors hover:bg-muted/30 ${isSelected ? "bg-muted/60" : ""}`}
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                              {initials}
+                      return (
+                        <tr
+                          key={p.id}
+                          onClick={() => setSelectedPatient(p)}
+                          className={`cursor-pointer transition-colors hover:bg-muted/30 ${isSelected ? "bg-muted/60" : ""}`}
+                        >
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                {initials}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-foreground text-xs">
+                                  {p.firstNames} {p.surname}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground font-mono">
+                                  {p.hospitalNumber}
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-semibold text-foreground text-xs">
-                                {p.firstNames} {p.surname}
-                              </div>
-                              <div className="text-[11px] text-muted-foreground font-mono">
-                                {p.hospitalNumber}
-                              </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {p.age || "28"} · {p.sex ? p.sex[0] : "M"}
+                          </td>
+                          <td className="p-3 text-muted-foreground whitespace-nowrap">
+                            {p.lastVisit || "28 Sep 2026"}
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {p.doctor || "Dr. Ibrahim Musa"}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {getStatusBadge(p.status)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* MOBILE CARD LIST */}
+              <ul className="flex flex-col gap-2 p-3 md:hidden">
+                {patients.map((p) => {
+                  const isSelected = selectedPatient?.id === p.id;
+                  const initials = getInitials(p.surname, p.firstNames);
+
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPatient(p)}
+                        className={`w-full rounded-lg border border-border p-3 text-left transition-colors ${isSelected ? "bg-muted/60" : "bg-background hover:bg-muted/30"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-foreground text-xs truncate">
+                              {p.firstNames} {p.surname}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {p.hospitalNumber}
                             </div>
                           </div>
-                        </td>
-                        <td className="p-3 text-muted-foreground">
-                          {p.age || "28"} · {p.sex ? p.sex[0] : "M"}
-                        </td>
-                        <td className="p-3 text-muted-foreground whitespace-nowrap">
-                          {p.lastVisit || "28 Sep 2026"}
-                        </td>
-                        <td className="p-3 text-muted-foreground">
-                          {p.doctor || "Dr. Ibrahim Musa"}
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
-                          {getStatusBadge(p.status)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <div className="shrink-0">{getStatusBadge(p.status)}</div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-2">
+                          <span>{p.age || "28"} · {p.sex ? p.sex[0] : "M"}</span>
+                          <span className="truncate">{p.doctor || "Dr. Ibrahim Musa"}</span>
+                          <span className="whitespace-nowrap">{p.lastVisit || "28 Sep 2026"}</span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
 
           {/* Pagination */}

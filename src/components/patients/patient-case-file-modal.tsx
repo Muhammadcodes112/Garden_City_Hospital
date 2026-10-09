@@ -316,12 +316,12 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         </div>
 
         {/* PAGE NAVIGATION TABS */}
-        <div className="bg-pink-200/80 px-4 py-2 border-b border-pink-300 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="bg-pink-200/80 px-4 py-2 border-b border-pink-300 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab("cover")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === "cover" ? "bg-pink-600 text-white shadow-xs" : "bg-pink-100 text-pink-900 hover:bg-pink-50"
               }`}
             >
@@ -330,7 +330,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
             <button
               type="button"
               onClick={() => setActiveTab("inside")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === "inside" ? "bg-pink-600 text-white shadow-xs" : "bg-pink-100 text-pink-900 hover:bg-pink-50"
               }`}
             >
@@ -339,7 +339,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
             <button
               type="button"
               onClick={() => setActiveTab("operations")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === "operations" ? "bg-pink-600 text-white shadow-xs" : "bg-pink-100 text-pink-900 hover:bg-pink-50"
               }`}
             >

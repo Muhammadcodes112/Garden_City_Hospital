@@ -93,22 +93,6 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
         </div>
       </section>
 
-      {/* STAT CARDS SECTION */}
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Forms created today"
-          value={stats.formsCreatedToday}
-          icon={FilePen}
-        />
-        <StatCard label="Drafts in progress" value={stats.draftsInProgress} icon={FileText} />
-        <StatCard
-          label="Completed this week"
-          value={stats.completedThisWeek}
-          icon={FileCheck}
-        />
-        <StatCard label="Total patients" value={stats.totalPatients} icon={Users} />
-      </section>
-
       <RegisterPatientModal
         open={registerModalOpen}
         onOpenChange={setRegisterModalOpen}
@@ -165,6 +149,22 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
           )}
         </CardContent>
       </Card>
+
+      {/* STAT CARDS SECTION */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Forms created today"
+          value={stats.formsCreatedToday}
+          icon={FilePen}
+        />
+        <StatCard label="Drafts in progress" value={stats.draftsInProgress} icon={FileText} />
+        <StatCard
+          label="Completed this week"
+          value={stats.completedThisWeek}
+          icon={FileCheck}
+        />
+        <StatCard label="Total patients" value={stats.totalPatients} icon={Users} />
+      </section>
     </div>
   );
 }
