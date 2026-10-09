@@ -60,15 +60,15 @@ export default async function LabFormPage(props: {
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="flex flex-col gap-2 p-3 sm:p-4">
               {rows.map((row) => (
                 <li key={row.id}>
                   <Link
                     href={formEditHref("lab", row.id)}
-                    className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-muted/50"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-3 shadow-xs transition-colors hover:bg-muted/40"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-foreground">
                         {row.surname || row.firstNames
                           ? `${row.surname} ${row.firstNames}`.trim()
                           : "Unnamed Patient"}{" "}
@@ -80,7 +80,7 @@ export default async function LabFormPage(props: {
                         Updated {formatDate(row.updatedAt)}
                       </span>
                     </div>
-                    <Badge variant={row.status === "completed" ? "completed" : "draft"}>
+                    <Badge variant={row.status === "completed" ? "completed" : "draft"} className="shrink-0">
                       {row.status === "completed" ? "Completed" : "Draft"}
                     </Badge>
                   </Link>
