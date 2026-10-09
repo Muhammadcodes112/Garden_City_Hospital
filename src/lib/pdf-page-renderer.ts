@@ -1,8 +1,6 @@
 import fs from "fs";
-import path from "path";
 import type { Browser } from "puppeteer-core";
-
-const CACHE_DIR = path.join(process.cwd(), "public", "cache", "form-pages");
+import { getCachedImage, putCachedImage } from "@/lib/pdf-cache";
 
 async function launchBrowser(): Promise<Browser> {
   const puppeteer = await import("puppeteer-core");
@@ -49,26 +47,9 @@ export async function renderFormPageImage(opts: {
   resolution: "low" | "high";
 }): Promise<{ buffer: Buffer; pageCount: number }> {
   const { html, recordId, updatedAt, pageIndex, resolution } = opts;
-  const updatedTs = new Date(updatedAt).getTime();
-  const cacheKey = `${recordId}_${updatedTs}_p${pageIndex}_${resolution}.png`;
-  const metaKey = `${recordId}_${updatedTs}_meta.json`;
 
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-
-  const cachePath = path.join(CACHE_DIR, cacheKey);
-  const metaPath = path.join(CACHE_DIR, metaKey);
-
-  if (fs.existsSync(cachePath) && fs.existsSync(metaPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"));
-      const buffer = fs.readFileSync(cachePath);
-      return { buffer, pageCount: meta.pageCount || 1 };
-    } catch {
-      // If cache read fails, fall back to fresh rendering
-    }
-  }
+  const cached = await getCachedImage(recordId, updatedAt, pageIndex, resolution);
+  if (cached) return cached;
 
   const browser = await launchBrowser();
   try {
@@ -104,8 +85,7 @@ export async function renderFormPageImage(opts: {
       screenshotBuffer = Buffer.from(pngUint8);
     }
 
-    fs.writeFileSync(cachePath, screenshotBuffer);
-    fs.writeFileSync(metaPath, JSON.stringify({ pageCount, updatedAt: updatedTs }));
+    await putCachedImage(recordId, updatedAt, pageIndex, resolution, screenshotBuffer, pageCount);
 
     return { buffer: screenshotBuffer, pageCount };
   } finally {

@@ -1,7 +1,5 @@
 "use server";
 
-import fs from "fs";
-import path from "path";
 import { and, inArray, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, shareLinks } from "@/db/schema";
@@ -96,20 +94,10 @@ export async function restoreRecord(recordId: string) {
 export async function permanentlyDeleteRecord(recordId: string) {
   const session = await requireSuperAdmin();
 
-  // Purge disk cache for page previews
-  try {
-    const cacheDir = path.join(process.cwd(), "public", "cache", "page-previews");
-    if (fs.existsSync(cacheDir)) {
-      const files = fs.readdirSync(cacheDir);
-      for (const file of files) {
-        if (file.startsWith(recordId)) {
-          fs.unlinkSync(path.join(cacheDir, file));
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Error clearing page preview cache:", err);
-  }
+  // Render cache (PDF/page-image blobs) is swept by the dedicated
+  // /api/cron/cleanup-render-cache cron rather than purged here — it
+  // prunes any cache entry whose record no longer exists, covering both
+  // this immediate-delete path and the soft-delete-then-trash-purge path.
 
   // Delete share links
   await db.delete(shareLinks).where(eq(shareLinks.formRecordId, recordId));

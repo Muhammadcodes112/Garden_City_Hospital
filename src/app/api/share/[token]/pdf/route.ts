@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPublicShareData } from "@/lib/actions/share";
 import { renderPdf } from "@/lib/pdf";
+import { renderPdfCached } from "@/lib/pdf-cache";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -15,12 +16,13 @@ export async function GET(
   const wantsHtml = url.searchParams.get("html") === "1";
 
   const shareData = await getPublicShareData(token);
-  if (!shareData.valid || !shareData.html) {
+  const { valid, html, recordId, updatedAt } = shareData;
+  if (!valid || !html || !recordId || !updatedAt) {
     return NextResponse.json({ error: "Link expired or invalid" }, { status: 404 });
   }
 
   if (wantsHtml) {
-    return new NextResponse(shareData.html, {
+    return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "private, max-age=3600",
@@ -29,7 +31,7 @@ export async function GET(
   }
 
   try {
-    const pdf = await renderPdf(shareData.html);
+    const pdf = await renderPdfCached(recordId, updatedAt, () => renderPdf(html));
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
@@ -40,7 +42,7 @@ export async function GET(
     });
   } catch (err) {
     console.error("Failed to render PDF for share link:", err);
-    return new NextResponse(shareData.html, {
+    return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${(shareData.filename || "HospitalDocument.pdf").replace(/\.pdf$/, ".html")}"`,

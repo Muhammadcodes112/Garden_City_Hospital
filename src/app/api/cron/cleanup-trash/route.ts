@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import { and, inArray, lte, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, shareLinks } from "@/db/schema";
@@ -32,20 +30,9 @@ export async function GET(request: Request) {
 
     const recordIds = expiredRecords.map((r) => r.id);
 
-    // 1. Purge preview images from disk
-    const cacheDir = path.join(process.cwd(), "public", "cache", "page-previews");
-    if (fs.existsSync(cacheDir)) {
-      const files = fs.readdirSync(cacheDir);
-      for (const file of files) {
-        if (recordIds.some((id) => file.startsWith(id))) {
-          try {
-            fs.unlinkSync(path.join(cacheDir, file));
-          } catch (e) {
-            console.error("Error unlinking preview file:", file, e);
-          }
-        }
-      }
-    }
+    // Render cache (PDF/page-image blobs) is swept separately by
+    // /api/cron/cleanup-render-cache, which already treats any trashed
+    // record as stale — no need to purge it again here.
 
     // 2. Delete share links
     await db.delete(shareLinks).where(inArray(shareLinks.formRecordId, recordIds));

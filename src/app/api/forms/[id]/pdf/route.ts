@@ -10,6 +10,7 @@ import { prescriptionPdfFilename, prescriptionPdfHtml } from "@/lib/pdf-template
 import { medicalReportDataSchema } from "@/lib/validators/medical-report";
 import { medicalReportPdfFilename, medicalReportPdfHtml } from "@/lib/pdf-templates/medical-report";
 import { renderPdf } from "@/lib/pdf";
+import { renderPdfCached } from "@/lib/pdf-cache";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export async function GET(
       type: formRecords.type,
       status: formRecords.status,
       data: formRecords.data,
+      updatedAt: formRecords.updatedAt,
       surname: patients.surname,
       firstNames: patients.firstNames,
       age: patients.age,
@@ -100,7 +102,7 @@ export async function GET(
   }
 
   try {
-    const pdf = await renderPdf(html);
+    const pdf = await renderPdfCached(id, row.updatedAt, () => renderPdf(html));
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
