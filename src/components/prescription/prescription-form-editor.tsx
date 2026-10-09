@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowUp, ArrowDown, Pill } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Pill, StickyNote } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -270,6 +271,23 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </CardHeader>
         <CardContent>
           <PatientPicker patient={patient} onPatientChange={setPatient} disabled={readOnly} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+            <StickyNote className="h-5 w-5 text-brand-green" /> Clinical Notes / Examination Findings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={data.clinicalNotes}
+            onChange={(e) => setData((d) => ({ ...d, clinicalNotes: e.target.value }))}
+            placeholder="e.g. Headache, fever x2 days, mild body pain. BP 120/80, temp 37.2°C."
+            disabled={readOnly}
+            rows={3}
+          />
         </CardContent>
       </Card>
 

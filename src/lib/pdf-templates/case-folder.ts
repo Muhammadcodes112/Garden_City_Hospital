@@ -42,6 +42,10 @@ export type CaseFilePatientData = {
     disposal?: string;
     assetpay?: string;
   }[];
+  clinicalNotes?: {
+    date?: string;
+    note?: string;
+  }[];
   diagnoses?: {
     date?: string;
     diagnosis?: string;
@@ -93,6 +97,17 @@ export function caseFolderPdfHtml(opts: {
         <td>${escapeHtml(h.dateDischarged ? formatDate(h.dateDischarged) : "")}</td>
         <td>${escapeHtml(h.disposal)}</td>
         <td>${escapeHtml(h.assetpay)}</td>
+      </tr>
+    `,
+    )
+    .join("");
+
+  const clinicalNoteRows = (patient.clinicalNotes || [])
+    .map(
+      (n) => `
+      <tr>
+        <td style="width: 20%;">${escapeHtml(n.date ? formatDate(n.date) : "")}</td>
+        <td style="white-space: pre-wrap;">${escapeHtml(n.note)}</td>
       </tr>
     `,
     )
@@ -480,6 +495,19 @@ export function caseFolderPdfHtml(opts: {
       </thead>
       <tbody>
         ${historyRows || `<tr><td colspan="7" style="text-align:center; color:#888; font-style:italic;">No hospital visits recorded</td></tr>`}
+      </tbody>
+    </table>
+
+    <div class="section-table-title">CLINICAL NOTES / EXAMINATION FINDINGS</div>
+    <table class="grid-table">
+      <thead>
+        <tr>
+          <th style="width: 20%;">Date</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${clinicalNoteRows || `<tr><td colspan="2" style="text-align:center; color:#888; font-style:italic;">No clinical notes recorded</td></tr>`}
       </tbody>
     </table>
 

@@ -93,6 +93,16 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
           </div>
         </div>
 
+        {/* CLINICAL NOTES */}
+        {data.clinicalNotes ? (
+          <div className="rounded border border-amber-300 bg-amber-50 p-2.5 mb-4 text-[10px]">
+            <span className="font-bold text-amber-800 uppercase tracking-wide text-[9px]">
+              Clinical Notes / Examination Findings:
+            </span>
+            <p className="text-slate-800 whitespace-pre-wrap mt-0.5">{data.clinicalNotes}</p>
+          </div>
+        ) : null}
+
         {/* PRESCRIPTION ITEMS TABLE */}
         <div className="flex-1 space-y-2">
           <h4 className="font-bold text-emerald-800 text-[11px] uppercase border-b border-slate-200 pb-1 flex items-center justify-between">

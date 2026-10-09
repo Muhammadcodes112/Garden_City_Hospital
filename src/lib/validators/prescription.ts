@@ -43,6 +43,7 @@ export const prescriptionItemSchema = z.object({
 
 export const prescriptionDataSchema = z.object({
   items: z.array(prescriptionItemSchema).default([]),
+  clinicalNotes: z.string().optional().default(""),
   prescriberName: z.string().optional().default(""),
   prescriberSignature: doctorSignatureSchema.optional(),
   prescriberDate: z.string().optional().default(""),

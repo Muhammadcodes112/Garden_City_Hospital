@@ -21,6 +21,7 @@ export function buildSearchText(
     if (Array.isArray(data.testsSelected)) parts.push(...data.testsSelected);
   } else if (type === "prescription") {
     if (data.wardClinic) parts.push(data.wardClinic);
+    if (data.clinicalNotes) parts.push(data.clinicalNotes);
     if (data.prescriberName) parts.push(data.prescriberName);
     if (data.prescriberDesignation) parts.push(data.prescriberDesignation);
     if (Array.isArray(data.items)) {

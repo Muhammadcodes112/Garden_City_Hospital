@@ -168,6 +168,26 @@ export function prescriptionPdfHtml(opts: {
     margin-top: 2px;
   }
 
+  .notes-box {
+    border: 1px solid ${BRAND.line};
+    background: #fdf8ef;
+    padding: 6px 8px;
+    margin-bottom: 12px;
+    font-size: 8.5pt;
+  }
+  .notes-box .notes-label {
+    font-size: 7pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #4a4a4a;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .notes-box .notes-text {
+    white-space: pre-wrap;
+  }
+
   .rx-body {
     flex: 1;
     min-height: 0;
@@ -287,6 +307,15 @@ export function prescriptionPdfHtml(opts: {
         </td>
       </tr>
     </table>
+
+    ${
+      data.clinicalNotes
+        ? `<div class="notes-box">
+      <span class="notes-label">Clinical Notes / Examination Findings</span>
+      <div class="notes-text">${escapeHtml(data.clinicalNotes)}</div>
+    </div>`
+        : ""
+    }
 
     <div class="rx-body">
       ${

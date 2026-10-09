@@ -59,6 +59,7 @@ export async function GET(
       caseFolderPreparedBy: caseFileData.caseFolderPreparedBy ?? "Medical Records Officer",
       hasOperations: Boolean(caseFileData.hasOperations),
       hospitalHistory: caseFileData.hospitalHistory ?? [],
+      clinicalNotes: caseFileData.clinicalNotes ?? [],
       diagnoses: caseFileData.diagnoses ?? [],
       operations: caseFileData.operations ?? [],
       operationConsents: caseFileData.operationConsents ?? [],

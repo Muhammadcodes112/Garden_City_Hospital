@@ -80,6 +80,7 @@ async function main() {
   };
 
   const rxDataMin: PrescriptionData = {
+    clinicalNotes: "",
     items: [
       {
         drugName: "Paracetamol",
@@ -138,6 +139,7 @@ async function main() {
   }));
 
   const rxDataMax: PrescriptionData = {
+    clinicalNotes: "Patient complains of recurrent headache and diffuse body pain for the past 3 days. Low-grade fever noted. BP 128/82, Temp 37.6°C, Pulse 88bpm. No signs of respiratory distress.",
     items: maxRxItems,
     prescriberName: "Dr. Amir Ahmed Ibrahim (CMD)",
     prescriberDate: "2026-09-22",

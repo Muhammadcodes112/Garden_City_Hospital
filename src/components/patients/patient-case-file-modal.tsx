@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2 } from "lucide-react";
@@ -123,6 +124,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
     hospitalHistory: patient.caseFileData?.hospitalHistory || [
       { dateAttended: "2026-09-20", referredBy: "Dr. Ahmed", physician: "Dr. Ibrahim", wardClinic: "GOPD", dateDischarged: "2026-09-22", disposal: "Discharged Home", assetpay: "Paid" },
     ],
+    clinicalNotes: patient.caseFileData?.clinicalNotes || [],
     diagnoses: patient.caseFileData?.diagnoses || [
       { date: "2026-09-20", diagnosis: "Acute Febrile Illness / Malaria", code: "A75.9" },
     ],
@@ -167,6 +169,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
             caseFolderPreparedBy: formData.caseFolderPreparedBy,
             hasOperations: formData.hasOperations,
             hospitalHistory: formData.hospitalHistory,
+            clinicalNotes: formData.clinicalNotes,
             diagnoses: formData.diagnoses,
             operations: formData.operations,
             operationConsents: formData.operationConsents,
@@ -200,6 +203,21 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         ...prev.hospitalHistory,
         { dateAttended: "", referredBy: "", physician: "", wardClinic: "", dateDischarged: "", disposal: "", assetpay: "" },
       ],
+    }));
+  };
+
+  const addClinicalNoteRow = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setFormData((prev) => ({
+      ...prev,
+      clinicalNotes: [...prev.clinicalNotes, { date: today, note: "" }],
+    }));
+  };
+
+  const removeClinicalNoteRow = (idx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      clinicalNotes: prev.clinicalNotes.filter((_: any, i: number) => i !== idx),
     }));
   };
 
@@ -600,6 +618,90 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                           <td className="p-2">{row.assetpay}</td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* CLINICAL NOTES / EXAMINATION FINDINGS */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-pink-950">
+                    CLINICAL NOTES / EXAMINATION FINDINGS
+                  </h3>
+                  {editing && (
+                    <Button size="sm" variant="ghost" onClick={addClinicalNoteRow} className="h-6 text-[11px] text-pink-800">
+                      <Plus className="h-3 w-3 mr-1" /> Add Note
+                    </Button>
+                  )}
+                </div>
+                <div className="overflow-x-auto border border-pink-300 rounded bg-white">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-pink-100 text-pink-950 font-bold border-b border-pink-300">
+                      <tr>
+                        <th className="p-2 w-32">Date</th>
+                        <th className="p-2">Note (e.g. headache, body pain, examination findings)</th>
+                        {editing && <th className="p-2 w-10" />}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-pink-200">
+                      {formData.clinicalNotes.length === 0 ? (
+                        <tr>
+                          <td colSpan={editing ? 3 : 2} className="p-3 text-center text-slate-400 italic">
+                            No clinical notes recorded
+                          </td>
+                        </tr>
+                      ) : (
+                        formData.clinicalNotes.map((row: any, idx: number) => (
+                          <tr key={idx}>
+                            <td className="p-2 align-top">
+                              {editing ? (
+                                <Input
+                                  type="date"
+                                  value={row.date}
+                                  onChange={(e) => {
+                                    const next = [...formData.clinicalNotes];
+                                    next[idx] = { ...next[idx], date: e.target.value };
+                                    setFormData({ ...formData, clinicalNotes: next });
+                                  }}
+                                  className="h-8 text-xs bg-white border-pink-300"
+                                />
+                              ) : (
+                                <span className="font-medium">{row.date}</span>
+                              )}
+                            </td>
+                            <td className="p-2 align-top">
+                              {editing ? (
+                                <Textarea
+                                  value={row.note}
+                                  onChange={(e) => {
+                                    const next = [...formData.clinicalNotes];
+                                    next[idx] = { ...next[idx], note: e.target.value };
+                                    setFormData({ ...formData, clinicalNotes: next });
+                                  }}
+                                  placeholder="e.g. Complains of headache and body pain. Temp 37.8°C, BP 118/76."
+                                  className="min-h-[36px] text-xs bg-white border-pink-300"
+                                  rows={2}
+                                />
+                              ) : (
+                                <span className="whitespace-pre-wrap">{row.note}</span>
+                              )}
+                            </td>
+                            {editing && (
+                              <td className="p-2 align-top text-center">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => removeClinicalNoteRow(idx)}
+                                  className="h-7 w-7 text-rose-600 hover:text-rose-700"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
