@@ -272,6 +272,30 @@ async function migrate() {
       ALTER TYPE "public"."activity_action" ADD VALUE IF NOT EXISTS 'record_shared_internally';
     `);
 
+    // Pharmacy pricing inventory (added to schema.ts in 8184eeb but never
+    // migrated — the table never existed, so inventory reads/writes were
+    // silently failing and getting swallowed by seedInventoryIfNeeded()'s
+    // try/catch).
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS "inventory_items" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "name" text NOT NULL,
+        "category" text DEFAULT 'Medication' NOT NULL,
+        "unit" text DEFAULT 'Tablet',
+        "strength" text DEFAULT '',
+        "dosage_form" text DEFAULT 'Oral',
+        "unit_price" integer DEFAULT 0 NOT NULL,
+        "default_frequency" text DEFAULT 'TDS (3x daily)',
+        "default_duration" text DEFAULT '5 days',
+        "stock_quantity" integer DEFAULT 100,
+        "is_available" boolean DEFAULT true NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "inventory_items_category_idx" ON "inventory_items" USING btree ("category");
+      CREATE INDEX IF NOT EXISTS "inventory_items_name_idx" ON "inventory_items" USING btree ("name");
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);
