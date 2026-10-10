@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { activityLogs } from "@/db/schema";
-import { requireSuperAdminApi } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 import {
   updateRotationPeriod,
   regenerateAccessCodeNow,
@@ -12,10 +12,7 @@ export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const session = await requireSuperAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Forbidden: Super Admin access required" }, { status: 403 });
-  }
+  const session = await requireSuperAdmin();
 
   try {
     const body = await req.json();

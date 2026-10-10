@@ -3,7 +3,7 @@
 import { and, inArray, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, shareLinks } from "@/db/schema";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
 
 export async function softDeleteRecord(recordId: string) {

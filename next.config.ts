@@ -3,10 +3,18 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+  // Step 16: lets src/lib/authz.ts throw a real 403/401 from Server
+  // Components, Server Actions, AND Route Handlers via the same two
+  // functions (forbidden()/unauthorized() from next/navigation), instead of
+  // a parallel redirect-for-pages / return-null-for-APIs split.
+  experimental: {
+    authInterrupts: true,
+  },
   async redirects() {
     return [
       { source: "/lab-form", destination: "/lab", permanent: true },
       { source: "/lab-form/:path*", destination: "/lab/:path*", permanent: true },
+      { source: "/admins", destination: "/users", permanent: true },
     ];
   },
   async headers() {

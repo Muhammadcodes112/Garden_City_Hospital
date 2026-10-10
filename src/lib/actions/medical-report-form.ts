@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, patients } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import {
   defaultMedicalReportData,
   medicalReportCompleteSchema,
@@ -43,7 +43,7 @@ async function generateRefNo(): Promise<string> {
 }
 
 export async function createMedicalReportDraftRecord(): Promise<{ recordId: string }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const { patientId } = await createDraftPatient();
   const refNo = await generateRefNo();
   const data = defaultMedicalReportData(refNo);
@@ -75,7 +75,7 @@ export async function createMedicalReportDraftRecord(): Promise<{ recordId: stri
 export async function getMedicalReportFormRecord(
   recordId: string,
 ): Promise<MedicalReportFormBundle | null> {
-  await requireAdmin();
+  await requireStaff();
   const rows = await db
     .select({
       recordId: formRecords.id,
@@ -126,7 +126,7 @@ export type SaveMedicalReportFormInput = {
 export async function saveMedicalReportForm(
   input: SaveMedicalReportFormInput,
 ): Promise<{ updatedAt: string }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const patientParsed = draftPatientSchema.parse(input.patient);
   const dataParsed = medicalReportDataSchema.parse(input.data);
 
@@ -159,7 +159,7 @@ export async function completeMedicalReportForm(
   input: SaveMedicalReportFormInput,
 ): Promise<{ success: true; updatedAt: string } | { success: false; error: string }> {
   try {
-    const session = await requireAdmin();
+    const session = await requireStaff();
 
     const patientResult = patientSchema.safeParse(input.patient);
     if (!patientResult.success) {

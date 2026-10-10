@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
 import { inventoryItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,10 +8,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireStaff();
 
   const { id } = await params;
 
@@ -51,10 +48,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireStaff();
 
   const { id } = await params;
 

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { patients } from "@/db/schema";
 import { caseFolderPdfHtml, caseFolderPdfFilename } from "@/lib/pdf-templates/case-folder";
 import { renderPdf } from "@/lib/pdf";
+import { requireStaff } from "@/lib/authz";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  await requireStaff();
+
   const { id } = await params;
   const url = new URL(req.url);
   const download = url.searchParams.get("download") === "1";

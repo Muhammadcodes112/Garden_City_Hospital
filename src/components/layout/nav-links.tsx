@@ -16,7 +16,7 @@ export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; c
 
   const items = [
     ...NAV_ITEMS,
-    ...(isSuperAdmin ? [{ href: "/admins", label: "Admins", icon: ShieldCheck }] : []),
+    ...(isSuperAdmin ? [{ href: "/users", label: "Users & roles", icon: ShieldCheck }] : []),
   ];
 
   return (

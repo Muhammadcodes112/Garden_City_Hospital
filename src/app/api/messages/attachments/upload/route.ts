@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { detectFileSignature, MAX_ATTACHMENT_BYTES } from "@/lib/file-signature";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +12,7 @@ function sanitizeFileName(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireStaff();
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json({ error: "File uploads aren't configured on this server yet." }, { status: 503 });

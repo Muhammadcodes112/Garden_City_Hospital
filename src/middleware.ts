@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
+import { getSessionCookie, getCookieCache } from "better-auth/cookies";
 
 const AUTH_PAGES = ["/sign-in", "/sign-up"];
-const PROTECTED_PAGES = [
+const STAFF_PAGES = [
   "/dashboard",
   "/messages",
   "/documents",
@@ -12,8 +12,10 @@ const PROTECTED_PAGES = [
   "/patients",
   "/records",
   "/inventory",
-  "/admins",
+  "/users",
 ];
+const PATIENT_PAGES = ["/patient"];
+const PROTECTED_PAGES = [...STAFF_PAGES, ...PATIENT_PAGES];
 
 // The Sentry browser SDK reports events via fetch() to its DSN's own host —
 // a plain 'self' connect-src would silently block every report once a real
@@ -60,22 +62,45 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
-// Lightweight, cookie-presence-only check. This is NOT the authorization
-// boundary — every server action and API route still calls requireAdmin()
-// (src/lib/session.ts) against the real session, since a stale/forged
-// cookie can pass this check.
-export function middleware(request: NextRequest) {
+// Lightweight check: cookie presence for auth, and the signed cookie-cache
+// copy of `role` (src/lib/auth.ts session.cookieCache) for redirect UX only.
+// This is NOT the authorization boundary — every server action, API route,
+// and layout still calls requireUser()/requireStaff()/requireSuperAdmin()
+// (src/lib/authz.ts) against the live session, since a stale/forged cookie
+// can pass this check and the cache can lag the real role by up to 60s.
+export async function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const pathname = request.nextUrl.pathname;
   const sessionCookie = getSessionCookie(request);
   const isAuthPage = AUTH_PAGES.some((path) => pathname.startsWith(path));
-  const isProtectedPage = PROTECTED_PAGES.some((path) => pathname.startsWith(path));
+  const isStaffPage = STAFF_PAGES.some((path) => pathname.startsWith(path));
+  const isPatientPage = PATIENT_PAGES.some((path) => pathname.startsWith(path));
+  const isProtectedPage = isStaffPage || isPatientPage;
 
   let response: NextResponse;
   if (!sessionCookie && isProtectedPage) {
     response = NextResponse.redirect(new URL("/sign-in", request.url));
-  } else if (sessionCookie && isAuthPage) {
-    response = NextResponse.redirect(new URL("/dashboard", request.url));
+  } else if (sessionCookie && (isAuthPage || isStaffPage || isPatientPage)) {
+    // Role-aware: a patient hitting a staff page (or vice versa) is sent to
+    // their own area instead of hitting the 403 boundary or a route that
+    // looks like it doesn't exist. Falls through to NextResponse.next() if
+    // the role already matches the page, or the cache hasn't warmed yet
+    // (requireStaff()/requireSuperAdmin() still enforce the real boundary).
+    const cache = await getCookieCache(request);
+    const role = (cache?.user as { role?: string } | undefined)?.role;
+    const home = role === "patient" ? "/patient" : "/dashboard";
+
+    if (isAuthPage && role) {
+      response = NextResponse.redirect(new URL(home, request.url));
+    } else if (isStaffPage && role === "patient") {
+      response = NextResponse.redirect(new URL("/patient", request.url));
+    } else if (isPatientPage && role && role !== "patient") {
+      response = NextResponse.redirect(new URL("/dashboard", request.url));
+    } else {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set("x-nonce", nonce);
+      response = NextResponse.next({ request: { headers: requestHeaders } });
+    }
   } else {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);

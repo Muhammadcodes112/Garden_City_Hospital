@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
 import { inventoryItems } from "@/db/schema";
 import { seedInventoryIfNeeded } from "@/lib/inventory";
 import { desc, like, or, and, eq } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireStaff();
 
   try {
     // Seed default items if catalog is empty
@@ -48,10 +45,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireStaff();
 
   try {
     const body = await req.json();

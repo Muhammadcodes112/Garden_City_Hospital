@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, patients } from "@/db/schema";
-import { requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { labRequestDataSchema } from "@/lib/validators/lab-request";
 import { labRequestPdfHtml } from "@/lib/pdf-templates/lab-request";
 import { prescriptionDataSchema } from "@/lib/validators/prescription";
@@ -18,10 +18,7 @@ export async function GET(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await requireAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireStaff();
 
   const { id } = await ctx.params;
   const url = new URL(req.url);

@@ -3,7 +3,7 @@
 import { eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { patients } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { patientSchema, type PatientInput } from "@/lib/validators/patient";
 
 export type PatientRow = {
@@ -18,7 +18,7 @@ export type PatientRow = {
 };
 
 export async function searchPatients(query: string): Promise<PatientRow[]> {
-  await requireAdmin();
+  await requireStaff();
   const q = query.trim();
   if (q.length < 2) return [];
 
@@ -55,7 +55,7 @@ export async function upsertPatientForForm(
   patientId: string | null,
   input: PatientInput,
 ): Promise<{ patientId: string }> {
-  await requireAdmin();
+  await requireStaff();
   const parsed = patientSchema.parse(input);
 
   if (patientId) {
@@ -79,7 +79,7 @@ export async function upsertPatientForForm(
 }
 
 export async function createDraftPatient(): Promise<{ patientId: string; hospitalNumber: string }> {
-  await requireAdmin();
+  await requireStaff();
   const suffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
   const hospitalNumber = `DRAFT-${suffix}`;
   const [row] = await db

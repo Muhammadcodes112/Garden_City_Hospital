@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { searchFormRecords } from "@/lib/search";
 
 export async function GET(request: Request) {
-  const session = await requireAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireStaff();
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";

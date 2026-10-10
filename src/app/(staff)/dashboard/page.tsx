@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { getDashboardStats, listRecentFormRecords } from "@/lib/dashboard";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { formatDate } from "@/lib/date";
@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/date";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const userName = session.user.name ?? session.user.email;
 
   const [stats, recent] = await Promise.all([getDashboardStats(), listRecentFormRecords(100)]);

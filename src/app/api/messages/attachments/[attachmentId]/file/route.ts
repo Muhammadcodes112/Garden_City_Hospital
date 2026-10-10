@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { messageAttachments, messages } from "@/db/schema";
-import { requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { isParticipant } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,7 @@ export const maxDuration = 30;
  * fetches it.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ attachmentId: string }> }) {
-  const session = await requireAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireStaff();
 
   const { attachmentId } = await params;
 

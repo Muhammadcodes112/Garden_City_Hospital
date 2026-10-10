@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversationParticipants, messages, user } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { sendMessageSchema, type SendMessageInput } from "@/lib/validators/message";
 import { checkFormRecordAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
 import {
@@ -20,12 +20,12 @@ import {
 } from "@/lib/messages";
 
 export async function listPeople() {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   return listMessagePeople(session.user.id);
 }
 
 export async function getConversationWithUser(targetUserId: string) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const meId = session.user.id;
   if (targetUserId === meId) return null;
 
@@ -60,7 +60,7 @@ export async function getConversationWithUser(targetUserId: string) {
 }
 
 export async function loadOlderMessages(conversationId: string, beforeIso: string) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const ok = await isParticipant(conversationId, session.user.id);
   if (!ok) throw new Error("Forbidden");
 
@@ -69,7 +69,7 @@ export async function loadOlderMessages(conversationId: string, beforeIso: strin
 }
 
 export async function sendMessage(input: SendMessageInput) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const meId = session.user.id;
   const parsed = sendMessageSchema.parse(input);
 
@@ -112,7 +112,7 @@ export async function sendMessage(input: SendMessageInput) {
 }
 
 export async function deleteMessage(messageId: string) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
   if (!msg) throw new Error("Message not found");
@@ -126,24 +126,24 @@ export async function deleteMessage(messageId: string) {
 
 /** "Shared with" line on a record's page — visible to any admin who can see the record. */
 export async function getSharedWith(formRecordId: string): Promise<SharedWithEntry[]> {
-  await requireAdmin();
+  await requireStaff();
   return getRecordShareRecipients(formRecordId);
 }
 
 /** Live re-check used by an attachment card right before Open/Preview/Download act on it. */
 export async function checkFormRecordAvailability(formRecordId: string) {
-  await requireAdmin();
+  await requireStaff();
   return checkFormRecordAvailable(formRecordId);
 }
 
 /** Live re-check for a share_link attachment — catches a since-revoked or expired link. */
 export async function checkShareLinkAvailability(shareLinkId: string) {
-  await requireAdmin();
+  await requireStaff();
   return checkShareLinkAvailable(shareLinkId);
 }
 
 export async function markConversationRead(conversationId: string) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const ok = await isParticipant(conversationId, session.user.id);
   if (!ok) throw new Error("Forbidden");
 

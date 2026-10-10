@@ -1,4 +1,4 @@
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 import { TrashView } from "@/components/records/trash-view";
 
 export const dynamic = "force-dynamic";

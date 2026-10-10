@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user, session as sessionTable, activityLogs } from "@/db/schema";
-import { requireSuperAdminApi } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -11,10 +11,7 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ userId: string }> },
 ) {
-  const currentSession = await requireSuperAdminApi();
-  if (!currentSession) {
-    return NextResponse.json({ error: "Forbidden: Super Admin access required" }, { status: 403 });
-  }
+  const currentSession = await requireSuperAdmin();
 
   const { userId } = await ctx.params;
   const body = await req.json().catch(() => ({}));

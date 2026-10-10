@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, patients } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { DocumentViewer } from "@/components/forms/document-viewer";
 import { DocumentViewHeader } from "@/components/forms/document-view-header";
 import { FORM_TYPE_LABELS } from "@/lib/routes";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DocumentViewPage({ params }: { params: Promise<{ recordId: string }> }) {
   const { recordId } = await params;
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   const [row] = await db
     .select({

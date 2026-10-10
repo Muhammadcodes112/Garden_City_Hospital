@@ -1,9 +1,9 @@
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { AppShell } from "@/components/layout/app-shell";
 import { MessagesPollProvider } from "@/hooks/use-messages-poll";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   return (
     <MessagesPollProvider>

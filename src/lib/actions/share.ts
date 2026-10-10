@@ -3,7 +3,8 @@
 import { and, eq, gte, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, patients, shareLinks } from "@/db/schema";
-import { requireAdmin, requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
+import { getSession } from "@/lib/session";
 import { labRequestDataSchema } from "@/lib/validators/lab-request";
 import { prescriptionDataSchema } from "@/lib/validators/prescription";
 import { medicalReportDataSchema } from "@/lib/validators/medical-report";
@@ -25,7 +26,7 @@ export async function createShareLink(input: {
   expiryDays: 1 | 7 | 30;
   origin?: string;
 }): Promise<{ id: string; token: string; url: string; expiresAt: string }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   // Verify form record exists
   const [form] = await db
@@ -73,7 +74,7 @@ export async function createShareLink(input: {
 }
 
 export async function getActiveShareLinks(formRecordId: string): Promise<ShareLinkItem[]> {
-  await requireAdmin();
+  await requireStaff();
   const rows = await db
     .select({
       id: shareLinks.id,
@@ -99,7 +100,7 @@ export async function getActiveShareLinks(formRecordId: string): Promise<ShareLi
 }
 
 export async function revokeShareLink(shareLinkId: string): Promise<{ success: boolean }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   const [link] = await db
     .select({ id: shareLinks.id, formRecordId: shareLinks.formRecordId })
@@ -124,7 +125,7 @@ export async function revokeShareLink(shareLinkId: string): Promise<{ success: b
 }
 
 export async function reopenFormRecord(formRecordId: string): Promise<{ success: boolean }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   const [form] = await db
     .select({ id: formRecords.id, status: formRecords.status })
@@ -150,8 +151,12 @@ export async function reopenFormRecord(formRecordId: string): Promise<{ success:
 }
 
 export async function logFormDownload(formRecordId: string): Promise<void> {
-  const session = await requireAdminApi();
-  if (!session) return;
+  // Soft check by design: a download that can't be logged shouldn't block
+  // the download itself, so this never throws like requireStaff() would —
+  // just skips logging for unauthenticated/non-staff sessions.
+  const session = await getSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (!session || (role !== "admin" && role !== "super_admin")) return;
 
   await db.insert(activityLogs).values({
     userId: session.user.id,

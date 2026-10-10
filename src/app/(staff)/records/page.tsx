@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { RecordsView } from "@/components/records/records-view";
@@ -6,7 +6,7 @@ import { RecordsView } from "@/components/records/records-view";
 export const dynamic = "force-dynamic";
 
 export default async function RecordsPage() {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const isSuperAdmin = (session.user as { role?: string }).role === "super_admin";
 
   const adminUsers = await db

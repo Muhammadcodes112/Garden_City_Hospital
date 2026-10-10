@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { getConversationWithUser, listPeople } from "@/lib/actions/messages";
 import { MessagesShell } from "@/components/messages/messages-shell";
 import { ConversationView } from "@/components/messages/conversation-view";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MessageThreadPage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
-  const session = await requireAdmin();
+  const session = await requireStaff();
 
   if (userId === session.user.id) notFound();
 

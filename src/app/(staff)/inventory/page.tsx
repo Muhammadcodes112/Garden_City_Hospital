@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { InventoryView } from "@/components/inventory/inventory-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-  await requireAdmin();
+  await requireStaff();
 
   return <InventoryView />;
 }

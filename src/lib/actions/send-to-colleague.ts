@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, user } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { sendRecordToColleaguesSchema, type SendRecordToColleaguesInput } from "@/lib/validators/send-to-colleague";
 import { findDmConversationId, getOrCreateDmConversation, insertMessageWithAttachment, isUnderSendRateLimit } from "@/lib/messages";
 import { createShareLink } from "@/lib/actions/share";
@@ -12,7 +12,7 @@ export type ActiveAdmin = { id: string; name: string; email: string; isSuperAdmi
 
 /** Every active (non-banned, non-deleted) admin except the caller — the colleague picker's roster. */
 export async function listActiveAdmins(): Promise<ActiveAdmin[]> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const rows = await db
     .select({ id: user.id, name: user.name, email: user.email, role: user.role })
     .from(user)
@@ -21,7 +21,7 @@ export async function listActiveAdmins(): Promise<ActiveAdmin[]> {
 }
 
 export async function sendRecordToColleagues(input: SendRecordToColleaguesInput): Promise<{ count: number }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const meId = session.user.id;
   const parsed = sendRecordToColleaguesSchema.parse(input);
 

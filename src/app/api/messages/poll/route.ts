@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { getMessageUpdatesSince, listMessagePeople, serializeMessages } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const session = await requireAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireStaff();
 
   const meId = session.user.id;
   const sinceParam = req.nextUrl.searchParams.get("since");

@@ -2,17 +2,14 @@ import { NextResponse } from "next/server";
 import { gte, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { failedSignups } from "@/db/schema";
-import { requireSuperAdminApi } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 import { getCurrentAccessCodeInfo } from "@/lib/access-code";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await requireSuperAdminApi();
-  if (!session) {
-    return NextResponse.json({ error: "Forbidden: Super Admin access required" }, { status: 403 });
-  }
+  const session = await requireSuperAdmin();
 
   try {
     const codeInfo = await getCurrentAccessCodeInfo();

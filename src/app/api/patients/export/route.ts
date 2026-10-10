@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
 import { patients } from "@/db/schema";
 import { gte, lte, and, eq, desc, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  await requireStaff();
 
   const { searchParams } = new URL(req.url);
   const startDate = searchParams.get("startDate");

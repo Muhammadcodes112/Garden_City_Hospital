@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, formRecords, patients } from "@/db/schema";
-import { requireAdmin } from "@/lib/session";
+import { requireStaff } from "@/lib/authz";
 import {
   defaultPrescriptionData,
   prescriptionCompleteSchema,
@@ -32,7 +32,7 @@ export type PrescriptionFormBundle = {
 };
 
 export async function createPrescriptionDraftRecord(): Promise<{ recordId: string }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const { patientId } = await createDraftPatient();
   const data = defaultPrescriptionData();
   const patientRow = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
@@ -62,7 +62,7 @@ export async function createPrescriptionDraftRecord(): Promise<{ recordId: strin
 export async function getPrescriptionFormRecord(
   recordId: string,
 ): Promise<PrescriptionFormBundle | null> {
-  await requireAdmin();
+  await requireStaff();
   const rows = await db
     .select({
       recordId: formRecords.id,
@@ -113,7 +113,7 @@ export type SavePrescriptionFormInput = {
 export async function savePrescriptionForm(
   input: SavePrescriptionFormInput,
 ): Promise<{ updatedAt: string }> {
-  const session = await requireAdmin();
+  const session = await requireStaff();
   const patientParsed = draftPatientSchema.parse(input.patient);
   const dataParsed = prescriptionDataSchema.parse(input.data);
 
@@ -146,7 +146,7 @@ export async function completePrescriptionForm(
   input: SavePrescriptionFormInput,
 ): Promise<{ success: true; updatedAt: string } | { success: false; error: string }> {
   try {
-    const session = await requireAdmin();
+    const session = await requireStaff();
 
     const patientResult = patientSchema.safeParse(input.patient);
     if (!patientResult.success) {
@@ -225,7 +225,7 @@ const COMMON_DRUGS = [
 ];
 
 export async function getDrugAutocompleteSuggestions(query: string): Promise<string[]> {
-  await requireAdmin();
+  await requireStaff();
   const q = query.trim().toLowerCase();
   if (!q) return COMMON_DRUGS.slice(0, 10);
 
