@@ -2,16 +2,13 @@ import { NextResponse } from "next/server";
 import { gte, sql, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { user, session as sessionTable, formRecords } from "@/db/schema";
-import { requireSuperAdminApi } from "@/lib/session";
+import { requireSuperAdmin } from "@/lib/authz";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const currentSession = await requireSuperAdminApi();
-  if (!currentSession) {
-    return NextResponse.json({ error: "Forbidden: Super Admin access required" }, { status: 403 });
-  }
+  const currentSession = await requireSuperAdmin();
 
   try {
     const allUsers = await db
@@ -81,7 +78,7 @@ export async function GET() {
         id: u.id,
         name: u.name,
         email: u.email,
-        role: u.role || "admin",
+        role: u.role || "patient",
         createdAt: u.createdAt.toISOString(),
         deletedAt: u.deletedAt ? u.deletedAt.toISOString() : null,
         banned: u.banned || false,
