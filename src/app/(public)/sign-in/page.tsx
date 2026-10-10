@@ -33,16 +33,18 @@ export default function SignInPage() {
       );
       return;
     }
-    router.push("/dashboard");
+    // "/" is role-aware (src/app/page.tsx) and routes staff to /dashboard,
+    // patients to /patient.
+    router.push("/");
     router.refresh();
   }
 
   return (
     <AuthLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Admin Sign In</h2>
+        <h2 className="text-2xl font-bold text-foreground">Sign In</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to manage hospital forms and records.
+          Sign in to your Garden City Specialist Hospital account.
         </p>
       </div>
 

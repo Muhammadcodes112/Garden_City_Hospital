@@ -6,17 +6,20 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthLayout } from "@/components/layout/auth-layout";
 
-type FieldErrors = Partial<Record<"name" | "email" | "password" | "confirmPassword" | "adminCode", string>>;
+type FieldErrors = Partial<Record<"name" | "phone" | "email" | "password" | "confirmPassword" | "adminCode", string>>;
 
 export default function SignUpPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isStaff, setIsStaff] = useState(false);
   const [adminCode, setAdminCode] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -40,7 +43,14 @@ export default function SignUpPage() {
     const res = await fetch("/api/sign-up", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, confirmPassword, adminCode }),
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        password,
+        confirmPassword,
+        adminCode: isStaff ? adminCode : undefined,
+      }),
     });
     setLoading(false);
 
@@ -60,16 +70,16 @@ export default function SignUpPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(isStaff ? "/dashboard" : "/patient");
     router.refresh();
   }
 
   return (
     <AuthLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground">Create Admin Account</h2>
+        <h2 className="text-2xl font-bold text-foreground">Create your account</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Registration requires a valid admin access code.
+          Patients can sign up freely. Hospital staff need an access code.
         </p>
       </div>
 
@@ -84,6 +94,19 @@ export default function SignUpPage() {
             onChange={(e) => setName(e.target.value)}
           />
           {fieldErrors.name && <p className="text-sm text-destructive">{fieldErrors.name}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="phone">Phone number</Label>
+          <Input
+            id="phone"
+            type="tel"
+            autoComplete="tel"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          {fieldErrors.phone && <p className="text-sm text-destructive">{fieldErrors.phone}</p>}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -126,16 +149,23 @@ export default function SignUpPage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="adminCode">Admin access code</Label>
-          <PasswordInput
-            id="adminCode"
-            required
-            value={adminCode}
-            onChange={(e) => setAdminCode(e.target.value)}
-          />
-          {fieldErrors.adminCode && <p className="text-sm text-destructive">{fieldErrors.adminCode}</p>}
-        </div>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <Checkbox checked={isStaff} onCheckedChange={(c) => setIsStaff(c === true)} />
+          I&apos;m hospital staff
+        </label>
+
+        {isStaff && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="adminCode">Staff access code</Label>
+            <PasswordInput
+              id="adminCode"
+              required={isStaff}
+              value={adminCode}
+              onChange={(e) => setAdminCode(e.target.value)}
+            />
+            {fieldErrors.adminCode && <p className="text-sm text-destructive">{fieldErrors.adminCode}</p>}
+          </div>
+        )}
 
         {formError && (
           <p role="alert" className="text-sm text-destructive">
