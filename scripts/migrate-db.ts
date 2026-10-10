@@ -296,6 +296,107 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "inventory_items_name_idx" ON "inventory_items" USING btree ("name");
     `);
 
+    // Step 16: patient accounts + role enum, super-admin audit trail, and a
+    // DB-level backstop ensuring at least one super_admin always exists.
+    //
+    // This UPDATE runs in its own transaction (own sql.unsafe() call) and
+    // deliberately BEFORE the trigger exists: once ensure_super_admin_exists_trigger
+    // is created below, any UPDATE on "user" queues a deferred trigger event
+    // for the rest of that transaction, and Postgres refuses to ALTER TABLE
+    // "user" (e.g. the ADD COLUMNs further down) while a trigger event on it
+    // is still pending — so this must fully commit first.
+    await sql.unsafe(`
+      -- Normalize existing data first so the text->enum cast below can't fail:
+      -- every account becomes 'admin' except current super_admins, which keep
+      -- 'super_admin'. No-op today (data already matches), but idempotent.
+      UPDATE "user" SET role = 'admin' WHERE role IS DISTINCT FROM 'super_admin';
+    `);
+
+    await sql.unsafe(`
+      DO $$ BEGIN
+        CREATE TYPE "public"."user_role" AS ENUM('patient', 'admin', 'super_admin');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      -- Only the first run needs to convert the column; re-running
+      -- ALTER COLUMN TYPE against an already-enum column (with the
+      -- constraint trigger below in place) errors, so guard it.
+      DO $$ BEGIN
+        IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'user' AND column_name = 'role') = 'text' THEN
+          ALTER TABLE "user" ALTER COLUMN "role" DROP DEFAULT;
+          ALTER TABLE "user" ALTER COLUMN "role" TYPE "public"."user_role" USING role::text::"public"."user_role";
+          ALTER TABLE "user" ALTER COLUMN "role" SET DEFAULT 'patient';
+        END IF;
+      END $$;
+
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "promoted_by" text;
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "promoted_at" timestamp;
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "role_changed_reason" text;
+
+      ALTER TABLE "activity_logs" ADD COLUMN IF NOT EXISTS "target_user_id" text;
+      ALTER TABLE "activity_logs" ADD COLUMN IF NOT EXISTS "old_role" text;
+      ALTER TABLE "activity_logs" ADD COLUMN IF NOT EXISTS "new_role" text;
+      ALTER TABLE "activity_logs" ADD COLUMN IF NOT EXISTS "reason" text;
+    `);
+
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_promoted_by_user_id_fk') THEN
+          ALTER TABLE "user" ADD CONSTRAINT "user_promoted_by_user_id_fk" FOREIGN KEY ("promoted_by") REFERENCES "public"."user"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'activity_logs_target_user_id_user_id_fk') THEN
+          ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_target_user_id_user_id_fk" FOREIGN KEY ("target_user_id") REFERENCES "public"."user"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+        END IF;
+      END $$;
+
+      -- Already dropped in an earlier migration (kept here as a documented,
+      -- idempotent no-op per Step 16's instruction to confirm it's gone).
+      DROP INDEX IF EXISTS "unique_super_admin_idx";
+
+      -- DB-level backstop: a single-row unique index can't express "at least
+      -- one must exist", so this is a deferred constraint trigger (same
+      -- pattern as messages_require_content_trigger above) that runs at
+      -- transaction commit, after all statements in the role-change
+      -- transaction have applied — a promote-then-demote within one
+      -- transaction is fine as long as the end state has >= 1 super_admin.
+      CREATE OR REPLACE FUNCTION ensure_super_admin_exists() RETURNS trigger AS $BODY$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM "user" WHERE role = 'super_admin' AND deleted_at IS NULL
+        ) THEN
+          RAISE EXCEPTION 'At least one super_admin must exist at all times';
+        END IF;
+        RETURN NULL;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS ensure_super_admin_exists_trigger ON "user";
+      CREATE CONSTRAINT TRIGGER ensure_super_admin_exists_trigger
+        AFTER UPDATE OR DELETE ON "user"
+        DEFERRABLE INITIALLY DEFERRED
+        FOR EACH ROW
+        EXECUTE FUNCTION ensure_super_admin_exists();
+    `);
+
+    // Step 16 D: patient sign-up fields + hard rate limiting.
+    await sql.unsafe(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "phone" text;
+
+      CREATE TABLE IF NOT EXISTS "signup_attempts" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "ip_address" text NOT NULL,
+        "email" text NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "signup_attempts_ip_idx" ON "signup_attempts" USING btree ("ip_address");
+      CREATE INDEX IF NOT EXISTS "signup_attempts_email_idx" ON "signup_attempts" USING btree ("email");
+      CREATE INDEX IF NOT EXISTS "signup_attempts_created_at_idx" ON "signup_attempts" USING btree ("created_at");
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

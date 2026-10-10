@@ -18,6 +18,8 @@ import { sql } from "drizzle-orm";
 // Better Auth tables (email/password only + admin plugin & 2FA plugin).
 // ---------------------------------------------------------------------------
 
+export const userRole = pgEnum("user_role", ["patient", "admin", "super_admin"]);
+
 export const user = pgTable(
   "user",
   {
@@ -26,12 +28,19 @@ export const user = pgTable(
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
-    role: text("role").default("admin"),
+    role: userRole("role").default("patient"),
+    phone: text("phone"),
     banned: boolean("banned").default(false),
     banReason: text("ban_reason"),
     banExpires: timestamp("ban_expires"),
     twoFactorEnabled: boolean("two_factor_enabled").default(false),
     deletedAt: timestamp("deleted_at"),
+    // Step 16: role-change audit trail. promotedBy/promotedAt track the most
+    // recent role change; the full history lives in activity_logs (see
+    // activityLogs.targetUserId/oldRole/newRole/reason below).
+    promotedBy: text("promoted_by"),
+    promotedAt: timestamp("promoted_at"),
+    roleChangedReason: text("role_changed_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -132,6 +141,24 @@ export const failedSignups = pgTable(
   (table) => [
     index("failed_signups_ip_idx").on(table.ipAddress),
     index("failed_signups_created_at_idx").on(table.createdAt),
+  ],
+);
+
+// Step 16 D: every sign-up POST (patient or staff, success or failure) logs
+// one row here before any account is created, so the rate limit can't be
+// bypassed by requests that fail validation downstream.
+export const signupAttempts = pgTable(
+  "signup_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ipAddress: text("ip_address").notNull(),
+    email: text("email").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("signup_attempts_ip_idx").on(table.ipAddress),
+    index("signup_attempts_email_idx").on(table.email),
+    index("signup_attempts_created_at_idx").on(table.createdAt),
   ],
 );
 
@@ -245,6 +272,12 @@ export const activityLogs = pgTable("activity_logs", {
   formRecordId: uuid("form_record_id").references(() => formRecords.id),
   conversationId: uuid("conversation_id").references(() => conversations.id),
   action: activityAction("action").notNull(),
+  // Step 16 role-change audit fields. Only populated for
+  // super_admin_promoted/super_admin_demoted rows; null otherwise.
+  targetUserId: text("target_user_id"),
+  oldRole: text("old_role"),
+  newRole: text("new_role"),
+  reason: text("reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
