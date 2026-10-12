@@ -484,20 +484,25 @@ export function CashierPaymentModal({ open, onOpenChange, patient, onUpdated }: 
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className={`text-xs font-bold gap-1.5 text-white ${
-                  isPaid ? "bg-emerald-600 hover:bg-emerald-700" : "bg-brand-green hover:bg-emerald-700"
+                className={`group relative h-9 px-4 rounded-xl text-xs font-black gap-2 text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden cursor-pointer ${
+                  isPaid
+                    ? "bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 shadow-emerald-700/25 hover:shadow-lg hover:shadow-emerald-700/40 border border-emerald-400/30"
+                    : "bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 shadow-amber-500/25 hover:shadow-lg hover:shadow-amber-500/40 border border-amber-400/30"
                 }`}
               >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {isPaid ? "Confirm Payment & Save" : "Save as Pending"}
-                  </>
-                )}
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+                <span className="relative flex items-center gap-1.5">
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5] transition-transform duration-200 group-hover:scale-120 group-hover:rotate-6" />
+                      {isPaid ? "Confirm Payment & Save" : "Save as Pending"}
+                    </>
+                  )}
+                </span>
               </Button>
             </DialogFooter>
           </form>

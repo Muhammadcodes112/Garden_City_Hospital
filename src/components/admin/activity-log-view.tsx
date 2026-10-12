@@ -316,90 +316,92 @@ export function ActivityLogView({
         </div>
       </div>
 
-      {/* SIGNALS ROW (4 Cards: Events today neutral, remaining 3 warning-toned) */}
+      {/* SIGNALS ROW (4 Cards: Unified aesthetic, glowing gradient icon badges, sleek top accent lines) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Events today (Neutral) */}
-        <div className="rounded-xl border border-border bg-card p-4.5 shadow-xs transition-shadow hover:shadow-md">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Events Today</span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-800 dark:text-slate-200 shadow-xs">
+        {/* Card 1: Events today */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-slate-700 before:to-slate-900">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Events Today</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-xs shadow-slate-900/20 ring-4 ring-slate-800/10">
               <Activity className="h-4.5 w-4.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-3.5 flex items-baseline gap-2">
             <span className="text-3xl font-black tracking-tight text-foreground">
               {signals.eventsToday.toLocaleString()}
             </span>
-            <span className="text-xs font-semibold text-muted-foreground">in last 24h</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">
+              in last 24h
+            </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Live hospital activity volume</p>
+          <p className="mt-1.5 text-xs text-muted-foreground font-medium">Live hospital activity volume</p>
         </div>
 
-        {/* Card 2: Failed sign-ins (Vibrant Amber / Gold) */}
-        <div className="rounded-xl border-2 border-amber-400/90 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+        {/* Card 2: Failed sign-ins (Refined Amber / Security Signal) */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-amber-400 before:to-orange-500">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Failed Sign-Ins
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs ring-4 ring-amber-400/25">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-500/25 ring-4 ring-amber-500/10">
               <ShieldAlert className="h-4.5 w-4.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-amber-950 dark:text-amber-100">
+          <div className="mt-3.5 flex items-baseline gap-2">
+            <span className="text-3xl font-black tracking-tight text-foreground">
               {signals.failedSignins.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-200/90 text-amber-950 dark:bg-amber-900 dark:text-amber-100">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
               auth anomalies
             </span>
           </div>
-          <p className="mt-1 text-xs font-semibold text-amber-900/80 dark:text-amber-300">
+          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
             Targeted emails captured in metadata
           </p>
         </div>
 
-        {/* Card 3: Records deleted (Vibrant Crimson / Rose) */}
-        <div className="rounded-xl border-2 border-rose-400/90 dark:border-rose-600 bg-rose-50 dark:bg-rose-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+        {/* Card 3: Records deleted (Refined Crimson / Purge Signal) */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-rose-500 before:to-red-600">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-rose-950 dark:text-rose-200">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Records Deleted
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-xs ring-4 ring-rose-400/25">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/25 ring-4 ring-rose-500/10">
               <Trash2 className="h-4.5 w-4.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-rose-950 dark:text-rose-100">
+          <div className="mt-3.5 flex items-baseline gap-2">
+            <span className="text-3xl font-black tracking-tight text-foreground">
               {signals.recordsDeleted.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-200/90 text-rose-950 dark:bg-rose-900 dark:text-rose-100">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
               clinical purges
             </span>
           </div>
-          <p className="mt-1 text-xs font-semibold text-rose-900/80 dark:text-rose-300">
+          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
             Includes soft-deletes and trash purges
           </p>
         </div>
 
-        {/* Card 4: After-hours access (Deep Indigo / Night WAT) */}
-        <div className="rounded-xl border-2 border-indigo-400/90 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+        {/* Card 4: After-hours access (Refined Indigo / Night Shift Signal) */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-indigo-500 before:to-purple-600">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               After-Hours Access
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs ring-4 ring-indigo-400/25">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm shadow-indigo-500/25 ring-4 ring-indigo-500/10">
               <Moon className="h-4.5 w-4.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-indigo-950 dark:text-indigo-100">
+          <div className="mt-3.5 flex items-baseline gap-2">
+            <span className="text-3xl font-black tracking-tight text-foreground">
               {signals.afterHoursAccess.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-200/90 text-indigo-950 dark:bg-indigo-900 dark:text-indigo-100">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
               22:00–06:00 WAT
             </span>
           </div>
-          <p className="mt-1 text-xs font-semibold text-indigo-900/80 dark:text-indigo-300">
+          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
             Night-shift or off-hours actions
           </p>
         </div>

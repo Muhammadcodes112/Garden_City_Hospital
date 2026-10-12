@@ -381,7 +381,7 @@ export function PatientsView() {
                             {p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}
                           </td>
 
-                          {/* PAYMENT STATUS BADGE (FIXED: HIGH CONTRAST & VISIBILITY) */}
+                          {/* PAYMENT STATUS BADGE (COOL HOVER & SLEEK CONTRAST) */}
                           <td className="py-3.5 px-3 whitespace-nowrap">
                             {p.paymentStatus === "paid" ? (
                               <button
@@ -390,18 +390,18 @@ export function PatientsView() {
                                   e.stopPropagation();
                                   setCashierModalPatient(p);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700 font-bold text-[11px] hover:bg-emerald-100 hover:border-emerald-400 dark:hover:bg-emerald-900 transition-all shadow-2xs group"
+                                className="group relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-emerald-500/15 font-bold text-[11px] transition-all duration-200 shadow-2xs hover:shadow-xs hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer"
                                 title="Payment cleared. Click to view proof / edit."
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.5]" />
-                                <span>PAID</span>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
+                                <span className="tracking-wide">PAID</span>
                                 {p.paymentAmount ? (
-                                  <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-semibold">
+                                  <span className="text-[10px] text-emerald-900 dark:text-emerald-200 font-mono font-semibold">
                                     ₦{Number(p.paymentAmount).toLocaleString()}
                                   </span>
                                 ) : null}
                                 {p.paymentEvidenceUrl && (
-                                  <span className="text-[9px] bg-emerald-200 dark:bg-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold px-1.5 py-0.5 rounded">
+                                  <span className="text-[9px] bg-emerald-200/90 dark:bg-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold px-1.5 py-0.5 rounded">
                                     Receipt
                                   </span>
                                 )}
@@ -413,12 +413,12 @@ export function PatientsView() {
                                   e.stopPropagation();
                                   setCashierModalPatient(p);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-950 border-2 border-amber-400 dark:bg-amber-950/70 dark:text-amber-100 dark:border-amber-600 font-bold text-[11px] hover:bg-amber-100 hover:border-amber-500 transition-all shadow-2xs group"
+                                className="group relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/15 font-bold text-[11px] transition-all duration-200 shadow-2xs hover:shadow-xs hover:shadow-amber-500/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer"
                                 title="Payment pending. Click to confirm payment at Cashier Desk."
                               >
-                                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5]" />
-                                <span>PENDING</span>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold group-hover:bg-amber-600 transition-colors shadow-2xs">
+                                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
+                                <span className="tracking-wide text-amber-950 dark:text-amber-100">PENDING</span>
+                                <span className="relative inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black shadow-xs group-hover:from-amber-600 group-hover:to-orange-600 group-hover:shadow-md group-hover:shadow-amber-500/35 transition-all duration-200">
                                   Confirm
                                 </span>
                               </button>
@@ -435,7 +435,7 @@ export function PatientsView() {
                             {p.doctor || "Dr. Ibrahim Musa"}
                           </td>
 
-                          {/* STATUS BADGE (FIXED: NEVER CUTS OFF) */}
+                          {/* STATUS BADGE */}
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             {getStatusBadge(p.status)}
                           </td>
@@ -475,11 +475,11 @@ export function PatientsView() {
                           </div>
                           <div className="shrink-0 flex items-center gap-1.5">
                             {p.paymentStatus === "paid" ? (
-                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-2 py-0.5">
+                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-2 py-0.5 shadow-2xs">
                                 <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> PAID
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-500 text-white text-[10px] font-bold gap-1 px-2 py-0.5">
+                              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold gap-1 px-2 py-0.5 shadow-2xs">
                                 <Clock className="h-3 w-3 stroke-[2.5]" /> PENDING
                               </Badge>
                             )}
@@ -541,86 +541,86 @@ export function PatientsView() {
               </div>
             </div>
 
-            {/* Allergy Warning Banner (Crisp High-Visibility Alert) */}
-            <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/90 dark:bg-rose-950/40 p-3 shadow-2xs flex items-center gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-600 text-white shrink-0 shadow-2xs">
+            {/* Allergy Warning Banner (Clean Clinical Alert) */}
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/20 p-3 shadow-2xs flex items-center gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-red-600 text-white shrink-0 shadow-2xs">
                 <AlertTriangle className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
                   Clinical Allergy Alert
                 </div>
-                <div className="text-xs font-bold text-rose-950 dark:text-rose-100 truncate">
-                  {selectedPatient.allergies || "Penicillin"}
+                <div className="text-xs font-bold text-foreground truncate">
+                  Allergies: {selectedPatient.allergies || "Penicillin"}
                 </div>
               </div>
             </div>
 
-            {/* CASHIER PAYMENT CLEARANCE CARD (REDESIGNED: CRISP & VIBRANT) */}
+            {/* CASHIER PAYMENT CLEARANCE CARD (REFINED MODERN AESTHETIC & COOL BUTTON) */}
             <div
-              className={`rounded-2xl border-2 p-4 space-y-3 shadow-xs transition-all ${
+              className={`relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 space-y-4 shadow-xs transition-all duration-200 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 ${
                 selectedPatient.paymentStatus === "paid"
-                  ? "border-emerald-400/90 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-700"
-                  : "border-amber-400/90 bg-amber-50/70 dark:bg-amber-950/30 dark:border-amber-600"
+                  ? "before:bg-gradient-to-r before:from-emerald-500 before:to-teal-600 hover:border-emerald-300 dark:hover:border-emerald-700/60"
+                  : "before:bg-gradient-to-r before:from-amber-400 before:to-orange-500 hover:border-amber-300 dark:hover:border-amber-700/60"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-2xs text-white shrink-0 ${
-                      selectedPatient.paymentStatus === "paid" ? "bg-emerald-600" : "bg-amber-500"
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-xs text-white shrink-0 ${
+                      selectedPatient.paymentStatus === "paid"
+                        ? "bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-600/20"
+                        : "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/20"
                     }`}
                   >
-                    <CreditCard className="h-4 w-4" />
+                    <CreditCard className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <span className={`block font-extrabold text-xs uppercase tracking-wider ${
-                      selectedPatient.paymentStatus === "paid" ? "text-emerald-950 dark:text-emerald-200" : "text-amber-950 dark:text-amber-200"
-                    }`}>
-                      Hospital Billing & Payment
+                    <span className="block font-black text-xs uppercase tracking-wider text-foreground">
+                      Hospital Billing Clearance
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                      Cashier Desk Clearance
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      Cashier Clearance Desk
                     </span>
                   </div>
                 </div>
 
                 {selectedPatient.paymentStatus === "paid" ? (
-                  <Badge className="bg-emerald-600 text-white font-black text-[11px] gap-1 px-2.5 py-1 shadow-2xs hover:bg-emerald-600">
+                  <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-black text-[11px] gap-1 px-3 py-1 shadow-2xs hover:bg-emerald-500/20">
                     <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" /> CLEARED
                   </Badge>
                 ) : (
-                  <Badge className="bg-amber-500 text-white font-black text-[11px] gap-1 px-2.5 py-1 shadow-2xs hover:bg-amber-500">
-                    <Clock className="h-3.5 w-3.5 stroke-[2.5]" /> PENDING
+                  <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-black text-[11px] gap-1 px-3 py-1 shadow-2xs hover:bg-amber-500/20">
+                    <Clock className="h-3.5 w-3.5 stroke-[2.5] animate-pulse" /> PENDING
                   </Badge>
                 )}
               </div>
 
               <div className="text-xs space-y-2">
                 {selectedPatient.paymentStatus === "paid" ? (
-                  <div className="rounded-xl bg-white/80 dark:bg-card/80 border border-emerald-200 dark:border-emerald-800/60 p-3 space-y-2 text-xs shadow-2xs">
+                  <div className="rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200/80 dark:border-border/60 p-3.5 space-y-2 text-xs shadow-2xs">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground text-[11px] font-medium">Cleared Amount</span>
-                      <span className="font-mono font-black text-sm text-emerald-900 dark:text-emerald-200">
+                      <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-300">
                         ₦{selectedPatient.paymentAmount ? Number(selectedPatient.paymentAmount).toLocaleString() : "Cleared"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-muted-foreground font-medium">Payment Mode</span>
-                      <Badge variant="secondary" className="font-semibold text-xs border border-emerald-300 dark:border-emerald-700 bg-emerald-100/50 text-emerald-900 dark:text-emerald-200">
+                      <Badge variant="secondary" className="font-semibold text-xs border border-emerald-300/80 dark:border-emerald-700 bg-emerald-100/50 text-emerald-900 dark:text-emerald-200">
                         {selectedPatient.paymentMethod || "POS Terminal"}
                       </Badge>
                     </div>
                     {selectedPatient.paymentReference && (
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-muted-foreground font-medium">Reference</span>
-                        <code className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded text-foreground font-semibold">
+                        <code className="font-mono text-[10px] bg-background px-1.5 py-0.5 rounded border border-border text-foreground font-semibold">
                           {selectedPatient.paymentReference}
                         </code>
                       </div>
                     )}
                     {selectedPatient.paymentConfirmedBy && (
-                      <div className="flex items-center justify-between text-[11px] border-t border-border/50 pt-1.5">
+                      <div className="flex items-center justify-between text-[11px] border-t border-border/50 pt-2">
                         <span className="text-muted-foreground font-medium">Cleared By</span>
                         <span className="font-bold text-foreground text-[11px]">
                           {selectedPatient.paymentConfirmedBy}
@@ -629,15 +629,16 @@ export function PatientsView() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-amber-100/70 dark:bg-amber-900/30 border border-amber-200/90 dark:border-amber-800/60 p-3 text-xs text-amber-950 dark:text-amber-100 font-medium leading-relaxed">
-                    Awaiting cashier payment clearance. After confirming patient payment via POS, cash, or transfer, click below to confirm and attach receipt evidence.
+                  <div className="rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200/80 dark:border-border/60 p-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-2.5">
+                    <Clock className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <span>Awaiting cashier confirmation. Tick below once POS receipt, bank transfer alert, or cash collection is verified.</span>
                   </div>
                 )}
               </div>
 
               {/* Evidence Preview if photo is attached */}
               {selectedPatient.paymentEvidenceUrl && (
-                <div className="rounded-xl border border-border bg-background/90 p-2.5 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="rounded-xl border border-border bg-background p-2.5 flex items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="h-10 w-10 rounded-lg border bg-card overflow-hidden shrink-0 shadow-2xs">
                       <img
@@ -650,7 +651,7 @@ export function PatientsView() {
                       <span className="text-xs font-bold text-foreground truncate block max-w-[130px]">
                         {selectedPatient.paymentEvidenceName || "Payment Receipt"}
                       </span>
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold block flex items-center gap-1">
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> Proof Attached
                       </span>
                     </div>
@@ -667,25 +668,34 @@ export function PatientsView() {
                 </div>
               )}
 
-              <Button
-                size="sm"
-                onClick={() => setCashierModalPatient(selectedPatient)}
-                className={`w-full text-xs font-bold gap-2 h-9 text-white shadow-xs rounded-xl ${
-                  selectedPatient.paymentStatus === "paid"
-                    ? "bg-emerald-700 hover:bg-emerald-800"
-                    : "bg-amber-600 hover:bg-amber-700"
-                }`}
-              >
-                {selectedPatient.paymentStatus === "paid" ? (
-                  <>
-                    <CreditCard className="h-4 w-4" /> Update Payment / Receipt Proof
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 stroke-[2.5]" /> Confirm Payment (Cashier Desk)
-                  </>
-                )}
-              </Button>
+              {/* ULTRA-COOL HOVER CONFIRM BUTTON */}
+              {selectedPatient.paymentStatus === "paid" ? (
+                <Button
+                  size="sm"
+                  onClick={() => setCashierModalPatient(selectedPatient)}
+                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-black text-xs shadow-md shadow-emerald-700/25 hover:shadow-xl hover:shadow-emerald-700/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-emerald-400/40"
+                >
+                  {/* Shimmer sweep effect on hover */}
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    <CreditCard className="h-4 w-4 transition-transform duration-300 ease-out group-hover:scale-125 group-hover:-rotate-6" />
+                    <span className="tracking-wide">Update Payment / View Receipt</span>
+                  </span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setCashierModalPatient(selectedPatient)}
+                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white font-black text-xs shadow-md shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-amber-400/40"
+                >
+                  {/* Shimmer sweep effect on hover */}
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 stroke-[2.5] transition-transform duration-300 ease-out group-hover:scale-125 group-hover:rotate-6" />
+                    <span className="tracking-wide">Confirm Payment (Cashier Desk)</span>
+                  </span>
+                </Button>
+              )}
             </div>
 
             {/* Latest Vitals Grid */}
