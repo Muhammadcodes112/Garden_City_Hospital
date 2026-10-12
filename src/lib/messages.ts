@@ -1,7 +1,8 @@
 import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, conversationParticipants, conversations, messageAttachments, messages, user } from "@/db/schema";
+import { conversationParticipants, conversations, messageAttachments, messages, user } from "@/db/schema";
 import { hydrateAttachments, type SerializedAttachment } from "@/lib/message-attachments";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import type { MessageAttachmentInput } from "@/lib/validators/message";
 
 export function dmKeyFor(userIdA: string, userIdB: string): string {
@@ -281,7 +282,15 @@ export async function insertMessageWithAttachment(params: {
   senderId: string;
   body: string | null;
   attachment?: MessageAttachmentInput;
-  activityLog?: { action: "message_sent" | "record_shared_internally"; formRecordId?: string };
+  /** NEVER include message body here — sender, recipient, and attachment count only. */
+  activityLog?: {
+    category: "messages" | "sharing";
+    action: string;
+    summary: string;
+    actorRoleAtTime: ActorRole | null;
+    actorLabel: string;
+    metadata?: Record<string, unknown>;
+  };
 }): Promise<MessageRow> {
   const { conversationId, senderId, body, attachment, activityLog } = params;
 
@@ -308,11 +317,17 @@ export async function insertMessageWithAttachment(params: {
     await tx.update(conversations).set({ lastMessageAt: message!.createdAt }).where(eq(conversations.id, conversationId));
 
     if (activityLog) {
-      await tx.insert(activityLogs).values({
-        userId: senderId,
-        conversationId,
-        formRecordId: activityLog.formRecordId,
+      await logEvent({
+        tx,
+        category: activityLog.category,
         action: activityLog.action,
+        summary: activityLog.summary,
+        actorId: senderId,
+        actorRoleAtTime: activityLog.actorRoleAtTime,
+        actorLabel: activityLog.actorLabel,
+        targetType: "conversation",
+        targetId: conversationId,
+        metadata: { ...activityLog.metadata, attachmentCount: attachment ? 1 : 0 },
       });
     }
 

@@ -143,6 +143,71 @@ async function runTestSuite() {
   assert(searchText.includes("muhammad"), "buildSearchText includes patient first names");
   assert(searchText.includes("routine checkup"), "buildSearchText includes provisional diagnosis");
 
+  // 8. STEP 17: APPEND-ONLY ACTIVITY LOG & TRIGGER TESTS
+  const { formatLagosDateTime, isAfterHoursLagos, parseUserAgent, countChangedFields } = await import("../src/lib/activity-utils");
+  const postgres = (await import("postgres")).default;
+
+  // Formatter & timezone checks
+  const fixedDate = new Date("2026-10-11T23:30:00Z"); // 00:30 WAT
+  const formattedWat = formatLagosDateTime(fixedDate);
+  assert(formattedWat.includes("12/10/2026"), "formatLagosDateTime converts to WAT (+1h)");
+  assert(isAfterHoursLagos(new Date("2026-10-11T21:00:00Z")), "22:00 WAT is flagged as after-hours"); // 22:00 WAT
+  assert(isAfterHoursLagos(new Date("2026-10-11T03:00:00Z")), "04:00 WAT is flagged as after-hours"); // 04:00 WAT
+  assert(!isAfterHoursLagos(new Date("2026-10-11T11:00:00Z")), "12:00 WAT is daytime"); // 12:00 WAT
+
+  // User agent parsing
+  assert(parseUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0") === "Chrome on Windows", "UA identifies Chrome on Windows");
+  assert(parseUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)") === "Safari on iOS", "UA identifies Safari on iOS");
+
+  // Changed fields counter
+  const changed = countChangedFields({ a: 1, b: 2 }, { a: 1, b: 3, c: 4 });
+  assert(changed === 2, "countChangedFields accurately counts modified and added keys");
+
+  // Database Trigger tests (Direct SQL UPDATE & DELETE must fail)
+  if (process.env.DATABASE_URL) {
+    const sql = postgres(process.env.DATABASE_URL, { prepare: false });
+    try {
+      const [testRow] = await sql`
+        INSERT INTO activity_events (
+          category, action, summary, actor_label, metadata
+        ) VALUES (
+          'auth', 'test.append_only_check', 'Test trigger row', 'Test System', '{"test": true}'::jsonb
+        )
+        RETURNING id;
+      `;
+      assert(Boolean(testRow?.id), "logEvent / SQL insert into activity_events succeeds");
+
+      // Test UPDATE fails
+      let updateFailed = false;
+      try {
+        await sql`UPDATE activity_events SET summary = 'Malicious update' WHERE id = ${testRow.id}`;
+      } catch (err: any) {
+        updateFailed = true;
+        assert(err.message.includes("append-only"), "Direct UPDATE blocked by Postgres trigger");
+      }
+      assert(updateFailed, "Direct UPDATE on activity_events raised exception");
+
+      // Test DELETE fails
+      let deleteFailed = false;
+      try {
+        await sql`DELETE FROM activity_events WHERE id = ${testRow.id}`;
+      } catch (err: any) {
+        deleteFailed = true;
+        assert(err.message.includes("append-only"), "Direct DELETE blocked by Postgres trigger");
+      }
+      assert(deleteFailed, "Direct DELETE on activity_events raised exception");
+
+      // Cleanup test row using retention bypass flag
+      await sql.begin(async (tx) => {
+        await tx`SET LOCAL app.allow_retention_delete = 'true'`;
+        await tx`DELETE FROM activity_events WHERE id = ${testRow.id}`;
+      });
+      assert(true, "Cleanup test row succeeded via retention bypass setting");
+    } finally {
+      await sql.end();
+    }
+  }
+
   console.log("\n=========================================");
   console.log("  ALL TESTS PASSED SUCCESSFULLY!  ");
   console.log("=========================================\n");

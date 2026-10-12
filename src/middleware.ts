@@ -13,6 +13,7 @@ const STAFF_PAGES = [
   "/records",
   "/inventory",
   "/users",
+  "/activity",
 ];
 const PATIENT_PAGES = ["/patient"];
 const PROTECTED_PAGES = [...STAFF_PAGES, ...PATIENT_PAGES];

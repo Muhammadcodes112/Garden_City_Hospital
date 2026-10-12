@@ -2,8 +2,9 @@
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, formRecords, patients } from "@/db/schema";
+import { formRecords, patients } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
+import { logEvent, countChangedFields, type ActorRole } from "@/lib/activity";
 import {
   defaultMedicalReportData,
   medicalReportCompleteSchema,
@@ -63,10 +64,18 @@ export async function createMedicalReportDraftRecord(): Promise<{ recordId: stri
     })
     .returning({ id: formRecords.id });
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId: record!.id,
-    action: "created",
+  const actorLabel = session.user.name;
+  const actorRole = (session.user as { role?: ActorRole }).role ?? null;
+  await logEvent({
+    category: "records",
+    action: "record.created",
+    summary: `${actorLabel} created a new medical report`,
+    actorId: session.user.id,
+    actorRoleAtTime: actorRole,
+    actorLabel,
+    targetType: "form_record",
+    targetId: record!.id,
+    metadata: { formType: "medical_report" },
   });
 
   return { recordId: record!.id };
@@ -151,7 +160,21 @@ export async function saveMedicalReportForm(
     .where(eq(formRecords.id, input.recordId))
     .returning({ updatedAt: formRecords.updatedAt });
 
-  void session;
+  const changedFields = countChangedFields(existing.data as Record<string, unknown>, dataParsed as Record<string, unknown>);
+  if (changedFields > 0) {
+    await logEvent({
+      category: "records",
+      action: "record.edited",
+      summary: `${session.user.name} edited a medical report (${changedFields} field${changedFields === 1 ? "" : "s"} changed)`,
+      actorId: session.user.id,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      targetType: "form_record",
+      targetId: input.recordId,
+      metadata: { formType: "medical_report", changedFields },
+    });
+  }
+
   return { updatedAt: updated!.updatedAt.toISOString() };
 }
 
@@ -201,10 +224,16 @@ export async function completeMedicalReportForm(
       .where(eq(formRecords.id, input.recordId))
       .returning({ updatedAt: formRecords.updatedAt });
 
-    await db.insert(activityLogs).values({
-      userId: session.user.id,
-      formRecordId: input.recordId,
-      action: "completed",
+    await logEvent({
+      category: "records",
+      action: "record.completed",
+      summary: `${session.user.name} completed a medical report`,
+      actorId: session.user.id,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      targetType: "form_record",
+      targetId: input.recordId,
+      metadata: { formType: "medical_report" },
     });
 
     return { success: true, updatedAt: updated!.updatedAt.toISOString() };

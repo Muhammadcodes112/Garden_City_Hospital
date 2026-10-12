@@ -397,6 +397,65 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "signup_attempts_created_at_idx" ON "signup_attempts" USING btree ("created_at");
     `);
 
+    // Step 17: append-only activity log.
+    await sql.unsafe(`
+      DO $$ BEGIN
+        CREATE TYPE "public"."activity_category" AS ENUM('auth', 'records', 'sharing', 'messages', 'appointments', 'accounts');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      CREATE TABLE IF NOT EXISTS "activity_events" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "occurred_at" timestamptz DEFAULT now() NOT NULL,
+        "actor_id" text,
+        "actor_role_at_time" "public"."user_role",
+        "actor_label" text,
+        "category" "public"."activity_category" NOT NULL,
+        "action" text NOT NULL,
+        "target_type" text,
+        "target_id" text,
+        "summary" text NOT NULL,
+        "ip_hash" text,
+        "user_agent" text,
+        "metadata" jsonb DEFAULT '{}'::jsonb
+      );
+
+      CREATE INDEX IF NOT EXISTS "activity_events_occurred_at_idx" ON "activity_events" USING btree ("occurred_at" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_actor_occurred_idx" ON "activity_events" USING btree ("actor_id", "occurred_at" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_category_occurred_idx" ON "activity_events" USING btree ("category", "occurred_at" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_occurred_id_idx" ON "activity_events" USING btree ("occurred_at" DESC, "id" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_category_occurred_id_idx" ON "activity_events" USING btree ("category", "occurred_at" DESC, "id" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_actor_occurred_id_idx" ON "activity_events" USING btree ("actor_id", "occurred_at" DESC, "id" DESC);
+      CREATE INDEX IF NOT EXISTS "activity_events_metadata_gin_idx" ON "activity_events" USING gin ("metadata");
+      CREATE INDEX IF NOT EXISTS "activity_events_summary_trgm_idx" ON "activity_events" USING gin ("summary" gin_trgm_ops);
+      CREATE INDEX IF NOT EXISTS "activity_events_actor_label_trgm_idx" ON "activity_events" USING gin ("actor_label" gin_trgm_ops);
+    `);
+
+    // Append-only enforcement. UPDATE is never permitted, full stop — not
+    // even the retention job ever needs it. DELETE is blocked UNLESS the
+    // caller explicitly opts in for the current transaction only
+    // (SET LOCAL app.allow_retention_delete = 'true'), which is exactly
+    // what scripts/retention-activity-events.ts does, and only after it has
+    // confirmed the archive write succeeded. Nothing else in the app ever
+    // sets that flag.
+    await sql.unsafe(`
+      CREATE OR REPLACE FUNCTION activity_events_append_only() RETURNS trigger AS $BODY$
+      BEGIN
+        IF TG_OP = 'DELETE' AND current_setting('app.allow_retention_delete', true) = 'true' THEN
+          RETURN NULL;
+        END IF;
+        RAISE EXCEPTION 'activity_events is append-only: % is not permitted', TG_OP;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS activity_events_append_only_trigger ON "activity_events";
+      CREATE TRIGGER activity_events_append_only_trigger
+        BEFORE UPDATE OR DELETE ON "activity_events"
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION activity_events_append_only();
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

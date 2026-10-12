@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, patients } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import { DocumentViewer } from "@/components/forms/document-viewer";
 import { DocumentViewHeader } from "@/components/forms/document-view-header";
 import { FORM_TYPE_LABELS } from "@/lib/routes";
@@ -29,6 +30,21 @@ export default async function DocumentViewPage({ params }: { params: Promise<{ r
     .where(eq(formRecords.id, recordId));
 
   if (!row || row.deletedAt) notFound();
+
+  await logEvent({
+    category: "records",
+    action: "record.viewed",
+    summary: `${session.user.name} viewed record for ${row.surname}, ${row.firstNames} (${row.hospitalNumber})`,
+    actorId: session.user.id,
+    actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+    actorLabel: session.user.name,
+    targetType: "form_record",
+    targetId: row.id,
+    metadata: {
+      formType: row.type,
+      hospitalNumber: row.hospitalNumber,
+    },
+  });
 
   const isSuperAdmin = (session.user as { role?: string }).role === "super_admin";
   const filename = `${FORM_TYPE_LABELS[row.type].replace(/\s+/g, "")}_${row.hospitalNumber}.pdf`;

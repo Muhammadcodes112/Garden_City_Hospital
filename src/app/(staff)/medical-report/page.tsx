@@ -11,6 +11,8 @@ import {
   createMedicalReportDraftRecord,
   getMedicalReportFormRecord,
 } from "@/lib/actions/medical-report-form";
+import { requireStaff } from "@/lib/authz";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import { MedicalReportEditor } from "@/components/medical-report/medical-report-editor";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,18 @@ export default async function MedicalReportPage(props: {
     if (!record) {
       notFound();
     }
+    const session = await requireStaff();
+    await logEvent({
+      category: "records",
+      action: "record.viewed",
+      summary: `${session.user.name} viewed medical report for ${record.patient.surname}, ${record.patient.firstNames} (${record.patient.hospitalNumber})`,
+      actorId: session.user.id,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      targetType: "form_record",
+      targetId: record.recordId,
+      metadata: { formType: "medical_report", hospitalNumber: record.patient.hospitalNumber },
+    });
     return <MedicalReportEditor initial={record} />;
   }
 

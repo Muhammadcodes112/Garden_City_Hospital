@@ -2,9 +2,10 @@
 
 import { and, eq, gte, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, formRecords, patients, shareLinks } from "@/db/schema";
+import { formRecords, patients, shareLinks } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
 import { getSession } from "@/lib/session";
+import { logEvent, clientIpFrom, type ActorRole } from "@/lib/activity";
 import { labRequestDataSchema } from "@/lib/validators/lab-request";
 import { prescriptionDataSchema } from "@/lib/validators/prescription";
 import { medicalReportDataSchema } from "@/lib/validators/medical-report";
@@ -53,10 +54,16 @@ export async function createShareLink(input: {
     })
     .returning({ id: shareLinks.id, token: shareLinks.token, expiresAt: shareLinks.expiresAt });
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId: input.formRecordId,
-    action: "shared",
+  await logEvent({
+    category: "sharing",
+    action: "link.created",
+    summary: `${session.user.name} created a share link (expires in ${input.expiryDays}d)`,
+    actorId: session.user.id,
+    actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+    actorLabel: session.user.name,
+    targetType: "form_record",
+    targetId: input.formRecordId,
+    metadata: { expiryDays: input.expiryDays },
   });
 
   const reqHeaders = await headers();
@@ -115,10 +122,15 @@ export async function revokeShareLink(shareLinkId: string): Promise<{ success: b
     .set({ revokedAt: new Date() })
     .where(eq(shareLinks.id, shareLinkId));
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId: link.formRecordId,
-    action: "link_revoked",
+  await logEvent({
+    category: "sharing",
+    action: "link.revoked",
+    summary: `${session.user.name} revoked a share link`,
+    actorId: session.user.id,
+    actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+    actorLabel: session.user.name,
+    targetType: "form_record",
+    targetId: link.formRecordId,
   });
 
   return { success: true };
@@ -141,10 +153,15 @@ export async function reopenFormRecord(formRecordId: string): Promise<{ success:
     .set({ status: "draft", updatedAt: new Date() })
     .where(eq(formRecords.id, formRecordId));
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId,
-    action: "reopened",
+  await logEvent({
+    category: "records",
+    action: "record.reopened",
+    summary: `${session.user.name} reopened a completed record for editing`,
+    actorId: session.user.id,
+    actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+    actorLabel: session.user.name,
+    targetType: "form_record",
+    targetId: formRecordId,
   });
 
   return { success: true };
@@ -158,10 +175,15 @@ export async function logFormDownload(formRecordId: string): Promise<void> {
   const role = (session?.user as { role?: string } | undefined)?.role;
   if (!session || (role !== "admin" && role !== "super_admin")) return;
 
-  await db.insert(activityLogs).values({
-    userId: session.user.id,
-    formRecordId,
-    action: "downloaded",
+  await logEvent({
+    category: "sharing",
+    action: "pdf.downloaded",
+    summary: `${session.user.name} downloaded a PDF`,
+    actorId: session.user.id,
+    actorRoleAtTime: role as ActorRole,
+    actorLabel: session.user.name,
+    targetType: "form_record",
+    targetId: formRecordId,
   });
 }
 
@@ -212,6 +234,18 @@ export async function getPublicShareData(token: string): Promise<{
 
   const form = formRows[0];
   if (!form) return { valid: false };
+
+  const reqHeaders = await headers();
+  await logEvent({
+    category: "sharing",
+    action: "link.opened",
+    summary: "A shared record link was opened by a recipient",
+    targetType: "form_record",
+    targetId: form.id,
+    ipAddress: clientIpFrom(reqHeaders),
+    userAgent: reqHeaders.get("user-agent"),
+    metadata: { shareLinkId: link.id },
+  });
 
   const patientObj = {
     surname: form.surname,

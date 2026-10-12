@@ -11,6 +11,8 @@ import {
   createPrescriptionDraftRecord,
   getPrescriptionFormRecord,
 } from "@/lib/actions/prescription-form";
+import { requireStaff } from "@/lib/authz";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import { PrescriptionFormEditor } from "@/components/prescription/prescription-form-editor";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,18 @@ export default async function PrescriptionPage(props: {
     if (!record) {
       notFound();
     }
+    const session = await requireStaff();
+    await logEvent({
+      category: "records",
+      action: "record.viewed",
+      summary: `${session.user.name} viewed prescription for ${record.patient.surname}, ${record.patient.firstNames} (${record.patient.hospitalNumber})`,
+      actorId: session.user.id,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      targetType: "form_record",
+      targetId: record.recordId,
+      metadata: { formType: "prescription", hospitalNumber: record.patient.hospitalNumber },
+    });
     return <PrescriptionFormEditor initial={record} />;
   }
 

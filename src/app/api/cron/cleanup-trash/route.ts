@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { and, inArray, lte, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, formRecords, shareLinks } from "@/db/schema";
+import { formRecords, shareLinks } from "@/db/schema";
 import { TRASH_RETENTION_DAYS } from "@/lib/retention";
+import { logEvent } from "@/lib/activity";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -39,10 +40,14 @@ export async function GET(request: Request) {
 
     // 3. Log permanent deletion
     for (const id of recordIds) {
-      await db.insert(activityLogs).values({
-        userId: "system_cron",
-        formRecordId: null,
-        action: "permanently_deleted",
+      await logEvent({
+        category: "records",
+        action: "record.permanently_deleted",
+        summary: "Automated retention cleanup permanently deleted record",
+        actorLabel: "System Cron",
+        targetType: "form_record",
+        targetId: id,
+        metadata: { automated: true },
       });
     }
 

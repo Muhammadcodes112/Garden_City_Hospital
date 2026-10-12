@@ -376,3 +376,48 @@ export const messageAttachments = pgTable("message_attachments", {
   fileSize: integer("file_size"),
   mimeType: text("mime_type"),
 });
+
+// ---------------------------------------------------------------------------
+// Step 17: append-only activity log.
+//
+// actorId/actorRoleAtTime/actorLabel are deliberately snapshots, not live
+// joins — a later role change or (eventual) account deletion must never
+// rewrite what already happened. actorId has no FK: the row must survive
+// regardless of what happens to the user table.
+// ---------------------------------------------------------------------------
+
+export const activityCategory = pgEnum("activity_category", [
+  "auth",
+  "records",
+  "sharing",
+  "messages",
+  "appointments",
+  "accounts",
+]);
+
+export const activityEvents = pgTable(
+  "activity_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    actorId: text("actor_id"),
+    actorRoleAtTime: userRole("actor_role_at_time"),
+    actorLabel: text("actor_label"),
+    category: activityCategory("category").notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    summary: text("summary").notNull(),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata").default({}),
+  },
+  (table) => [
+    index("activity_events_occurred_at_idx").on(table.occurredAt.desc()),
+    index("activity_events_actor_occurred_idx").on(table.actorId, table.occurredAt.desc()),
+    index("activity_events_category_occurred_idx").on(table.category, table.occurredAt.desc()),
+    // GIN index on metadata is created via raw SQL in migrate-db.ts —
+    // drizzle-kit's declarative index builder doesn't have a clean GIN+jsonb
+    // helper in this version; this entry documents its existence.
+  ],
+);

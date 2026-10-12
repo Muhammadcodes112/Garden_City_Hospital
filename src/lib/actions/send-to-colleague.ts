@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/authz";
 import { sendRecordToColleaguesSchema, type SendRecordToColleaguesInput } from "@/lib/validators/send-to-colleague";
 import { findDmConversationId, getOrCreateDmConversation, insertMessageWithAttachment, isUnderSendRateLimit } from "@/lib/messages";
 import { createShareLink } from "@/lib/actions/share";
+import type { ActorRole } from "@/lib/activity";
 
 export type ActiveAdmin = { id: string; name: string; email: string; isSuperAdmin: boolean };
 
@@ -55,7 +56,14 @@ export async function sendRecordToColleagues(input: SendRecordToColleaguesInput)
       senderId: meId,
       body,
       attachment: shareLinkId ? { kind: "share_link", shareLinkId } : { kind: "form_record", formRecordId: parsed.formRecordId },
-      activityLog: { action: "record_shared_internally", formRecordId: parsed.formRecordId },
+      activityLog: {
+        category: "sharing",
+        action: "record.shared_colleague",
+        summary: `${session.user.name} sent a record to a colleague`,
+        actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+        actorLabel: session.user.name,
+        metadata: { recipientId, formRecordId: parsed.formRecordId },
+      },
     });
   }
 

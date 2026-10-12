@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { user, session as sessionTable, activityLogs } from "@/db/schema";
+import { user, session as sessionTable } from "@/db/schema";
 import { requireSuperAdmin } from "@/lib/authz";
+import { logEvent } from "@/lib/activity";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -65,9 +66,16 @@ export async function DELETE(
       .where(eq(user.id, userId));
 
     // 3. Log deletion activity
-    await db.insert(activityLogs).values({
-      userId: currentSession.user.id,
-      action: "account_deleted",
+    await logEvent({
+      category: "accounts",
+      action: "account.deleted",
+      summary: `${currentSession.user.name} deleted account for ${targetUser.name} (${targetUser.email})`,
+      actorId: currentSession.user.id,
+      actorRoleAtTime: "super_admin",
+      actorLabel: currentSession.user.name,
+      targetType: "user",
+      targetId: userId,
+      metadata: { email: targetUser.email, name: targetUser.name },
     });
 
     return NextResponse.json({

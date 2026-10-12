@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { user, session as sessionTable, activityLogs } from "@/db/schema";
+import { user, session as sessionTable } from "@/db/schema";
 import { requireSuperAdmin } from "@/lib/authz";
+import { logEvent } from "@/lib/activity";
 
 const ROLES = ["patient", "admin", "super_admin"] as const;
 type Role = (typeof ROLES)[number];
@@ -96,14 +97,25 @@ export async function POST(
       }
 
       // Rule 7: every change writes to the activity log with actor, target,
-      // old role, new role, reason, timestamp (createdAt is defaulted).
-      await tx.insert(activityLogs).values({
-        userId: currentSession.user.id,
-        action,
-        targetUserId: userId,
-        oldRole,
-        newRole,
-        reason,
+      // old role, new role, reason, timestamp.
+      await logEvent({
+        tx,
+        category: "accounts",
+        action: "role.changed",
+        summary: `${currentSession.user.name} changed role for ${targetUser.name} from ${oldRole} to ${newRole}: ${reason}`,
+        actorId: currentSession.user.id,
+        actorRoleAtTime: "super_admin",
+        actorLabel: currentSession.user.name,
+        targetType: "user",
+        targetId: userId,
+        metadata: {
+          targetUserName: targetUser.name,
+          targetUserEmail: targetUser.email,
+          oldRole,
+          newRole,
+          reason,
+          actionType: action,
+        },
       });
     });
   } catch (err) {

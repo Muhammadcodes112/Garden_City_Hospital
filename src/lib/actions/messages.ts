@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { conversationParticipants, messages, user } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
 import { sendMessageSchema, type SendMessageInput } from "@/lib/validators/message";
+import type { ActorRole } from "@/lib/activity";
 import { checkFormRecordAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
 import {
   findDmConversationId,
@@ -105,7 +106,14 @@ export async function sendMessage(input: SendMessageInput) {
     senderId: meId,
     body,
     attachment: parsed.attachment,
-    activityLog: { action: "message_sent" },
+    activityLog: {
+      category: "messages",
+      action: "message.sent",
+      summary: `${session.user.name} sent a message`,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      metadata: { recipientId: parsed.targetUserId },
+    },
   });
 
   return serializeMessage(created);

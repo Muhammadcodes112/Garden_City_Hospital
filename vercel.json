@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-trash",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-render-cache",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/retention-activity-events",
+      "schedule": "0 3 * * 0"
+    }
+  ]
+}

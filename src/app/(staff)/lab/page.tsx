@@ -8,6 +8,8 @@ import Link from "next/link";
 import { formEditHref, formNewHref } from "@/lib/routes";
 import { FlaskConical } from "lucide-react";
 import { createLabDraftRecord, getLabFormRecord } from "@/lib/actions/lab-form";
+import { requireStaff } from "@/lib/authz";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import { LabFormEditor } from "@/components/lab/lab-form-editor";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +29,18 @@ export default async function LabFormPage(props: {
     if (!record) {
       notFound();
     }
+    const session = await requireStaff();
+    await logEvent({
+      category: "records",
+      action: "record.viewed",
+      summary: `${session.user.name} viewed lab request for ${record.patient.surname}, ${record.patient.firstNames} (${record.patient.hospitalNumber})`,
+      actorId: session.user.id,
+      actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+      actorLabel: session.user.name,
+      targetType: "form_record",
+      targetId: record.recordId,
+      metadata: { formType: "lab", hospitalNumber: record.patient.hospitalNumber },
+    });
     return <LabFormEditor initial={record} />;
   }
 
