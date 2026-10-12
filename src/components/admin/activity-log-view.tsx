@@ -319,75 +319,87 @@ export function ActivityLogView({
       {/* SIGNALS ROW (4 Cards: Events today neutral, remaining 3 warning-toned) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Events today (Neutral) */}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-md">
+        <div className="rounded-xl border border-border bg-card p-4.5 shadow-xs transition-shadow hover:shadow-md">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Events Today</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-              <Activity className="h-4 w-4" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Events Today</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-800 dark:text-slate-200 shadow-xs">
+              <Activity className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-foreground">
+            <span className="text-3xl font-black tracking-tight text-foreground">
               {signals.eventsToday.toLocaleString()}
             </span>
-            <span className="text-xs text-muted-foreground">in last 24h</span>
+            <span className="text-xs font-semibold text-muted-foreground">in last 24h</span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Live hospital activity volume</p>
+          <p className="mt-1 text-xs text-muted-foreground">Live hospital activity volume</p>
         </div>
 
-        {/* Card 2: Failed sign-ins (Warning-toned) */}
-        <div className="rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-500/5 dark:bg-amber-950/20 p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="flex items-center justify-between text-amber-800 dark:text-amber-300">
-            <span className="text-xs font-semibold uppercase tracking-wider">Failed Sign-Ins</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-400">
-              <ShieldAlert className="h-4 w-4" />
+        {/* Card 2: Failed sign-ins (Vibrant Amber / Gold) */}
+        <div className="rounded-xl border-2 border-amber-400/90 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
+              Failed Sign-Ins
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs ring-4 ring-amber-400/25">
+              <ShieldAlert className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-amber-900 dark:text-amber-200">
+            <span className="text-3xl font-black tracking-tight text-amber-950 dark:text-amber-100">
               {signals.failedSignins.toLocaleString()}
             </span>
-            <span className="text-xs text-amber-700 dark:text-amber-400">auth anomalies</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-200/90 text-amber-950 dark:bg-amber-900 dark:text-amber-100">
+              auth anomalies
+            </span>
           </div>
-          <p className="mt-1 text-[11px] text-amber-700/80 dark:text-amber-400/80">
+          <p className="mt-1 text-xs font-semibold text-amber-900/80 dark:text-amber-300">
             Targeted emails captured in metadata
           </p>
         </div>
 
-        {/* Card 3: Records deleted (Warning-toned) */}
-        <div className="rounded-xl border border-rose-300 dark:border-rose-900/80 bg-rose-500/5 dark:bg-rose-950/20 p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="flex items-center justify-between text-rose-800 dark:text-rose-300">
-            <span className="text-xs font-semibold uppercase tracking-wider">Records Deleted</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/20 text-rose-700 dark:text-rose-400">
-              <Trash2 className="h-4 w-4" />
+        {/* Card 3: Records deleted (Vibrant Crimson / Rose) */}
+        <div className="rounded-xl border-2 border-rose-400/90 dark:border-rose-600 bg-rose-50 dark:bg-rose-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-950 dark:text-rose-200">
+              Records Deleted
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-xs ring-4 ring-rose-400/25">
+              <Trash2 className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-rose-900 dark:text-rose-200">
+            <span className="text-3xl font-black tracking-tight text-rose-950 dark:text-rose-100">
               {signals.recordsDeleted.toLocaleString()}
             </span>
-            <span className="text-xs text-rose-700 dark:text-rose-400">clinical purges</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-200/90 text-rose-950 dark:bg-rose-900 dark:text-rose-100">
+              clinical purges
+            </span>
           </div>
-          <p className="mt-1 text-[11px] text-rose-700/80 dark:text-rose-400/80">
+          <p className="mt-1 text-xs font-semibold text-rose-900/80 dark:text-rose-300">
             Includes soft-deletes and trash purges
           </p>
         </div>
 
-        {/* Card 4: After-hours access (Warning-toned: 22:00–06:00 Africa/Lagos) */}
-        <div className="rounded-xl border border-orange-300 dark:border-orange-800/80 bg-orange-500/5 dark:bg-orange-950/20 p-4 shadow-xs transition-shadow hover:shadow-md">
-          <div className="flex items-center justify-between text-orange-800 dark:text-orange-300">
-            <span className="text-xs font-semibold uppercase tracking-wider">After-Hours Access</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-700 dark:text-orange-400">
-              <Moon className="h-4 w-4" />
+        {/* Card 4: After-hours access (Deep Indigo / Night WAT) */}
+        <div className="rounded-xl border-2 border-indigo-400/90 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 p-4.5 shadow-xs transition-all hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+              After-Hours Access
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs ring-4 ring-indigo-400/25">
+              <Moon className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-orange-900 dark:text-orange-200">
+            <span className="text-3xl font-black tracking-tight text-indigo-950 dark:text-indigo-100">
               {signals.afterHoursAccess.toLocaleString()}
             </span>
-            <span className="text-xs text-orange-700 dark:text-orange-400">22:00–06:00 WAT</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-200/90 text-indigo-950 dark:bg-indigo-900 dark:text-indigo-100">
+              22:00–06:00 WAT
+            </span>
           </div>
-          <p className="mt-1 text-[11px] text-orange-700/80 dark:text-orange-400/80">
+          <p className="mt-1 text-xs font-semibold text-indigo-900/80 dark:text-indigo-300">
             Night-shift or off-hours actions
           </p>
         </div>

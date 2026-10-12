@@ -154,27 +154,27 @@ export function PatientsView() {
     const st = status || "Outpatient";
     if (st.includes("Maternity") || st.includes("Admitted")) {
       return (
-        <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 font-medium text-[11px]">
+        <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[11px] whitespace-nowrap px-2.5 py-0.5 shadow-2xs">
           {st}
         </Badge>
       );
     }
     if (st.includes("ICU")) {
       return (
-        <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200 dark:bg-rose-950 dark:text-rose-300 font-medium text-[11px]">
+        <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200 dark:bg-rose-950 dark:text-rose-300 font-bold text-[11px] whitespace-nowrap px-2.5 py-0.5 shadow-2xs">
           {st}
         </Badge>
       );
     }
     if (st.includes("Discharged")) {
       return (
-        <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 dark:bg-slate-800 dark:text-slate-300 font-medium text-[11px]">
+        <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 dark:bg-slate-800 dark:text-slate-300 font-bold text-[11px] whitespace-nowrap px-2.5 py-0.5 shadow-2xs">
           Discharged
         </Badge>
       );
     }
     return (
-      <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 font-medium text-[11px]">
+      <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px] whitespace-nowrap px-2.5 py-0.5 shadow-2xs">
         Outpatient
       </Badge>
     );
@@ -182,132 +182,168 @@ export function PatientsView() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* HEADER BAR MATCHING IMAGE 3 */}
+      {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <span className="text-xs text-muted-foreground font-medium">Records</span>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
+          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Clinical Records</span>
+          <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-3">
             Patients
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)} className="gap-2 text-xs">
-            <Download className="h-3.5 w-3.5" /> Export
+        <div className="flex items-center gap-2.5">
+          <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)} className="gap-2 text-xs font-semibold shadow-2xs">
+            <Download className="h-3.5 w-3.5" /> Export Records
           </Button>
           <Button
             size="sm"
             onClick={() => setShowRegisterModal(true)}
-            className="gap-2 bg-brand-green hover:bg-emerald-700 text-white font-semibold text-xs"
+            className="gap-2 bg-brand-green hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
           >
-            <Plus className="h-4 w-4" /> Register patient
+            <Plus className="h-4 w-4" /> Register Patient
           </Button>
         </div>
       </div>
 
-      {/* FILTER TABS & SEARCH BAR (IMAGE 3) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => { setActiveTab("all"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            All <span className="ml-1 text-[11px] opacity-70">{total}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab("outpatient"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "outpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Outpatient <span className="ml-1 text-[11px] opacity-70">{outpatientCount}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab("inpatient"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "inpatient" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Inpatient <span className="ml-1 text-[11px] opacity-70">{inpatientCount}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab("discharged"); setPage(1); }}
-            className={`px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${activeTab === "discharged" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Discharged <span className="ml-1 text-[11px] opacity-70">{dischargedCount}</span>
-          </button>
-        </div>
+      {/* FILTER CONTROLS TOOLBAR */}
+      <div className="space-y-3">
+        {/* Tier 1: Clinical Status Tabs + Search Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Clinical Filter Tabs */}
+          <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-xl text-xs font-bold overflow-x-auto border border-border/60">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("all"); setPage(1); }}
+              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                activeTab === "all"
+                  ? "bg-background text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All <span className="ml-1 text-[11px] font-semibold opacity-70">{total}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("outpatient"); setPage(1); }}
+              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                activeTab === "outpatient"
+                  ? "bg-background text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Outpatient <span className="ml-1 text-[11px] font-semibold opacity-70">{outpatientCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("inpatient"); setPage(1); }}
+              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                activeTab === "inpatient"
+                  ? "bg-background text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Inpatient <span className="ml-1 text-[11px] font-semibold opacity-70">{inpatientCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("discharged"); setPage(1); }}
+              className={`px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                activeTab === "discharged"
+                  ? "bg-background text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Discharged <span className="ml-1 text-[11px] font-semibold opacity-70">{dischargedCount}</span>
+            </button>
+          </div>
 
-        {/* Payment Filter Toggle */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
-          <span className="text-[10px] uppercase font-bold text-muted-foreground px-1.5 tracking-wider">
-            Payment:
-          </span>
-          <button
-            type="button"
-            onClick={() => { setPaymentFilter("all"); setPage(1); }}
-            className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "all" ? "bg-background text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            All <span className="ml-1 text-[10px] opacity-70">{total}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setPaymentFilter("paid"); setPage(1); }}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "paid" ? "bg-emerald-600 text-white shadow-xs font-bold" : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950"}`}
-          >
-            <CheckCircle2 className="h-3 w-3" /> Paid <span className="ml-0.5 text-[10px] opacity-80">{paidCount}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setPaymentFilter("pending"); setPage(1); }}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "pending" ? "bg-amber-600 text-white shadow-xs font-bold" : "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"}`}
-          >
-            <Clock className="h-3 w-3" /> Pending <span className="ml-0.5 text-[10px] opacity-80">{pendingPaymentCount}</span>
-          </button>
-        </div>
-
-        {/* Search & Filter Dropdown */}
-        <div className="flex items-center gap-2 flex-1 md:max-w-xs">
-          <div className="relative flex-1">
+          {/* Search Box */}
+          <div className="relative w-full md:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Name, MRN or phone"
-              className="pl-9 h-9 text-xs"
+              placeholder="Search by name, MRN, phone..."
+              className="pl-9 h-9 text-xs rounded-xl border-border/80 bg-background shadow-2xs"
             />
+          </div>
+        </div>
+
+        {/* Tier 2: Payment Clearance Status Filter */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+          <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl text-xs font-bold border border-border/60">
+            <span className="text-[10px] uppercase font-black text-muted-foreground px-2 tracking-wider">
+              Payment Status:
+            </span>
+            <button
+              type="button"
+              onClick={() => { setPaymentFilter("all"); setPage(1); }}
+              className={`px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                paymentFilter === "all"
+                  ? "bg-background text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All Records <span className="ml-1 text-[10px] opacity-75">{total}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPaymentFilter("paid"); setPage(1); }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                paymentFilter === "paid"
+                  ? "bg-emerald-600 text-white shadow-xs font-black"
+                  : "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60"
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" /> Paid <span className="ml-0.5 text-[10px] opacity-85">({paidCount})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPaymentFilter("pending"); setPage(1); }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
+                paymentFilter === "pending"
+                  ? "bg-amber-600 text-white shadow-xs font-black"
+                  : "text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/60"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5 stroke-[2.5]" /> Pending Cashier <span className="ml-0.5 text-[10px] opacity-85">({pendingPaymentCount})</span>
+            </button>
+          </div>
+
+          <div className="text-[11px] font-semibold text-muted-foreground">
+            Showing <strong className="text-foreground">{patients.length}</strong> active patient records
           </div>
         </div>
       </div>
 
-      {/* MAIN TWO-COLUMN CONTAINER MATCHING IMAGE 3 */}
+      {/* MAIN TWO-COLUMN CONTAINER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT COLUMN: PATIENTS TABLE (IMAGE 3) */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+        {/* LEFT COLUMN: PATIENTS TABLE */}
+        <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
           {loading ? (
-            <div className="p-12 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-brand-green" /> Loading patients...
+            <div className="p-16 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
+              <span className="font-semibold text-foreground">Loading patient records...</span>
             </div>
           ) : patients.length === 0 ? (
-            <div className="p-12 text-center text-xs text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="font-semibold text-foreground">No patients registered yet</p>
-              <p className="mt-1">Click &quot;Register patient&quot; to create a new Patient Case File.</p>
+            <div className="p-16 text-center text-xs text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-3 opacity-40 text-brand-green" />
+              <p className="font-bold text-base text-foreground">No matching patients found</p>
+              <p className="mt-1 text-xs">Try adjusting your filters or click &quot;Register Patient&quot; above.</p>
             </div>
           ) : (
             <>
               {/* DESKTOP TABLE */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[620px] text-left text-xs">
-                  <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
+                <table className="w-full min-w-[760px] text-left text-xs">
+                  <thead className="bg-muted/50 border-b border-border font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="p-3">PATIENT</th>
-                      <th className="p-3">AGE / SEX</th>
-                      <th className="p-3">PAYMENT STATUS</th>
-                      <th className="p-3">LAST VISIT</th>
-                      <th className="p-3">DOCTOR</th>
-                      <th className="p-3">STATUS</th>
+                      <th className="py-3.5 px-4 min-w-[200px]">PATIENT</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap">AGE / SEX</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap">PAYMENT STATUS</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap">LAST VISIT</th>
+                      <th className="py-3.5 px-3 min-w-[140px]">DOCTOR</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap">STATUS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -319,27 +355,34 @@ export function PatientsView() {
                         <tr
                           key={p.id}
                           onClick={() => setSelectedPatient(p)}
-                          className={`cursor-pointer transition-colors hover:bg-muted/30 ${isSelected ? "bg-muted/60" : ""}`}
+                          className={`cursor-pointer transition-colors hover:bg-muted/40 ${
+                            isSelected ? "bg-muted/60 font-medium" : ""
+                          }`}
                         >
-                          <td className="p-3">
+                          {/* PATIENT INFO */}
+                          <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs ring-1 ring-emerald-500/20">
                                 {initials}
                               </div>
-                              <div>
-                                <div className="font-semibold text-foreground text-xs">
+                              <div className="min-w-0">
+                                <div className="font-bold text-foreground text-xs truncate max-w-[170px]">
                                   {p.firstNames} {p.surname}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-mono">
-                                  {p.hospitalNumber}
+                                  {p.hospitalNumber || "MRN-PENDING"}
                                 </div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-3 text-muted-foreground">
-                            {p.age || "28"} · {p.sex ? p.sex[0] : "M"}
+
+                          {/* AGE / SEX (FIXED: NO WRAPPING) */}
+                          <td className="py-3.5 px-3 text-muted-foreground font-semibold whitespace-nowrap">
+                            {p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}
                           </td>
-                          <td className="p-3 whitespace-nowrap">
+
+                          {/* PAYMENT STATUS BADGE (FIXED: HIGH CONTRAST & VISIBILITY) */}
+                          <td className="py-3.5 px-3 whitespace-nowrap">
                             {p.paymentStatus === "paid" ? (
                               <button
                                 type="button"
@@ -347,17 +390,19 @@ export function PatientsView() {
                                   e.stopPropagation();
                                   setCashierModalPatient(p);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-100 transition-colors shadow-2xs group"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700 font-bold text-[11px] hover:bg-emerald-100 hover:border-emerald-400 dark:hover:bg-emerald-900 transition-all shadow-2xs group"
                                 title="Payment cleared. Click to view proof / edit."
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.5]" />
                                 <span>PAID</span>
                                 {p.paymentAmount ? (
-                                  <span className="text-[10px] opacity-75 font-mono">₦{p.paymentAmount}</span>
+                                  <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-semibold">
+                                    ₦{Number(p.paymentAmount).toLocaleString()}
+                                  </span>
                                 ) : null}
                                 {p.paymentEvidenceUrl && (
-                                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 px-1 rounded">
-                                    📷 Proof
+                                  <span className="text-[9px] bg-emerald-200 dark:bg-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold px-1.5 py-0.5 rounded">
+                                    Receipt
                                   </span>
                                 )}
                               </button>
@@ -368,24 +413,30 @@ export function PatientsView() {
                                   e.stopPropagation();
                                   setCashierModalPatient(p);
                                 }}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 transition-colors shadow-2xs group"
-                                title="Payment pending. Click to confirm payment."
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-950 border-2 border-amber-400 dark:bg-amber-950/70 dark:text-amber-100 dark:border-amber-600 font-bold text-[11px] hover:bg-amber-100 hover:border-amber-500 transition-all shadow-2xs group"
+                                title="Payment pending. Click to confirm payment at Cashier Desk."
                               >
-                                <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5]" />
                                 <span>PENDING</span>
-                                <span className="text-[10px] text-amber-700 underline group-hover:text-amber-900">
-                                  Tick
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold group-hover:bg-amber-600 transition-colors shadow-2xs">
+                                  Confirm
                                 </span>
                               </button>
                             )}
                           </td>
-                          <td className="p-3 text-muted-foreground whitespace-nowrap">
+
+                          {/* LAST VISIT */}
+                          <td className="py-3.5 px-3 text-muted-foreground whitespace-nowrap font-medium">
                             {p.lastVisit || "28 Sep 2026"}
                           </td>
-                          <td className="p-3 text-muted-foreground">
+
+                          {/* DOCTOR */}
+                          <td className="py-3.5 px-3 text-muted-foreground truncate max-w-[150px]">
                             {p.doctor || "Dr. Ibrahim Musa"}
                           </td>
-                          <td className="p-3 whitespace-nowrap">
+
+                          {/* STATUS BADGE (FIXED: NEVER CUTS OFF) */}
+                          <td className="py-3.5 px-4 whitespace-nowrap">
                             {getStatusBadge(p.status)}
                           </td>
                         </tr>
@@ -396,7 +447,7 @@ export function PatientsView() {
               </div>
 
               {/* MOBILE CARD LIST */}
-              <ul className="flex flex-col gap-2 p-3 md:hidden">
+              <ul className="flex flex-col gap-2.5 p-3 md:hidden">
                 {patients.map((p) => {
                   const isSelected = selectedPatient?.id === p.id;
                   const initials = getInitials(p.surname, p.firstNames);
@@ -406,35 +457,37 @@ export function PatientsView() {
                       <button
                         type="button"
                         onClick={() => setSelectedPatient(p)}
-                        className={`w-full rounded-lg border border-border p-3 text-left transition-colors ${isSelected ? "bg-muted/60" : "bg-background hover:bg-muted/30"}`}
+                        className={`w-full rounded-xl border border-border p-3.5 text-left transition-colors shadow-2xs ${
+                          isSelected ? "bg-muted/60 ring-2 ring-brand-green/30" : "bg-background hover:bg-muted/30"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
                             {initials}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-foreground text-xs truncate">
+                            <div className="font-bold text-foreground text-xs truncate">
                               {p.firstNames} {p.surname}
                             </div>
                             <div className="text-[11px] text-muted-foreground font-mono">
-                              {p.hospitalNumber}
+                              {p.hospitalNumber || "MRN-PENDING"}
                             </div>
                           </div>
                           <div className="shrink-0 flex items-center gap-1.5">
                             {p.paymentStatus === "paid" ? (
-                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-1.5 py-0.5">
-                                <CheckCircle2 className="h-3 w-3" /> PAID
+                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-2 py-0.5">
+                                <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> PAID
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-500 text-white text-[10px] font-bold gap-1 px-1.5 py-0.5 animate-pulse">
-                                <Clock className="h-3 w-3" /> PENDING
+                              <Badge className="bg-amber-500 text-white text-[10px] font-bold gap-1 px-2 py-0.5">
+                                <Clock className="h-3 w-3 stroke-[2.5]" /> PENDING
                               </Badge>
                             )}
                             {getStatusBadge(p.status)}
                           </div>
                         </div>
-                        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-2">
-                          <span>{p.age || "28"} · {p.sex ? p.sex[0] : "M"}</span>
+                        <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-2 font-medium">
+                          <span>{p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}</span>
                           <span className="truncate">{p.doctor || "Dr. Ibrahim Musa"}</span>
                           <span className="whitespace-nowrap">{p.lastVisit || "28 Sep 2026"}</span>
                         </div>
@@ -447,112 +500,146 @@ export function PatientsView() {
           )}
 
           {/* Pagination */}
-          <div className="p-3 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Showing {patients.length} of {total} patients</span>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="h-3 w-3" />
+          <div className="p-3.5 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Showing <strong className="text-foreground">{patients.length}</strong> of <strong className="text-foreground">{total}</strong> patients</span>
+            <div className="flex items-center gap-1.5">
+              <Button size="icon" variant="outline" className="h-7 w-7 rounded-lg" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="font-semibold text-foreground px-2">{page} / {totalPages}</span>
-              <Button size="icon" variant="outline" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <ChevronRight className="h-3 w-3" />
+              <span className="font-bold text-foreground px-2">{page} / {totalPages}</span>
+              <Button size="icon" variant="outline" className="h-7 w-7 rounded-lg" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL (IMAGE 3) */}
+        {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL */}
         {selectedPatient ? (
-          <div className="rounded-xl border border-border bg-card p-5 space-y-5 shadow-xs">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-5 shadow-xs">
             {/* Header Avatar & Name */}
             <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-full bg-emerald-800 text-white font-bold text-base flex items-center justify-center shrink-0 shadow-sm">
+              <div className="h-13 w-13 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-extrabold text-lg flex items-center justify-center shrink-0 shadow-sm ring-4 ring-emerald-500/10">
                 {getInitials(selectedPatient.surname, selectedPatient.firstNames)}
               </div>
-              <div>
-                <h2 className="font-bold text-base text-foreground">
+              <div className="min-w-0 flex-1">
+                <h2 className="font-black text-lg text-foreground tracking-tight truncate">
                   {selectedPatient.firstNames} {selectedPatient.surname}
                 </h2>
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-muted-foreground font-mono font-medium">
                   {selectedPatient.hospitalNumber} · {selectedPatient.age || "27"} yrs · {selectedPatient.sex || "Female"}
                 </p>
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {getStatusBadge(selectedPatient.status)}
-                  <Badge variant="secondary" className="text-[10px] text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300">
+                  <Badge variant="secondary" className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300">
                     Blood {selectedPatient.bloodGroup || "B+"}
                   </Badge>
-                  <Badge variant="secondary" className="text-[10px] text-purple-700 bg-purple-50 dark:bg-purple-950 dark:text-purple-300">
+                  <Badge variant="secondary" className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
                     Genotype {selectedPatient.genotype || "AA"}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            {/* Allergy Warning Banner (Image 3) */}
-            <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-800 dark:text-red-300 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-              <span className="font-semibold">
-                Allergies: {selectedPatient.allergies || "Penicillin"}
-              </span>
+            {/* Allergy Warning Banner (Crisp High-Visibility Alert) */}
+            <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/90 dark:bg-rose-950/40 p-3 shadow-2xs flex items-center gap-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-600 text-white shrink-0 shadow-2xs">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                  Clinical Allergy Alert
+                </div>
+                <div className="text-xs font-bold text-rose-950 dark:text-rose-100 truncate">
+                  {selectedPatient.allergies || "Penicillin"}
+                </div>
+              </div>
             </div>
 
-            {/* CASHIER PAYMENT CLEARANCE CARD */}
+            {/* CASHIER PAYMENT CLEARANCE CARD (REDESIGNED: CRISP & VIBRANT) */}
             <div
-              className={`rounded-xl border p-3.5 space-y-2.5 transition-colors ${
+              className={`rounded-2xl border-2 p-4 space-y-3 shadow-xs transition-all ${
                 selectedPatient.paymentStatus === "paid"
-                  ? "border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 dark:border-emerald-800"
-                  : "border-amber-300 bg-amber-50/60 dark:bg-amber-950/30 dark:border-amber-800"
+                  ? "border-emerald-400/90 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-700"
+                  : "border-amber-400/90 bg-amber-50/70 dark:bg-amber-950/30 dark:border-amber-600"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className={`h-4 w-4 ${selectedPatient.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`} />
-                  <span className="font-bold text-xs text-foreground uppercase tracking-wider">
-                    Hospital Billing & Payment
-                  </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-2xs text-white shrink-0 ${
+                      selectedPatient.paymentStatus === "paid" ? "bg-emerald-600" : "bg-amber-500"
+                    }`}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className={`block font-extrabold text-xs uppercase tracking-wider ${
+                      selectedPatient.paymentStatus === "paid" ? "text-emerald-950 dark:text-emerald-200" : "text-amber-950 dark:text-amber-200"
+                    }`}>
+                      Hospital Billing & Payment
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      Cashier Desk Clearance
+                    </span>
+                  </div>
                 </div>
 
                 {selectedPatient.paymentStatus === "paid" ? (
-                  <Badge className="bg-emerald-600 text-white font-bold text-[11px] gap-1 px-2 py-0.5 shadow-2xs">
-                    <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> PAID ✓
+                  <Badge className="bg-emerald-600 text-white font-black text-[11px] gap-1 px-2.5 py-1 shadow-2xs hover:bg-emerald-600">
+                    <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" /> CLEARED
                   </Badge>
                 ) : (
-                  <Badge className="bg-amber-500 text-white font-bold text-[11px] gap-1 px-2 py-0.5 animate-pulse shadow-2xs">
-                    <Clock className="h-3 w-3" /> PENDING
+                  <Badge className="bg-amber-500 text-white font-black text-[11px] gap-1 px-2.5 py-1 shadow-2xs hover:bg-amber-500">
+                    <Clock className="h-3.5 w-3.5 stroke-[2.5]" /> PENDING
                   </Badge>
                 )}
               </div>
 
-              <div className="text-xs space-y-1">
+              <div className="text-xs space-y-2">
                 {selectedPatient.paymentStatus === "paid" ? (
-                  <>
-                    <div className="flex items-center justify-between text-muted-foreground text-[11px]">
-                      <span>Amount: <strong className="text-foreground">{selectedPatient.paymentAmount ? `₦${selectedPatient.paymentAmount}` : "Cleared"}</strong></span>
-                      <span>Method: <strong className="text-foreground">{selectedPatient.paymentMethod || "POS"}</strong></span>
+                  <div className="rounded-xl bg-white/80 dark:bg-card/80 border border-emerald-200 dark:border-emerald-800/60 p-3 space-y-2 text-xs shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground text-[11px] font-medium">Cleared Amount</span>
+                      <span className="font-mono font-black text-sm text-emerald-900 dark:text-emerald-200">
+                        ₦{selectedPatient.paymentAmount ? Number(selectedPatient.paymentAmount).toLocaleString() : "Cleared"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground font-medium">Payment Mode</span>
+                      <Badge variant="secondary" className="font-semibold text-xs border border-emerald-300 dark:border-emerald-700 bg-emerald-100/50 text-emerald-900 dark:text-emerald-200">
+                        {selectedPatient.paymentMethod || "POS Terminal"}
+                      </Badge>
                     </div>
                     {selectedPatient.paymentReference && (
-                      <p className="text-[11px] text-muted-foreground font-mono">
-                        Ref: {selectedPatient.paymentReference}
-                      </p>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground font-medium">Reference</span>
+                        <code className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded text-foreground font-semibold">
+                          {selectedPatient.paymentReference}
+                        </code>
+                      </div>
                     )}
                     {selectedPatient.paymentConfirmedBy && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Verified by: <strong className="text-foreground">{selectedPatient.paymentConfirmedBy}</strong>
-                      </p>
+                      <div className="flex items-center justify-between text-[11px] border-t border-border/50 pt-1.5">
+                        <span className="text-muted-foreground font-medium">Cleared By</span>
+                        <span className="font-bold text-foreground text-[11px]">
+                          {selectedPatient.paymentConfirmedBy}
+                        </span>
+                      </div>
                     )}
-                  </>
+                  </div>
                 ) : (
-                  <p className="text-[11px] text-amber-900 dark:text-amber-200">
-                    Awaiting cashier payment clearance. Tick below after confirming POS, cash, or transfer.
-                  </p>
+                  <div className="rounded-xl bg-amber-100/70 dark:bg-amber-900/30 border border-amber-200/90 dark:border-amber-800/60 p-3 text-xs text-amber-950 dark:text-amber-100 font-medium leading-relaxed">
+                    Awaiting cashier payment clearance. After confirming patient payment via POS, cash, or transfer, click below to confirm and attach receipt evidence.
+                  </div>
                 )}
               </div>
 
               {/* Evidence Preview if photo is attached */}
               {selectedPatient.paymentEvidenceUrl && (
-                <div className="rounded-lg border border-border bg-background/80 p-2 flex items-center justify-between gap-2 shadow-2xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="h-8 w-8 rounded border bg-card overflow-hidden shrink-0">
+                <div className="rounded-xl border border-border bg-background/90 p-2.5 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-10 w-10 rounded-lg border bg-card overflow-hidden shrink-0 shadow-2xs">
                       <img
                         src={selectedPatient.paymentEvidenceUrl}
                         alt="Payment Evidence"
@@ -560,10 +647,12 @@ export function PatientsView() {
                       />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-[11px] font-semibold text-foreground truncate block max-w-[130px]">
-                        {selectedPatient.paymentEvidenceName || "Proof Photo"}
+                      <span className="text-xs font-bold text-foreground truncate block max-w-[130px]">
+                        {selectedPatient.paymentEvidenceName || "Payment Receipt"}
                       </span>
-                      <span className="text-[10px] text-emerald-700 font-medium block">✓ Screenshot Attached</span>
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold block flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> Proof Attached
+                      </span>
                     </div>
                   </div>
                   <Button
@@ -571,9 +660,9 @@ export function PatientsView() {
                     size="sm"
                     variant="outline"
                     onClick={() => setCashierModalPatient(selectedPatient)}
-                    className="h-6 text-[10px] px-2 gap-1"
+                    className="h-7 text-xs px-2.5 gap-1 font-semibold rounded-lg"
                   >
-                    <Eye className="h-3 w-3" /> View
+                    <Eye className="h-3.5 w-3.5" /> View
                   </Button>
                 </div>
               )}
@@ -581,93 +670,93 @@ export function PatientsView() {
               <Button
                 size="sm"
                 onClick={() => setCashierModalPatient(selectedPatient)}
-                className={`w-full text-xs font-bold gap-1.5 h-8 text-white shadow-2xs ${
+                className={`w-full text-xs font-bold gap-2 h-9 text-white shadow-xs rounded-xl ${
                   selectedPatient.paymentStatus === "paid"
-                    ? "bg-emerald-700 hover:bg-emerald-600"
+                    ? "bg-emerald-700 hover:bg-emerald-800"
                     : "bg-amber-600 hover:bg-amber-700"
                 }`}
               >
                 {selectedPatient.paymentStatus === "paid" ? (
                   <>
-                    <CreditCard className="h-3.5 w-3.5" /> Update Payment / Proof
+                    <CreditCard className="h-4 w-4" /> Update Payment / Receipt Proof
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Confirm Payment (Cashier Desk)
+                    <CheckCircle2 className="h-4 w-4 stroke-[2.5]" /> Confirm Payment (Cashier Desk)
                   </>
                 )}
               </Button>
             </div>
 
-            {/* Latest Vitals Grid (Image 3) */}
-            <div className="space-y-2">
+            {/* Latest Vitals Grid */}
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-foreground">Latest vitals</span>
-                <span className="text-[11px] text-muted-foreground">Today, 09:50</span>
+                <span className="font-bold text-foreground">Latest Vitals</span>
+                <span className="text-[11px] text-muted-foreground font-medium">Today, 09:50</span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="rounded-lg bg-muted/50 p-2 border border-border">
-                  <span className="text-[10px] text-muted-foreground font-medium block">BP</span>
-                  <span className="font-bold text-xs text-foreground">124/80</span>
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">BP</span>
+                  <span className="font-black text-xs text-foreground mt-0.5 block">124/80</span>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-2 border border-border">
-                  <span className="text-[10px] text-muted-foreground font-medium block">Pulse</span>
-                  <span className="font-bold text-xs text-foreground">88</span>
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">Pulse</span>
+                  <span className="font-black text-xs text-foreground mt-0.5 block">88 bpm</span>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-2 border border-border">
-                  <span className="text-[10px] text-muted-foreground font-medium block">Temp</span>
-                  <span className="font-bold text-xs text-foreground">37.1°C</span>
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">Temp</span>
+                  <span className="font-black text-xs text-foreground mt-0.5 block">37.1°C</span>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-2 border border-border">
-                  <span className="text-[10px] text-muted-foreground font-medium block">SpO₂</span>
-                  <span className="font-bold text-xs text-foreground">98%</span>
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
+                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">SpO₂</span>
+                  <span className="font-black text-xs text-foreground mt-0.5 block">98%</span>
                 </div>
               </div>
             </div>
 
-            {/* Active Prescriptions (Image 3) */}
+            {/* Active Prescriptions */}
             <div className="space-y-2 text-xs">
-              <span className="font-bold text-foreground">Active prescriptions</span>
-              <ul className="space-y-1 text-muted-foreground pl-3 list-disc text-xs">
+              <span className="font-bold text-foreground">Active Prescriptions</span>
+              <ul className="space-y-1.5 text-muted-foreground pl-3 list-disc text-xs font-medium">
                 <li><strong className="text-foreground">Folic acid 5mg</strong> — 1 tab daily</li>
                 <li><strong className="text-foreground">Paracetamol 1g</strong> — Every 8 hrs</li>
               </ul>
             </div>
 
-            {/* Recent Visits (Image 3) */}
+            {/* Recent Visits */}
             <div className="space-y-2 text-xs">
-              <span className="font-bold text-foreground">Recent visits</span>
-              <div className="space-y-1.5 text-muted-foreground text-xs">
-                <div>
-                  <p className="font-semibold text-foreground">Admitted to Maternity, Bed M-04</p>
-                  <p className="text-[11px]">28 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
+              <span className="font-bold text-foreground">Recent Visits</span>
+              <div className="space-y-2 text-muted-foreground text-xs font-medium">
+                <div className="rounded-xl bg-muted/40 p-2.5 border border-border/60">
+                  <p className="font-bold text-foreground">Admitted to Maternity, Bed M-04</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">28 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">Antenatal visit</p>
-                  <p className="text-[11px]">14 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
+                <div className="rounded-xl bg-muted/40 p-2.5 border border-border/60">
+                  <p className="font-bold text-foreground">Antenatal Visit</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">14 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
                 </div>
               </div>
             </div>
 
-            {/* Quick Form Actions for This Patient (Image 3) */}
+            {/* Quick Form Actions for This Patient */}
             <div className="space-y-2 pt-2 border-t border-border">
-              <span className="text-[11px] font-semibold text-muted-foreground block uppercase">
-                New form for this patient
+              <span className="text-[10px] font-bold text-muted-foreground block uppercase tracking-wider">
+                New Form for this Patient
               </span>
               <div className="grid grid-cols-3 gap-2">
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px]">
+                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
                   <Link href={`/lab?patientId=${selectedPatient.id}`}>
-                    <FlaskConical className="h-3 w-3 mr-1 text-emerald-600" /> Lab request
+                    <FlaskConical className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Lab request
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px]">
+                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
                   <Link href={`/prescription?patientId=${selectedPatient.id}`}>
-                    <Pill className="h-3 w-3 mr-1 text-blue-600" /> Prescription
+                    <Pill className="h-3.5 w-3.5 mr-1 text-blue-600" /> Rx
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px]">
+                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
                   <Link href={`/medical-report?patientId=${selectedPatient.id}`}>
-                    <FileText className="h-3 w-3 mr-1 text-amber-600" /> Medical report
+                    <FileText className="h-3.5 w-3.5 mr-1 text-amber-600" /> Report
                   </Link>
                 </Button>
               </div>
@@ -677,9 +766,9 @@ export function PatientsView() {
             <div className="space-y-2 pt-1">
               <Button
                 onClick={() => setShowCaseFileModal(true)}
-                className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs"
+                className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs rounded-xl"
               >
-                <FolderOpen className="h-4 w-4" /> Open full record / Case File
+                <FolderOpen className="h-4 w-4" /> Open Full Record / Case File
               </Button>
 
               {isSuperAdmin ? (
@@ -687,7 +776,7 @@ export function PatientsView() {
                   variant="outline"
                   size="sm"
                   onClick={() => setDeletingPatient(selectedPatient)}
-                  className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950 text-xs gap-1.5 h-9 font-semibold"
+                  className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950 text-xs gap-1.5 h-9 font-semibold rounded-xl"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete Patient File (Super Admin)
                 </Button>
@@ -699,7 +788,7 @@ export function PatientsView() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-xs text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-card p-10 text-center text-xs text-muted-foreground">
             Select a patient from the list to view their summary and case file.
           </div>
         )}
