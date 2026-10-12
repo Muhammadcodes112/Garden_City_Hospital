@@ -203,6 +203,45 @@ async function runTestSuite() {
         await tx`DELETE FROM activity_events WHERE id = ${testRow.id}`;
       });
       assert(true, "Cleanup test row succeeded via retention bypass setting");
+
+      // --- 8. Patient Payment Ticker & Evidence Tests ---
+      console.log("\n--- 8. Patient Payment Ticker & Evidence Tests ---");
+      const testHospNum = `TEST-PAY-${Date.now().toString().slice(-6)}`;
+      const [patientRow] = await sql`
+        INSERT INTO patients (surname, first_names, hospital_number, payment_status, status)
+        VALUES ('TestCashier', 'PaymentPatient', ${testHospNum}, 'pending', 'Outpatient')
+        RETURNING id, payment_status, hospital_number;
+      `;
+      assert(patientRow.payment_status === "pending", "Initial patient payment status defaults to pending");
+
+      // Simulate cashier confirming payment with evidence
+      const [paidPatient] = await sql`
+        UPDATE patients
+        SET payment_status = 'paid',
+            payment_amount = '25,000',
+            payment_method = 'POS Terminal',
+            payment_reference = 'POS-TEST-883',
+            payment_confirmed_by = 'Cashier Desk Amina',
+            payment_confirmed_at = now(),
+            payment_evidence_url = '/uploads/payment-evidence/test-proof.png',
+            payment_evidence_name = 'pos_slip_screenshot.png'
+        WHERE id = ${patientRow.id}
+        RETURNING payment_status, payment_amount, payment_evidence_url, payment_confirmed_by;
+      `;
+      assert(paidPatient.payment_status === "paid", "Cashier confirms payment changes status to paid");
+      assert(paidPatient.payment_amount === "25,000", "Payment amount ₦25,000 recorded accurately");
+      assert(paidPatient.payment_evidence_url.includes("test-proof.png"), "Payment evidence screenshot URL attached to patient file");
+      assert(paidPatient.payment_confirmed_by === "Cashier Desk Amina", "Cashier identity recorded for audit");
+
+      // Verify filtered query returns the paid patient
+      const [filterResult] = await sql`
+        SELECT id, payment_status FROM patients WHERE id = ${patientRow.id} AND payment_status = 'paid';
+      `;
+      assert(Boolean(filterResult), "Query filtering by payment_status = 'paid' returns paid patient");
+
+      // Cleanup test patient
+      await sql`DELETE FROM patients WHERE id = ${patientRow.id}`;
+      assert(true, "Cleanup test patient succeeded");
     } finally {
       await sql.end();
     }

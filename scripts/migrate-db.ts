@@ -80,7 +80,18 @@ async function migrate() {
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "status" text DEFAULT 'Outpatient';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "doctor" text DEFAULT '';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "last_visit" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_status" text DEFAULT 'pending';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_confirmed_at" timestamp;
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_confirmed_by" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_amount" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_method" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_reference" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_evidence_url" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_evidence_name" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_notes" text DEFAULT '';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "case_file_data" jsonb DEFAULT '{}'::jsonb;
+
+      CREATE INDEX IF NOT EXISTS "patients_payment_status_idx" ON "patients" ("payment_status");
     `);
 
     // Foreign keys & Indexes

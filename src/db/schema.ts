@@ -215,10 +215,21 @@ export const patients = pgTable("patients", {
   status: text("status").default("Outpatient"),
   doctor: text("doctor").default(""),
   lastVisit: text("last_visit").default(""),
+  paymentStatus: text("payment_status").notNull().default("pending"),
+  paymentConfirmedAt: timestamp("payment_confirmed_at"),
+  paymentConfirmedBy: text("payment_confirmed_by").default(""),
+  paymentAmount: text("payment_amount").default(""),
+  paymentMethod: text("payment_method").default(""),
+  paymentReference: text("payment_reference").default(""),
+  paymentEvidenceUrl: text("payment_evidence_url").default(""),
+  paymentEvidenceName: text("payment_evidence_name").default(""),
+  paymentNotes: text("payment_notes").default(""),
   caseFileData: jsonb("case_file_data").default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("patients_payment_status_idx").on(table.paymentStatus),
+]);
 
 export const formRecords = pgTable(
   "form_records",

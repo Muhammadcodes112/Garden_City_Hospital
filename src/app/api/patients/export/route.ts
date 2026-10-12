@@ -65,6 +65,12 @@ export async function GET(req: NextRequest) {
       "Allergies",
       "Status",
       "Doctor",
+      "Payment Status",
+      "Payment Amount",
+      "Payment Method",
+      "Payment Reference",
+      "Payment Confirmed By",
+      "Payment Confirmed Date",
       "Date Registered",
     ];
 
@@ -86,6 +92,12 @@ export async function GET(req: NextRequest) {
       escapeCsv(p.allergies || ""),
       escapeCsv(p.status || ""),
       escapeCsv(p.doctor || ""),
+      escapeCsv(p.paymentStatus || "pending"),
+      escapeCsv(p.paymentAmount || ""),
+      escapeCsv(p.paymentMethod || ""),
+      escapeCsv(p.paymentReference || ""),
+      escapeCsv(p.paymentConfirmedBy || ""),
+      escapeCsv(p.paymentConfirmedAt ? new Date(p.paymentConfirmedAt).toISOString().split("T")[0] : ""),
       escapeCsv(p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : ""),
     ]);
 

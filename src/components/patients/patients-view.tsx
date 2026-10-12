@@ -21,6 +21,10 @@ import {
   FolderOpen,
   Trash2,
   ShieldAlert,
+  CreditCard,
+  CheckCircle2,
+  Clock,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,7 @@ import {
 import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/patient-case-file-modal";
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
+import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
 import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
@@ -50,6 +55,7 @@ export function PatientsView() {
   // Filters state
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "pending">("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -58,6 +64,7 @@ export function PatientsView() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCaseFileModal, setShowCaseFileModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [cashierModalPatient, setCashierModalPatient] = useState<PatientRecord | null>(null);
 
   // Deletion state
   const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
@@ -70,6 +77,7 @@ export function PatientsView() {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
       if (activeTab !== "all") params.set("status", activeTab);
+      if (paymentFilter !== "all") params.set("payment", paymentFilter);
       params.set("page", page.toString());
       params.set("limit", "15");
 
@@ -127,12 +135,14 @@ export function PatientsView() {
 
   useEffect(() => {
     fetchPatients();
-  }, [query, activeTab, page]);
+  }, [query, activeTab, paymentFilter, page]);
 
   // Counts for tabs
   const outpatientCount = patients.filter((p) => p.status?.includes("Outpatient")).length;
   const inpatientCount = patients.filter((p) => p.status?.includes("Admitted") || p.status?.includes("Inpatient")).length;
   const dischargedCount = patients.filter((p) => p.status?.includes("Discharged")).length;
+  const paidCount = patients.filter((p) => p.paymentStatus === "paid").length;
+  const pendingPaymentCount = patients.filter((p) => p.paymentStatus !== "paid").length;
 
   const getInitials = (surname: string, firstNames: string) => {
     const s = surname ? surname[0] : "";
@@ -229,8 +239,36 @@ export function PatientsView() {
           </button>
         </div>
 
+        {/* Payment Filter Toggle */}
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground px-1.5 tracking-wider">
+            Payment:
+          </span>
+          <button
+            type="button"
+            onClick={() => { setPaymentFilter("all"); setPage(1); }}
+            className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "all" ? "bg-background text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            All <span className="ml-1 text-[10px] opacity-70">{total}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPaymentFilter("paid"); setPage(1); }}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "paid" ? "bg-emerald-600 text-white shadow-xs font-bold" : "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950"}`}
+          >
+            <CheckCircle2 className="h-3 w-3" /> Paid <span className="ml-0.5 text-[10px] opacity-80">{paidCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPaymentFilter("pending"); setPage(1); }}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${paymentFilter === "pending" ? "bg-amber-600 text-white shadow-xs font-bold" : "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"}`}
+          >
+            <Clock className="h-3 w-3" /> Pending <span className="ml-0.5 text-[10px] opacity-80">{pendingPaymentCount}</span>
+          </button>
+        </div>
+
         {/* Search & Filter Dropdown */}
-        <div className="flex items-center gap-2 flex-1 md:max-w-sm">
+        <div className="flex items-center gap-2 flex-1 md:max-w-xs">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -240,9 +278,6 @@ export function PatientsView() {
               className="pl-9 h-9 text-xs"
             />
           </div>
-          <Button variant="outline" size="sm" className="h-9 gap-1 text-xs shrink-0">
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </Button>
         </div>
       </div>
 
@@ -264,11 +299,12 @@ export function PatientsView() {
             <>
               {/* DESKTOP TABLE */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[560px] text-left text-xs">
+                <table className="w-full min-w-[620px] text-left text-xs">
                   <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="p-3">PATIENT</th>
                       <th className="p-3">AGE / SEX</th>
+                      <th className="p-3">PAYMENT STATUS</th>
                       <th className="p-3">LAST VISIT</th>
                       <th className="p-3">DOCTOR</th>
                       <th className="p-3">STATUS</th>
@@ -302,6 +338,46 @@ export function PatientsView() {
                           </td>
                           <td className="p-3 text-muted-foreground">
                             {p.age || "28"} · {p.sex ? p.sex[0] : "M"}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {p.paymentStatus === "paid" ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCashierModalPatient(p);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-100 transition-colors shadow-2xs group"
+                                title="Payment cleared. Click to view proof / edit."
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
+                                <span>PAID</span>
+                                {p.paymentAmount ? (
+                                  <span className="text-[10px] opacity-75 font-mono">₦{p.paymentAmount}</span>
+                                ) : null}
+                                {p.paymentEvidenceUrl && (
+                                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 px-1 rounded">
+                                    📷 Proof
+                                  </span>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCashierModalPatient(p);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-100 transition-colors shadow-2xs group"
+                                title="Payment pending. Click to confirm payment."
+                              >
+                                <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <span>PENDING</span>
+                                <span className="text-[10px] text-amber-700 underline group-hover:text-amber-900">
+                                  Tick
+                                </span>
+                              </button>
+                            )}
                           </td>
                           <td className="p-3 text-muted-foreground whitespace-nowrap">
                             {p.lastVisit || "28 Sep 2026"}
@@ -344,7 +420,18 @@ export function PatientsView() {
                               {p.hospitalNumber}
                             </div>
                           </div>
-                          <div className="shrink-0">{getStatusBadge(p.status)}</div>
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            {p.paymentStatus === "paid" ? (
+                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-1.5 py-0.5">
+                                <CheckCircle2 className="h-3 w-3" /> PAID
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-amber-500 text-white text-[10px] font-bold gap-1 px-1.5 py-0.5 animate-pulse">
+                                <Clock className="h-3 w-3" /> PENDING
+                              </Badge>
+                            )}
+                            {getStatusBadge(p.status)}
+                          </div>
                         </div>
                         <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-2">
                           <span>{p.age || "28"} · {p.sex ? p.sex[0] : "M"}</span>
@@ -407,6 +494,109 @@ export function PatientsView() {
               <span className="font-semibold">
                 Allergies: {selectedPatient.allergies || "Penicillin"}
               </span>
+            </div>
+
+            {/* CASHIER PAYMENT CLEARANCE CARD */}
+            <div
+              className={`rounded-xl border p-3.5 space-y-2.5 transition-colors ${
+                selectedPatient.paymentStatus === "paid"
+                  ? "border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 dark:border-emerald-800"
+                  : "border-amber-300 bg-amber-50/60 dark:bg-amber-950/30 dark:border-amber-800"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className={`h-4 w-4 ${selectedPatient.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`} />
+                  <span className="font-bold text-xs text-foreground uppercase tracking-wider">
+                    Hospital Billing & Payment
+                  </span>
+                </div>
+
+                {selectedPatient.paymentStatus === "paid" ? (
+                  <Badge className="bg-emerald-600 text-white font-bold text-[11px] gap-1 px-2 py-0.5 shadow-2xs">
+                    <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> PAID ✓
+                  </Badge>
+                ) : (
+                  <Badge className="bg-amber-500 text-white font-bold text-[11px] gap-1 px-2 py-0.5 animate-pulse shadow-2xs">
+                    <Clock className="h-3 w-3" /> PENDING
+                  </Badge>
+                )}
+              </div>
+
+              <div className="text-xs space-y-1">
+                {selectedPatient.paymentStatus === "paid" ? (
+                  <>
+                    <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                      <span>Amount: <strong className="text-foreground">{selectedPatient.paymentAmount ? `₦${selectedPatient.paymentAmount}` : "Cleared"}</strong></span>
+                      <span>Method: <strong className="text-foreground">{selectedPatient.paymentMethod || "POS"}</strong></span>
+                    </div>
+                    {selectedPatient.paymentReference && (
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        Ref: {selectedPatient.paymentReference}
+                      </p>
+                    )}
+                    {selectedPatient.paymentConfirmedBy && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Verified by: <strong className="text-foreground">{selectedPatient.paymentConfirmedBy}</strong>
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[11px] text-amber-900 dark:text-amber-200">
+                    Awaiting cashier payment clearance. Tick below after confirming POS, cash, or transfer.
+                  </p>
+                )}
+              </div>
+
+              {/* Evidence Preview if photo is attached */}
+              {selectedPatient.paymentEvidenceUrl && (
+                <div className="rounded-lg border border-border bg-background/80 p-2 flex items-center justify-between gap-2 shadow-2xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-8 w-8 rounded border bg-card overflow-hidden shrink-0">
+                      <img
+                        src={selectedPatient.paymentEvidenceUrl}
+                        alt="Payment Evidence"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-semibold text-foreground truncate block max-w-[130px]">
+                        {selectedPatient.paymentEvidenceName || "Proof Photo"}
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-medium block">✓ Screenshot Attached</span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCashierModalPatient(selectedPatient)}
+                    className="h-6 text-[10px] px-2 gap-1"
+                  >
+                    <Eye className="h-3 w-3" /> View
+                  </Button>
+                </div>
+              )}
+
+              <Button
+                size="sm"
+                onClick={() => setCashierModalPatient(selectedPatient)}
+                className={`w-full text-xs font-bold gap-1.5 h-8 text-white shadow-2xs ${
+                  selectedPatient.paymentStatus === "paid"
+                    ? "bg-emerald-700 hover:bg-emerald-600"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                {selectedPatient.paymentStatus === "paid" ? (
+                  <>
+                    <CreditCard className="h-3.5 w-3.5" /> Update Payment / Proof
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Confirm Payment (Cashier Desk)
+                  </>
+                )}
+              </Button>
             </div>
 
             {/* Latest Vitals Grid (Image 3) */}
@@ -578,6 +768,23 @@ export function PatientsView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cashier Payment Modal */}
+      {cashierModalPatient && (
+        <CashierPaymentModal
+          open={Boolean(cashierModalPatient)}
+          onOpenChange={(open) => {
+            if (!open) setCashierModalPatient(null);
+          }}
+          patient={cashierModalPatient}
+          onUpdated={(updated) => {
+            fetchPatients();
+            if (selectedPatient?.id === cashierModalPatient.id && updated) {
+              setSelectedPatient(updated);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
