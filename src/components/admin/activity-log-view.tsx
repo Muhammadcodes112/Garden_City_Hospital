@@ -337,71 +337,71 @@ export function ActivityLogView({
           <p className="mt-1.5 text-xs text-muted-foreground font-medium">Live hospital activity volume</p>
         </div>
 
-        {/* Card 2: Failed sign-ins (Refined Amber / Security Signal) */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-amber-400 before:to-orange-500">
+        {/* Card 2: Failed sign-ins (Amber / Orange) */}
+        <div className="rounded-2xl border-2 border-[#EA580C] bg-[#FFF7ED] p-5 shadow-xs transition-all duration-200 hover:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9A3412]">
               Failed Sign-Ins
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-500/25 ring-4 ring-amber-500/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EA580C] text-white shadow-xs">
               <ShieldAlert className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3.5 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-foreground">
+            <span className="text-3xl font-black tracking-tight text-[#172033]">
               {signals.failedSignins.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFEDD5] text-[#9A3412] border border-[#EA580C]/40">
               auth anomalies
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
+          <p className="mt-1.5 text-xs font-medium text-[#9A3412]">
             Targeted emails captured in metadata
           </p>
         </div>
 
-        {/* Card 3: Records deleted (Refined Crimson / Purge Signal) */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-rose-500 before:to-red-600">
+        {/* Card 3: Records deleted (Rose Red) */}
+        <div className="rounded-2xl border-2 border-[#E11D48] bg-[#FFF1F2] p-5 shadow-xs transition-all duration-200 hover:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9F1239]">
               Records Deleted
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-sm shadow-rose-500/25 ring-4 ring-rose-500/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E11D48] text-white shadow-xs">
               <Trash2 className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3.5 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-foreground">
+            <span className="text-3xl font-black tracking-tight text-[#172033]">
               {signals.recordsDeleted.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFE4E6] text-[#9F1239] border border-[#E11D48]/40">
               clinical purges
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
+          <p className="mt-1.5 text-xs font-medium text-[#9F1239]">
             Includes soft-deletes and trash purges
           </p>
         </div>
 
-        {/* Card 4: After-hours access (Refined Indigo / Night Shift Signal) */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700/60 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-indigo-500 before:to-purple-600">
+        {/* Card 4: After-hours access (Violet) */}
+        <div className="rounded-2xl border-2 border-[#7C3AED] bg-[#F5F3FF] p-5 shadow-xs transition-all duration-200 hover:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#5B21B6]">
               After-Hours Access
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm shadow-indigo-500/25 ring-4 ring-indigo-500/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7C3AED] text-white shadow-xs">
               <Moon className="h-4.5 w-4.5" />
             </div>
           </div>
           <div className="mt-3.5 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-foreground">
+            <span className="text-3xl font-black tracking-tight text-[#172033]">
               {signals.afterHoursAccess.toLocaleString()}
             </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#EDE9FE] text-[#5B21B6] border border-[#7C3AED]/40">
               22:00–06:00 WAT
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground font-medium">
+          <p className="mt-1.5 text-xs font-medium text-[#5B21B6]">
             Night-shift or off-hours actions
           </p>
         </div>
