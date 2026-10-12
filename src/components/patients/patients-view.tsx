@@ -335,15 +335,15 @@ export function PatientsView() {
             <>
               {/* DESKTOP TABLE */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[760px] text-left text-xs">
+                <table className="w-full min-w-[820px] text-left text-xs">
                   <thead className="bg-muted/50 border-b border-border font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4 min-w-[200px]">PATIENT</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">AGE / SEX</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">PAYMENT STATUS</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap">LAST VISIT</th>
+                      <th className="py-3.5 px-4 min-w-[190px]">PATIENT</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[90px]">AGE / SEX</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[210px]">PAYMENT STATUS</th>
+                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[110px]">LAST VISIT</th>
                       <th className="py-3.5 px-3 min-w-[140px]">DOCTOR</th>
-                      <th className="py-3.5 px-4 whitespace-nowrap">STATUS</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap min-w-[110px]">STATUS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -376,52 +376,55 @@ export function PatientsView() {
                             </div>
                           </td>
 
-                          {/* AGE / SEX (FIXED: NO WRAPPING) */}
+                          {/* AGE / SEX */}
                           <td className="py-3.5 px-3 text-muted-foreground font-semibold whitespace-nowrap">
                             {p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}
                           </td>
 
-                          {/* PAYMENT STATUS BADGE (COOL HOVER & SLEEK CONTRAST) */}
-                          <td className="py-3.5 px-3 whitespace-nowrap">
+                          {/* PAYMENT STATUS COLUMN (DISTINCT COMPACT BADGE + PROMINENT CONFIRM BUTTON) */}
+                          <td className="py-3.5 px-3 min-w-[210px] whitespace-nowrap">
                             {p.paymentStatus === "paid" ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCashierModalPatient(p);
-                                }}
-                                className="group relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-emerald-500/15 font-bold text-[11px] transition-all duration-200 shadow-2xs hover:shadow-xs hover:shadow-emerald-500/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer"
-                                title="Payment cleared. Click to view proof / edit."
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
-                                <span className="tracking-wide">PAID</span>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-bold text-[11px]">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
+                                  PAID
+                                </span>
                                 {p.paymentAmount ? (
-                                  <span className="text-[10px] text-emerald-900 dark:text-emerald-200 font-mono font-semibold">
+                                  <span className="text-[11px] text-foreground font-mono font-bold shrink-0">
                                     ₦{Number(p.paymentAmount).toLocaleString()}
                                   </span>
                                 ) : null}
-                                {p.paymentEvidenceUrl && (
-                                  <span className="text-[9px] bg-emerald-200/90 dark:bg-emerald-800 text-emerald-950 dark:text-emerald-100 font-bold px-1.5 py-0.5 rounded">
-                                    Receipt
-                                  </span>
-                                )}
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCashierModalPatient(p);
+                                  }}
+                                  className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground text-[10px] font-semibold transition-colors cursor-pointer"
+                                  title="View receipt or update clearance"
+                                >
+                                  {p.paymentEvidenceUrl ? "📷 Receipt" : "Edit"}
+                                </button>
+                              </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCashierModalPatient(p);
-                                }}
-                                className="group relative inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-900 dark:text-amber-200 border border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/15 font-bold text-[11px] transition-all duration-200 shadow-2xs hover:shadow-xs hover:shadow-amber-500/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer"
-                                title="Payment pending. Click to confirm payment at Cashier Desk."
-                              >
-                                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
-                                <span className="tracking-wide text-amber-950 dark:text-amber-100">PENDING</span>
-                                <span className="relative inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black shadow-xs group-hover:from-amber-600 group-hover:to-orange-600 group-hover:shadow-md group-hover:shadow-amber-500/35 transition-all duration-200">
-                                  Confirm
+                              <div className="flex items-center gap-2.5">
+                                <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold text-[11px]">
+                                  <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                  PENDING
                                 </span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCashierModalPatient(p);
+                                  }}
+                                  className="group inline-flex shrink-0 items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold shadow-xs hover:from-amber-600 hover:to-orange-600 hover:shadow-md hover:shadow-amber-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer"
+                                  title="Confirm payment at Cashier Desk"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
+                                  <span>Confirm</span>
+                                </button>
+                              </div>
                             )}
                           </td>
 
@@ -516,17 +519,17 @@ export function PatientsView() {
 
         {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL */}
         {selectedPatient ? (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-5 shadow-xs">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4.5 shadow-xs">
             {/* Header Avatar & Name */}
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3.5">
               <div className="h-13 w-13 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-extrabold text-lg flex items-center justify-center shrink-0 shadow-sm ring-4 ring-emerald-500/10">
                 {getInitials(selectedPatient.surname, selectedPatient.firstNames)}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="font-black text-lg text-foreground tracking-tight truncate">
+                <h2 className="font-black text-base sm:text-lg text-foreground tracking-tight break-words">
                   {selectedPatient.firstNames} {selectedPatient.surname}
                 </h2>
-                <p className="text-xs text-muted-foreground font-mono font-medium">
+                <p className="text-xs text-muted-foreground font-mono font-medium mt-0.5">
                   {selectedPatient.hospitalNumber} · {selectedPatient.age || "27"} yrs · {selectedPatient.sex || "Female"}
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -542,32 +545,33 @@ export function PatientsView() {
             </div>
 
             {/* Allergy Warning Banner (Clean Clinical Alert) */}
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/20 p-3 shadow-2xs flex items-center gap-3">
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 dark:bg-rose-950/30 p-3 shadow-2xs flex items-center gap-3">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-red-600 text-white shrink-0 shadow-2xs">
                 <AlertTriangle className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
                   Clinical Allergy Alert
                 </div>
-                <div className="text-xs font-bold text-foreground truncate">
+                <div className="text-xs font-bold text-foreground break-words">
                   Allergies: {selectedPatient.allergies || "Penicillin"}
                 </div>
               </div>
             </div>
 
-            {/* CASHIER PAYMENT CLEARANCE CARD (REFINED MODERN AESTHETIC & COOL BUTTON) */}
+            {/* CASHIER PAYMENT CLEARANCE CARD (RESPONSIVE HEADER & NON-OVERFLOWING BADGE) */}
             <div
-              className={`relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 space-y-4 shadow-xs transition-all duration-200 before:absolute before:top-0 before:left-0 before:right-0 before:h-1 ${
+              className={`rounded-2xl border-2 p-4.5 sm:p-5 space-y-3.5 shadow-xs transition-all ${
                 selectedPatient.paymentStatus === "paid"
-                  ? "before:bg-gradient-to-r before:from-emerald-500 before:to-teal-600 hover:border-emerald-300 dark:hover:border-emerald-700/60"
-                  : "before:bg-gradient-to-r before:from-amber-400 before:to-orange-500 hover:border-amber-300 dark:hover:border-amber-700/60"
+                  ? "border-emerald-500/80 bg-card hover:border-emerald-600"
+                  : "border-amber-500/80 bg-card hover:border-amber-600"
               }`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
+              {/* Header: Responsive flex layout preventing badge clipping */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
                   <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-xs text-white shrink-0 ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-xs text-white shrink-0 mt-0.5 ${
                       selectedPatient.paymentStatus === "paid"
                         ? "bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-600/20"
                         : "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/20"
@@ -575,27 +579,30 @@ export function PatientsView() {
                   >
                     <CreditCard className="h-4.5 w-4.5" />
                   </div>
-                  <div>
-                    <span className="block font-black text-xs uppercase tracking-wider text-foreground">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-black text-xs uppercase tracking-wider text-foreground leading-snug">
                       Hospital Billing Clearance
-                    </span>
-                    <span className="text-[11px] text-muted-foreground font-medium">
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
                       Cashier Clearance Desk
-                    </span>
+                    </p>
                   </div>
                 </div>
 
-                {selectedPatient.paymentStatus === "paid" ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-black text-[11px] gap-1 px-3 py-1 shadow-2xs hover:bg-emerald-500/20">
-                    <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" /> CLEARED
-                  </Badge>
-                ) : (
-                  <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-black text-[11px] gap-1 px-3 py-1 shadow-2xs hover:bg-amber-500/20">
-                    <Clock className="h-3.5 w-3.5 stroke-[2.5] animate-pulse" /> PENDING
-                  </Badge>
-                )}
+                <div className="shrink-0">
+                  {selectedPatient.paymentStatus === "paid" ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-black text-[11px] gap-1 px-2.5 py-0.5 shadow-2xs whitespace-nowrap">
+                      <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> CLEARED
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-black text-[11px] gap-1 px-2.5 py-0.5 shadow-2xs whitespace-nowrap">
+                      <Clock className="h-3 w-3 stroke-[2.5] animate-pulse" /> PENDING
+                    </Badge>
+                  )}
+                </div>
               </div>
 
+              {/* Clearance Details / Instructions */}
               <div className="text-xs space-y-2">
                 {selectedPatient.paymentStatus === "paid" ? (
                   <div className="rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200/80 dark:border-border/60 p-3.5 space-y-2 text-xs shadow-2xs">
@@ -629,9 +636,13 @@ export function PatientsView() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200/80 dark:border-border/60 p-3 text-xs text-muted-foreground leading-relaxed flex items-start gap-2.5">
-                    <Clock className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                    <span>Awaiting cashier confirmation. Tick below once POS receipt, bank transfer alert, or cash collection is verified.</span>
+                  <div className="rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 p-3.5 text-xs text-muted-foreground leading-relaxed flex items-start gap-3">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 mt-0.5">
+                      <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
+                    </div>
+                    <p className="flex-1 text-xs text-muted-foreground leading-relaxed">
+                      Awaiting cashier confirmation. Verify payment via POS terminal, transfer alert, or cash collection, then click below to clear and attach proof.
+                    </p>
                   </div>
                 )}
               </div>
