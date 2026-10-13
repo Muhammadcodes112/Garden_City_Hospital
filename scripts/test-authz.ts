@@ -129,6 +129,7 @@ async function main() {
     403,
     "POST /api/admin/users/[id]/role (user management)",
   );
+  assertEqual(await fetchStatus("/api/staff/appointments", patient.cookie), 403, "GET /api/staff/appointments (staff appointments grid)");
   // Share-link creation is a server action, not a route — exercised via the
   // authz.ts unit check below instead of HTTP (server actions use the same
   // requireStaff() call as every route tested above).

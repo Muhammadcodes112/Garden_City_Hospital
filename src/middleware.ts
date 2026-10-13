@@ -4,6 +4,7 @@ import { getSessionCookie, getCookieCache } from "better-auth/cookies";
 const AUTH_PAGES = ["/sign-in", "/sign-up"];
 const STAFF_PAGES = [
   "/dashboard",
+  "/appointments",
   "/messages",
   "/documents",
   "/lab",

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "npx tsx scripts/test-suite.ts",
+    "test:appointments": "npx tsx scripts/test-appointments.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "npx tsx scripts/migrate-db.ts",
     "create-admin": "tsx scripts/create-admin.ts",
@@ -35,6 +36,7 @@
     "react-dom": "19.2.8",
     "react-hook-form": "^7.53.0",
     "react-zoom-pan-pinch": "^4.2.0",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.23.8"

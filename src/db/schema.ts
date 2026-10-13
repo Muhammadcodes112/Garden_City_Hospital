@@ -432,3 +432,129 @@ export const activityEvents = pgTable(
     // helper in this version; this entry documents its existence.
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Step 18: Public & Staff Appointments Schema
+// ---------------------------------------------------------------------------
+
+export const appointmentStatus = pgEnum("appointment_status", [
+  "booked",
+  "arrived",
+  "in_consultation",
+  "completed",
+  "cancelled",
+  "no_show",
+]);
+
+export const appointmentBookedBy = pgEnum("appointment_booked_by", [
+  "patient",
+  "staff",
+]);
+
+export const doctors = pgTable(
+  "doctors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").references(() => user.id),
+    fullName: text("full_name").notNull(),
+    specialty: text("specialty").notNull(),
+    active: boolean("active").notNull().default(true),
+    slotMinutes: integer("slot_minutes").notNull().default(30),
+    bufferMinutes: integer("buffer_minutes").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("doctors_active_idx").on(table.active),
+    index("doctors_specialty_idx").on(table.specialty),
+  ],
+);
+
+export const doctorSchedules = pgTable(
+  "doctor_schedules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id")
+      .notNull()
+      .references(() => doctors.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(), // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    startsAt: text("starts_at").notNull(), // "09:00"
+    endsAt: text("ends_at").notNull(),     // "17:00"
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("doctor_schedules_doctor_weekday_idx").on(table.doctorId, table.weekday),
+  ],
+);
+
+export const doctorTimeOff = pgTable(
+  "doctor_time_off",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    doctorId: uuid("doctor_id")
+      .notNull()
+      .references(() => doctors.id, { onDelete: "cascade" }),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("doctor_time_off_doctor_idx").on(table.doctorId),
+  ],
+);
+
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientUserId: text("patient_user_id").references(() => user.id),
+    patientName: text("patient_name").notNull(),
+    patientPhone: text("patient_phone").notNull(),
+    patientEmail: text("patient_email"),
+    doctorId: uuid("doctor_id")
+      .notNull()
+      .references(() => doctors.id),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    status: appointmentStatus("status").notNull().default("booked"),
+    reason: text("reason"),
+    note: text("note"),
+    bookedBy: appointmentBookedBy("booked_by").notNull().default("patient"),
+    bookedByUserId: text("booked_by_user_id").references(() => user.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledReason: text("cancelled_reason"),
+  },
+  (table) => [
+    // CRITICAL PARTIAL UNIQUE INDEX PREVENTING DOUBLE-BOOKING AT DB LEVEL
+    uniqueIndex("appointments_doctor_slot_unique_idx")
+      .on(table.doctorId, table.startsAt)
+      .where(sql`status NOT IN ('cancelled', 'no_show')`),
+    index("appointments_patient_user_idx").on(table.patientUserId),
+    index("appointments_starts_at_idx").on(table.startsAt),
+    index("appointments_doctor_status_idx").on(table.doctorId, table.status),
+  ],
+);
+
+export const smsLogs = pgTable(
+  "sms_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    recipient: text("recipient").notNull(),
+    message: text("message").notNull(),
+    provider: text("provider").notNull().default("termii"),
+    status: text("status").notNull().default("sent"),
+    errorMessage: text("error_message"),
+    appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("sms_logs_created_at_idx").on(table.createdAt),
+  ],
+);
+

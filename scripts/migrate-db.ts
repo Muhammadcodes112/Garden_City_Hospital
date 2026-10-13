@@ -467,6 +467,142 @@ async function migrate() {
         EXECUTE FUNCTION activity_events_append_only();
     `);
 
+    // -------------------------------------------------------------------------
+    // Step 18: Public & Staff Appointments Schema Migration
+    // -------------------------------------------------------------------------
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointment_status') THEN
+          CREATE TYPE "public"."appointment_status" AS ENUM(
+            'booked', 'arrived', 'in_consultation', 'completed', 'cancelled', 'no_show'
+          );
+        END IF;
+      END $$;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointment_booked_by') THEN
+          CREATE TYPE "public"."appointment_booked_by" AS ENUM('patient', 'staff');
+        END IF;
+      END $$;
+
+      CREATE TABLE IF NOT EXISTS "doctors" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "user_id" text REFERENCES "user"("id") ON DELETE SET NULL,
+        "full_name" text NOT NULL,
+        "specialty" text NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "slot_minutes" integer DEFAULT 30 NOT NULL,
+        "buffer_minutes" integer DEFAULT 0 NOT NULL,
+        "created_at" timestamptz DEFAULT now() NOT NULL,
+        "updated_at" timestamptz DEFAULT now() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS "doctors_active_idx" ON "doctors" ("active");
+      CREATE INDEX IF NOT EXISTS "doctors_specialty_idx" ON "doctors" ("specialty");
+
+      CREATE TABLE IF NOT EXISTS "doctor_schedules" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "doctor_id" uuid NOT NULL REFERENCES "doctors"("id") ON DELETE CASCADE,
+        "weekday" integer NOT NULL,
+        "starts_at" text NOT NULL,
+        "ends_at" text NOT NULL,
+        "effective_from" timestamptz,
+        "effective_to" timestamptz,
+        "created_at" timestamptz DEFAULT now() NOT NULL,
+        "updated_at" timestamptz DEFAULT now() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS "doctor_schedules_doctor_weekday_idx" ON "doctor_schedules" ("doctor_id", "weekday");
+
+      CREATE TABLE IF NOT EXISTS "doctor_time_off" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "doctor_id" uuid NOT NULL REFERENCES "doctors"("id") ON DELETE CASCADE,
+        "starts_at" timestamptz NOT NULL,
+        "ends_at" timestamptz NOT NULL,
+        "reason" text,
+        "created_at" timestamptz DEFAULT now() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS "doctor_time_off_doctor_idx" ON "doctor_time_off" ("doctor_id");
+
+      CREATE TABLE IF NOT EXISTS "appointments" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "patient_user_id" text REFERENCES "user"("id") ON DELETE SET NULL,
+        "patient_name" text NOT NULL,
+        "patient_phone" text NOT NULL,
+        "patient_email" text,
+        "doctor_id" uuid NOT NULL REFERENCES "doctors"("id") ON DELETE RESTRICT,
+        "starts_at" timestamptz NOT NULL,
+        "ends_at" timestamptz NOT NULL,
+        "status" "appointment_status" DEFAULT 'booked' NOT NULL,
+        "reason" text,
+        "note" text,
+        "booked_by" "appointment_booked_by" DEFAULT 'patient' NOT NULL,
+        "booked_by_user_id" text REFERENCES "user"("id") ON DELETE SET NULL,
+        "created_at" timestamptz DEFAULT now() NOT NULL,
+        "updated_at" timestamptz DEFAULT now() NOT NULL,
+        "cancelled_at" timestamptz,
+        "cancelled_reason" text
+      );
+
+      -- CRITICAL PARTIAL UNIQUE INDEX TO PREVENT DOUBLE-BOOKING IN THE DATABASE
+      CREATE UNIQUE INDEX IF NOT EXISTS "appointments_doctor_slot_unique_idx"
+        ON "appointments" ("doctor_id", "starts_at")
+        WHERE "status" NOT IN ('cancelled', 'no_show');
+
+      CREATE INDEX IF NOT EXISTS "appointments_patient_user_idx" ON "appointments" ("patient_user_id");
+      CREATE INDEX IF NOT EXISTS "appointments_starts_at_idx" ON "appointments" ("starts_at");
+      CREATE INDEX IF NOT EXISTS "appointments_doctor_status_idx" ON "appointments" ("doctor_id", "status");
+
+      CREATE TABLE IF NOT EXISTS "sms_logs" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "recipient" text NOT NULL,
+        "message" text NOT NULL,
+        "provider" text DEFAULT 'termii' NOT NULL,
+        "status" text DEFAULT 'sent' NOT NULL,
+        "error_message" text,
+        "appointment_id" uuid REFERENCES "appointments"("id") ON DELETE SET NULL,
+        "created_at" timestamptz DEFAULT now() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS "sms_logs_created_at_idx" ON "sms_logs" ("created_at");
+    `);
+
+    // Seed doctors and default weekly schedules if none exist
+    const [{ count: doctorCount }] = await sql`SELECT count(*)::int as count FROM doctors`;
+    if (doctorCount === 0) {
+      console.log("Seeding initial doctors and weekly schedules...");
+      const seededDoctors = [
+        { name: "Dr. Ibrahim Musa", specialty: "Cardiology", slot: 30 },
+        { name: "Dr. Fatima Abdullahi", specialty: "Pediatrics", slot: 30 },
+        { name: "Dr. Sarah Usman", specialty: "Obstetrics & Gynecology", slot: 30 },
+        { name: "Dr. Ahmed Bello", specialty: "General Medicine", slot: 30 },
+        { name: "Dr. Ngozi Eze", specialty: "Ophthalmology", slot: 30 },
+      ];
+
+      for (const doc of seededDoctors) {
+        const [insertedDoc] = await sql`
+          INSERT INTO doctors (full_name, specialty, slot_minutes, active)
+          VALUES (${doc.name}, ${doc.specialty}, ${doc.slot}, true)
+          RETURNING id;
+        `;
+
+        // Monday to Friday: 09:00 - 17:00 (weekdays 1 to 5)
+        for (let weekday = 1; weekday <= 5; weekday++) {
+          await sql`
+            INSERT INTO doctor_schedules (doctor_id, weekday, starts_at, ends_at)
+            VALUES (${insertedDoc.id}, ${weekday}, '09:00', '17:00');
+          `;
+        }
+        // Saturday: 10:00 - 14:00 (weekday 6)
+        await sql`
+          INSERT INTO doctor_schedules (doctor_id, weekday, starts_at, ends_at)
+          VALUES (${insertedDoc.id}, 6, '10:00', '14:00');
+        `;
+      }
+      console.log("Seeded 5 doctors with Monday-Saturday schedules.");
+    }
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);
