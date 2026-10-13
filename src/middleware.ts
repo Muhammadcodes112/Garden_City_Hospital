@@ -34,24 +34,28 @@ function sentryConnectSrc(): string {
   }
 }
 
-function buildCsp(nonce: string): string {
-  // script-src: nonce + strict-dynamic is the Next.js-documented pattern —
-  // Next's own hydration/RSC bootstrap scripts pick up this nonce
-  // automatically from the response header, so no 'unsafe-inline' is needed
-  // for scripts. 'self' is a no-op fallback for browsers that don't
-  // understand strict-dynamic.
+function buildCsp(): string {
+  // No nonce here on purpose: this route group includes statically
+  // prerendered/cached pages (e.g. /sign-in), and Next.js nonces only work
+  // with dynamic rendering — a cached page's inline hydration scripts
+  // (self.__next_f.push(...)) get baked in with no nonce attribute, while
+  // a nonce source in this header still makes browsers ignore
+  // 'unsafe-inline' for ALL inline scripts (CSP spec: 'unsafe-inline' is
+  // ignored once a nonce/hash is present), blocking hydration entirely and
+  // breaking client-side form submission. Nothing in this app reads the
+  // nonce to tag its own inline scripts, so there's no benefit to keeping
+  // it — only the breakage. See node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md.
   //
   // style-src keeps 'unsafe-inline': Radix UI sets inline `style="..."`
-  // attributes for popover/dialog positioning, and nonces don't cover
-  // third-party-injected style attributes without patching Radix itself.
-  // Inline style injection can't execute script, so this is a narrower
-  // risk than 'unsafe-inline' on script-src would be.
+  // attributes for popover/dialog positioning. Inline style injection can't
+  // execute script, so this is a narrower risk than 'unsafe-inline' on
+  // script-src would be.
   //
   // img-src allows data:/blob: for the signature pad's canvas export and
   // client-side image blob handling.
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}'`,
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
@@ -71,7 +75,6 @@ function buildCsp(nonce: string): string {
 // (src/lib/authz.ts) against the live session, since a stale/forged cookie
 // can pass this check and the cache can lag the real role by up to 60s.
 export async function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const pathname = request.nextUrl.pathname;
   const sessionCookie = getSessionCookie(request);
   const isAuthPage = AUTH_PAGES.some((path) => pathname.startsWith(path));
@@ -96,17 +99,13 @@ export async function middleware(request: NextRequest) {
     } else if (isStaffPage && role === "patient") {
       response = NextResponse.redirect(new URL("/patient", request.url));
     } else {
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set("x-nonce", nonce);
-      response = NextResponse.next({ request: { headers: requestHeaders } });
+      response = NextResponse.next();
     }
   } else {
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-nonce", nonce);
-    response = NextResponse.next({ request: { headers: requestHeaders } });
+    response = NextResponse.next();
   }
 
-  response.headers.set("Content-Security-Policy", buildCsp(nonce));
+  response.headers.set("Content-Security-Policy", buildCsp());
   return response;
 }
 
