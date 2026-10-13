@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +9,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { authClient } from "@/lib/auth-client";
 
-function SignInForm() {
-  const searchParams = useSearchParams();
+export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,11 +39,14 @@ function SignInForm() {
       // Role-aware destination
       const role = (data?.user as { role?: string } | undefined)?.role;
       const defaultHome = role === "patient" ? "/patient" : "/dashboard";
-      const redirectParam = searchParams.get("redirect");
-      const target =
-        redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
-          ? redirectParam
-          : defaultHome;
+
+      let target = defaultHome;
+      if (typeof window !== "undefined") {
+        const redirectParam = new URLSearchParams(window.location.search).get("redirect");
+        if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
+          target = redirectParam;
+        }
+      }
 
       // Direct window navigation guarantees session cookies are sent immediately
       // on the initial request, bypassing Next.js client-side router cache races.
@@ -104,21 +105,5 @@ function SignInForm() {
         </Link>
       </p>
     </AuthLayout>
-  );
-}
-
-export default function SignInPage() {
-  return (
-    <Suspense
-      fallback={
-        <AuthLayout>
-          <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
-            Loading sign in...
-          </div>
-        </AuthLayout>
-      }
-    >
-      <SignInForm />
-    </Suspense>
   );
 }
