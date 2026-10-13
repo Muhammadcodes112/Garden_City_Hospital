@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { authClient } from "@/lib/auth-client";
 
-export default function SignInPage() {
-  const router = useRouter();
+function SignInForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,21 +22,38 @@ export default function SignInPage() {
     setError(null);
     setLoading(true);
 
-    const { error: signInError } = await authClient.signIn.email({ email, password });
+    try {
+      const { data, error: signInError } = await authClient.signIn.email({
+        email: email.trim(),
+        password,
+      });
 
-    setLoading(false);
-    if (signInError) {
-      setError(
-        signInError.status === 429
-          ? "Too many attempts. Please wait a minute and try again."
-          : signInError.message ?? "Invalid email or password.",
-      );
-      return;
+      if (signInError) {
+        setLoading(false);
+        setError(
+          signInError.status === 429
+            ? "Too many attempts. Please wait a minute and try again."
+            : signInError.message ?? "Invalid email or password.",
+        );
+        return;
+      }
+
+      // Role-aware destination
+      const role = (data?.user as { role?: string } | undefined)?.role;
+      const defaultHome = role === "patient" ? "/patient" : "/dashboard";
+      const redirectParam = searchParams.get("redirect");
+      const target =
+        redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+          ? redirectParam
+          : defaultHome;
+
+      // Direct window navigation guarantees session cookies are sent immediately
+      // on the initial request, bypassing Next.js client-side router cache races.
+      window.location.href = target;
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || "Sign in failed. Please try again.");
     }
-    // "/" is role-aware (src/app/page.tsx) and routes staff to /dashboard,
-    // patients to /patient.
-    router.push("/");
-    router.refresh();
   }
 
   return (
@@ -87,5 +104,21 @@ export default function SignInPage() {
         </Link>
       </p>
     </AuthLayout>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthLayout>
+          <div className="py-12 text-center text-sm text-muted-foreground animate-pulse">
+            Loading sign in...
+          </div>
+        </AuthLayout>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }

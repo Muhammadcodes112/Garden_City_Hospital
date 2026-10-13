@@ -81,13 +81,12 @@ export async function middleware(request: NextRequest) {
 
   let response: NextResponse;
   if (!sessionCookie && isProtectedPage) {
-    response = NextResponse.redirect(new URL("/sign-in", request.url));
+    const redirectUrl = new URL("/sign-in", request.url);
+    redirectUrl.searchParams.set("redirect", pathname);
+    response = NextResponse.redirect(redirectUrl);
   } else if (sessionCookie && (isAuthPage || isStaffPage || isPatientPage)) {
-    // Role-aware: a patient hitting a staff page (or vice versa) is sent to
-    // their own area instead of hitting the 403 boundary or a route that
-    // looks like it doesn't exist. Falls through to NextResponse.next() if
-    // the role already matches the page, or the cache hasn't warmed yet
-    // (requireStaff()/requireSuperAdmin() still enforce the real boundary).
+    // Role-aware: a patient hitting a staff page is sent to their own area
+    // instead of hitting the 403 boundary.
     const cache = await getCookieCache(request);
     const role = (cache?.user as { role?: string } | undefined)?.role;
     const home = role === "patient" ? "/patient" : "/dashboard";
@@ -96,8 +95,6 @@ export async function middleware(request: NextRequest) {
       response = NextResponse.redirect(new URL(home, request.url));
     } else if (isStaffPage && role === "patient") {
       response = NextResponse.redirect(new URL("/patient", request.url));
-    } else if (isPatientPage && role && role !== "patient") {
-      response = NextResponse.redirect(new URL("/dashboard", request.url));
     } else {
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set("x-nonce", nonce);

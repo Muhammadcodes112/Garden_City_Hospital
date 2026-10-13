@@ -1,12 +1,12 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
 /**
  * Returns the current session, or null if the request is unauthenticated.
- * This is the one low-level primitive — role/staff/super-admin checks live
- * in src/lib/authz.ts (requireUser/requireStaff/requireSuperAdmin), which
- * every protected server path uses instead of checking roles ad hoc here.
+ * Wrapped in React cache() so concurrent layout/page calls within a single
+ * server render share the exact same lookup without redundant DB queries.
  */
-export async function getSession() {
+export const getSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
-}
+});
