@@ -137,6 +137,7 @@ export async function saveLabForm(input: SaveLabFormInput): Promise<{ updatedAt:
   const [updated] = await db
     .update(formRecords)
     .set({
+      patientId: input.patient.id,
       data: dataParsed,
       searchText,
       updatedAt: new Date(),
@@ -199,6 +200,7 @@ export async function completeLabForm(
     const [updated] = await db
       .update(formRecords)
       .set({
+        patientId: input.patient.id,
         data: dataParsed,
         status: "completed",
         searchText,

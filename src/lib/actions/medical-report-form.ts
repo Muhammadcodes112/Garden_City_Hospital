@@ -153,6 +153,7 @@ export async function saveMedicalReportForm(
   const [updated] = await db
     .update(formRecords)
     .set({
+      patientId: input.patient.id,
       data: dataParsed,
       searchText,
       updatedAt: new Date(),
@@ -215,6 +216,7 @@ export async function completeMedicalReportForm(
     const [updated] = await db
       .update(formRecords)
       .set({
+        patientId: input.patient.id,
         data: dataParsed,
         status: "completed",
         searchText,

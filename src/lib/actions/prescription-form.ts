@@ -140,6 +140,7 @@ export async function savePrescriptionForm(
   const [updated] = await db
     .update(formRecords)
     .set({
+      patientId: input.patient.id,
       data: dataParsed,
       searchText,
       updatedAt: new Date(),
@@ -202,6 +203,7 @@ export async function completePrescriptionForm(
     const [updated] = await db
       .update(formRecords)
       .set({
+        patientId: input.patient.id,
         data: dataParsed,
         status: "completed",
         searchText,
