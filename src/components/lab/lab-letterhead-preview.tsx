@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/date";
 import type { PatientFields } from "@/components/lab/patient-picker";
 import type { LabRequestData } from "@/lib/validators/lab-request";
 import { LAB_TEST_BY_ID } from "@/lib/lab-tests/catalog";
+import { HospitalStamp } from "@/components/forms/hospital-stamp";
 
 type Props = {
   patient: PatientFields;
@@ -148,7 +149,8 @@ export function LabLetterheadPreview({ patient, data, isDraft }: Props) {
         </div>
 
         {/* DOCTOR SIGN-OFF */}
-        <div className="mt-6 pt-3 flex items-end justify-between border-t border-slate-200">
+        <div className="relative mt-6 pt-3 flex items-end justify-between border-t border-slate-200">
+          <HospitalStamp className="absolute -top-16 right-20" />
           <div>
             <div className="font-bold text-slate-600 text-[10px]">Referring Doctor:</div>
             <div className="font-extrabold text-slate-900 text-xs">

@@ -1,4 +1,5 @@
 import { getLogoFullDataUri, getWordmarkDataUri, getBaseFontFaces, getSerifFontFaces } from "@/lib/pdf-assets";
+import { HOSPITAL_STAMP_CSS, hospitalStampHtml } from "@/lib/pdf-templates/stamp";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import {
@@ -249,6 +250,7 @@ export function medicalReportPdfHtml(opts: {
 
   /* SIGN OFF SECTION */
   .signoff-section {
+    position: relative;
     margin-top: 24px;
     display: flex;
     align-items: flex-end;
@@ -256,6 +258,7 @@ export function medicalReportPdfHtml(opts: {
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
+  ${HOSPITAL_STAMP_CSS}
   .doctor-box {
     min-width: 220px;
   }
@@ -386,6 +389,7 @@ export function medicalReportPdfHtml(opts: {
     </div>
 
     <div class="signoff-section">
+      ${hospitalStampHtml("right: 0; top: -70px;")}
       <div class="doctor-box">
         ${signatureHtml(data.doctorSignature)}
         <div class="doctor-name">${escapeHtml(data.doctorName || "Dr. Medical Officer")}</div>

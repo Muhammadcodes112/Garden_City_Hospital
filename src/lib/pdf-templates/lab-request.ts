@@ -5,6 +5,7 @@ import {
   getBaseFontFaces,
 } from "@/lib/pdf-assets";
 import { pageGeometryCssFixed } from "@/lib/pdf-templates/print-shell";
+import { HOSPITAL_STAMP_CSS, hospitalStampHtml } from "@/lib/pdf-templates/stamp";
 import { LAB_FORM_COLUMNS, LAB_TEST_BY_ID } from "@/lib/lab-tests/catalog";
 import { formatDate } from "@/lib/date";
 import type { LabRequestData } from "@/lib/validators/lab-request";
@@ -251,7 +252,8 @@ export function labRequestPdfHtml(opts: {
     line-height: 7px;
     text-align: center;
   }
-  .footer-fields { margin-top: 4px; flex-shrink: 0; }
+  .footer-fields { position: relative; margin-top: 4px; flex-shrink: 0; }
+  ${HOSPITAL_STAMP_CSS}
   .footer-fields .field-group:last-child { margin-bottom: 0; }
   .sig-img { max-height: 26px; max-width: 140px; vertical-align: bottom; }
   .hours-pill {
@@ -342,6 +344,7 @@ export function labRequestPdfHtml(opts: {
     <div class="rule-thick"></div>
 
     <div class="footer-fields">
+      ${hospitalStampHtml("right: 8px; top: -10px; width: 64px; height: 64px;")}
       ${fieldGroup([
         { label: "Referring Doctor:", value: data.referringDoctor || "", flex: 2 },
         { label: "Phone No.:", value: data.referringPhone || "", flex: 1 },

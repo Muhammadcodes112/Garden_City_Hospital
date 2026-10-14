@@ -8,3 +8,11 @@ export const sendRecordToColleaguesSchema = z.object({
 });
 
 export type SendRecordToColleaguesInput = z.infer<typeof sendRecordToColleaguesSchema>;
+
+export const sendRecordsToColleaguesSchema = z.object({
+  formRecordIds: z.array(z.string().uuid()).min(1, "Select at least one record"),
+  recipientUserIds: z.array(z.string().min(1)).min(1, "Select at least one colleague"),
+  note: z.string().trim().max(4000).optional(),
+});
+
+export type SendRecordsToColleaguesInput = z.infer<typeof sendRecordsToColleaguesSchema>;

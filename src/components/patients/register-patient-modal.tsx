@@ -56,6 +56,14 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
       toast.error("Surname and First Name are required");
       return;
     }
+    if (form.phone && form.phone.length !== 11) {
+      toast.error("Phone number must be exactly 11 digits");
+      return;
+    }
+    if (form.nextOfKinPhone && form.nextOfKinPhone.length !== 11) {
+      toast.error("Next of Kin phone number must be exactly 11 digits");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -189,7 +197,11 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
               <Label className="text-xs font-semibold">Phone Number</Label>
               <Input
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })
+                }
+                inputMode="numeric"
+                maxLength={11}
                 placeholder="0803XXXXXXX"
                 className="mt-1 h-9 text-xs"
               />
@@ -235,7 +247,11 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 <Label className="text-xs font-semibold">Phone Number</Label>
                 <Input
                   value={form.nextOfKinPhone}
-                  onChange={(e) => setForm({ ...form, nextOfKinPhone: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, nextOfKinPhone: e.target.value.replace(/\D/g, "").slice(0, 11) })
+                  }
+                  inputMode="numeric"
+                  maxLength={11}
                   placeholder="090XXXXXXXX"
                   className="mt-1 h-8 text-xs bg-background"
                 />

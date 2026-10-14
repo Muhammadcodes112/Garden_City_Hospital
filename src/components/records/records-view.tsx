@@ -21,6 +21,7 @@ import {
   Calendar,
   UserCheck,
   AlertTriangle,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import type { SearchResultRecord } from "@/lib/search";
 import { softDeleteRecord, bulkSoftDeleteRecords } from "@/lib/actions/records-actions";
 import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { ShareDialog } from "@/components/forms/share-dialog";
+import { BulkSendToColleaguePanel } from "@/components/records/bulk-send-panel";
 import { toast } from "sonner";
 
 type Props = {
@@ -68,10 +70,11 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Selection state (Super Admin)
+  // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkSendModal, setShowBulkSendModal] = useState(false);
 
   // Single Delete State
   const [deleteTarget, setDeleteTarget] = useState<SearchResultRecord | null>(null);
@@ -352,20 +355,32 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
         )}
       </div>
 
-      {/* Super Admin Bulk Bar */}
-      {isSuperAdmin && selectedIds.length > 0 && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-center justify-between gap-4 text-xs">
-          <span className="font-semibold text-rose-700 dark:text-rose-300">
+      {/* Bulk Selection Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-center justify-between gap-4 text-xs">
+          <span className="font-semibold text-foreground">
             {selectedIds.length} record{selectedIds.length === 1 ? "" : "s"} selected
           </span>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setShowBulkDeleteModal(true)}
-            className="gap-2"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Move Selected to Trash
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowBulkSendModal(true)}
+              className="gap-2"
+            >
+              <Send className="h-3.5 w-3.5" /> Send to Colleague(s)
+            </Button>
+            {isSuperAdmin && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setShowBulkDeleteModal(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Move Selected to Trash
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -388,15 +403,13 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/40 border-b border-border font-semibold text-muted-foreground uppercase tracking-wider">
                   <tr>
-                    {isSuperAdmin && (
-                      <th className="p-3 w-10 text-center">
-                        <Checkbox
-                          checked={selectedIds.length === records.length && records.length > 0}
-                          onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
-                          aria-label="Select all"
-                        />
-                      </th>
-                    )}
+                    <th className="p-3 w-10 text-center">
+                      <Checkbox
+                        checked={selectedIds.length === records.length && records.length > 0}
+                        onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                        aria-label="Select all"
+                      />
+                    </th>
                     <th className="p-3">Patient Name &amp; Hosp No</th>
                     <th className="p-3">Form Type</th>
                     <th className="p-3">Status</th>
@@ -417,15 +430,13 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
                         key={record.id}
                         className={`hover:bg-muted/30 transition-colors ${isSelected ? "bg-muted/50" : ""}`}
                       >
-                        {isSuperAdmin && (
-                          <td className="p-3 text-center">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => handleToggleSelect(record.id)}
-                              aria-label={`Select record for ${record.patient.surname}`}
-                            />
-                          </td>
-                        )}
+                        <td className="p-3 text-center">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleToggleSelect(record.id)}
+                            aria-label={`Select record for ${record.patient.surname}`}
+                          />
+                        </td>
                         <td className="p-3">
                           <div className="font-semibold text-foreground">
                             {record.patient.surname}, {record.patient.firstNames}
@@ -527,12 +538,20 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
                 return (
                   <div key={record.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-sm text-foreground">
-                          {record.patient.surname}, {record.patient.firstNames}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {record.patient.hospitalNumber}
+                      <div className="flex items-start gap-2.5">
+                        <Checkbox
+                          checked={selectedIds.includes(record.id)}
+                          onCheckedChange={() => handleToggleSelect(record.id)}
+                          aria-label={`Select record for ${record.patient.surname}`}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <div className="font-bold text-sm text-foreground">
+                            {record.patient.surname}, {record.patient.firstNames}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono">
+                            {record.patient.hospitalNumber}
+                          </div>
                         </div>
                       </div>
                       <Badge
@@ -709,6 +728,27 @@ export function RecordsView({ isSuperAdmin, currentUserId, adminUsers }: Props) 
               Move Selected to Trash
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Send to Colleague(s) Dialog */}
+      <Dialog open={showBulkSendModal} onOpenChange={setShowBulkSendModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" /> Send Records to Colleague(s)
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Send the selected records to one or more colleagues via internal messages.
+            </DialogDescription>
+          </DialogHeader>
+          <BulkSendToColleaguePanel
+            formRecordIds={selectedIds}
+            onSent={() => {
+              setShowBulkSendModal(false);
+              setSelectedIds([]);
+            }}
+          />
         </DialogContent>
       </Dialog>
 

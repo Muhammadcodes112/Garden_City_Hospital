@@ -7,6 +7,7 @@ const STAFF_PAGES = [
   "/appointments",
   "/messages",
   "/documents",
+  "/doctors-workstation",
   "/lab",
   "/prescription",
   "/medical-report",

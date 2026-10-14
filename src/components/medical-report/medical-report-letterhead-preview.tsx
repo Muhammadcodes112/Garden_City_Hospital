@@ -6,6 +6,7 @@ import {
   MEDICAL_REPORT_SECTIONS,
   type MedicalReportData,
 } from "@/lib/validators/medical-report";
+import { HospitalStamp } from "@/components/forms/hospital-stamp";
 
 type Props = {
   patient: PatientFields;
@@ -134,7 +135,8 @@ export function MedicalReportLetterheadPreview({ patient, data, isDraft }: Props
         </div>
 
         {/* DOCTOR SIGN-OFF */}
-        <div className="mt-6 pt-2 flex items-end justify-between border-t border-slate-100">
+        <div className="relative mt-6 pt-2 flex items-end justify-between border-t border-slate-100">
+          <HospitalStamp className="absolute -top-16 right-4" />
           <div>
             {data.doctorSignature?.data ? (
               data.doctorSignature.mode === "draw" ? (

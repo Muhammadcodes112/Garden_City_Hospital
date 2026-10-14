@@ -3,6 +3,7 @@ import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { db } from "@/db";
 import { patients, formRecords } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 
 export async function GET(
   req: NextRequest,
@@ -52,6 +53,13 @@ export async function PUT(
 
   try {
     const body = await req.json();
+
+    if (body.phone && !isValidNigerianPhone(body.phone)) {
+      return NextResponse.json({ error: `Phone: ${NIGERIAN_PHONE_MESSAGE}` }, { status: 400 });
+    }
+    if (body.nextOfKinPhone && !isValidNigerianPhone(body.nextOfKinPhone)) {
+      return NextResponse.json({ error: `Next of Kin Phone: ${NIGERIAN_PHONE_MESSAGE}` }, { status: 400 });
+    }
 
     const [updated] = await db
       .update(patients)

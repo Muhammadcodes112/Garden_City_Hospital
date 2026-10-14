@@ -184,6 +184,10 @@ export function BookingFlow() {
       setSubmitError("Please fill in your name and phone number.");
       return;
     }
+    if (patientPhone.length !== 11) {
+      setSubmitError("Phone number must be exactly 11 digits.");
+      return;
+    }
     setSubmitError(null);
     updateUrl({
       step: "confirm",
@@ -759,8 +763,10 @@ export function BookingFlow() {
                     id="patientPhone"
                     required
                     value={patientPhone}
-                    onChange={(e) => setPatientPhone(e.target.value)}
-                    placeholder="080 1234 5678"
+                    onChange={(e) => setPatientPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    inputMode="numeric"
+                    maxLength={11}
+                    placeholder="08012345678"
                     className="pl-9 text-xs"
                   />
                 </div>

@@ -27,7 +27,13 @@ export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; c
   return (
     <nav className={cn("flex flex-col gap-1", className)}>
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active =
+          pathname === item.href ||
+          pathname.startsWith(`${item.href}/`) ||
+          (item.href === "/doctors-workstation" &&
+            ["/lab", "/prescription", "/medical-report"].some(
+              (formPath) => pathname === formPath || pathname.startsWith(`${formPath}/`),
+            ));
         const Icon = item.icon;
         return (
           <Link

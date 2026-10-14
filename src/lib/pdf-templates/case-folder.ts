@@ -5,6 +5,7 @@ import {
   getBaseFontFaces,
 } from "@/lib/pdf-assets";
 import { formatDate } from "@/lib/date";
+import { HOSPITAL_STAMP_CSS, hospitalStampHtml } from "@/lib/pdf-templates/stamp";
 
 export type CaseFilePatientData = {
   surname: string;
@@ -384,6 +385,7 @@ export function caseFolderPdfHtml(opts: {
   }
   .filing-sidebar ol { margin: 0; padding-left: 14px; }
   .filing-sidebar li { margin-bottom: 6px; font-weight: 700; }
+  ${HOSPITAL_STAMP_CSS}
 </style>
 </head>
 <body>
@@ -421,7 +423,8 @@ export function caseFolderPdfHtml(opts: {
     </div>
   </div>
 
-  <div class="prepared-by-line">
+  <div class="prepared-by-line" style="position: relative;">
+    ${hospitalStampHtml("right: 10px; bottom: 0;")}
     CASE FOLDER PREPARED BY: <span class="fill-line inline-block min-w-[300px]">${escapeHtml(patient.caseFolderPreparedBy || "Medical Records Officer")}</span>
   </div>
 </div>

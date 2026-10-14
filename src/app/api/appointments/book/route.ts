@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { bookPublicAppointment } from "@/lib/appointments/booking";
+import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest) {
         { error: "Doctor, date/time, patient name, and phone number are required." },
         { status: 400 },
       );
+    }
+
+    if (!isValidNigerianPhone(patientPhone)) {
+      return NextResponse.json({ error: NIGERIAN_PHONE_MESSAGE }, { status: 400 });
     }
 
     // Check optional session for logged-in patient

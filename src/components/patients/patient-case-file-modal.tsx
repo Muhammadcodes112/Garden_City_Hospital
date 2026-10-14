@@ -198,7 +198,8 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         setEditing(false);
         if (onUpdated) onUpdated();
       } else {
-        toast.error("Failed to update case file");
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Failed to update case file");
       }
     } catch (err) {
       console.error(err);
@@ -687,7 +688,14 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                   {editing ? (
                     <Input
                       value={formData.nextOfKinPhone}
-                      onChange={(e) => setFormData({ ...formData, nextOfKinPhone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nextOfKinPhone: e.target.value.replace(/\D/g, "").slice(0, 11),
+                        })
+                      }
+                      inputMode="numeric"
+                      maxLength={11}
                       className="h-8 text-xs bg-white border-pink-300 mt-1"
                     />
                   ) : (

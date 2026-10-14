@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, ArrowUp, ArrowDown, Pill, StickyNote } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
+import { FindingsSuggestField } from "@/components/forms/findings-suggest";
 import { SaveStatus } from "@/components/forms/save-status";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -281,9 +281,9 @@ export function PrescriptionFormEditor({ initial }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea
+          <FindingsSuggestField
             value={data.clinicalNotes}
-            onChange={(e) => setData((d) => ({ ...d, clinicalNotes: e.target.value }))}
+            onChange={(val) => setData((d) => ({ ...d, clinicalNotes: val }))}
             placeholder="e.g. Headache, fever x2 days, mild body pain. BP 120/80, temp 37.2°C."
             disabled={readOnly}
             rows={3}

@@ -1,5 +1,6 @@
 import { getLogoMarkDataUri, getWordmarkDataUri, getBaseFontFaces } from "@/lib/pdf-assets";
 import { pageGeometryCssFlow } from "@/lib/pdf-templates/print-shell";
+import { HOSPITAL_STAMP_CSS, hospitalStampHtml } from "@/lib/pdf-templates/stamp";
 import { formatDate } from "@/lib/date";
 import type { LabPdfPatient } from "@/lib/pdf-templates/lab-request";
 import type { PrescriptionData, PrescriptionItem } from "@/lib/validators/prescription";
@@ -211,9 +212,11 @@ export function prescriptionPdfHtml(opts: {
   }
 
   .footer-section {
+    position: relative;
     margin-top: auto;
     padding-top: 12px;
   }
+  ${HOSPITAL_STAMP_CSS}
   .footer-row {
     position: relative;
     display: flex;
@@ -326,6 +329,7 @@ export function prescriptionPdfHtml(opts: {
     </div>
 
     <div class="footer-section">
+      ${hospitalStampHtml("right: 90px; bottom: 28px;")}
       <div class="footer-row">
         <div class="field">
           <span class="label">Prescriber's Name:</span>

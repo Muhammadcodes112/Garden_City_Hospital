@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
 import { patients, formRecords } from "@/db/schema";
 import { eq, ilike, or, desc, sql } from "drizzle-orm";
+import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 
 export async function GET(req: NextRequest) {
   await requireStaff();
@@ -119,6 +120,13 @@ export async function POST(req: NextRequest) {
 
     if (!surname || !firstNames) {
       return NextResponse.json({ error: "Surname and First Name are required" }, { status: 400 });
+    }
+
+    if (phone && !isValidNigerianPhone(phone)) {
+      return NextResponse.json({ error: `Phone: ${NIGERIAN_PHONE_MESSAGE}` }, { status: 400 });
+    }
+    if (nextOfKinPhone && !isValidNigerianPhone(nextOfKinPhone)) {
+      return NextResponse.json({ error: `Next of Kin Phone: ${NIGERIAN_PHONE_MESSAGE}` }, { status: 400 });
     }
 
     // Auto-generate Hospital Number if not provided

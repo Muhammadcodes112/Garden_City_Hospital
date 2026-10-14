@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { SaveStatus } from "@/components/forms/save-status";
+import { FindingsSuggestField } from "@/components/forms/findings-suggest";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import { MedicalReportLetterheadPreview } from "./medical-report-letterhead-preview";
 import {
@@ -416,14 +417,25 @@ export function MedicalReportEditor({ initial }: Props) {
                             </Button>
                           </div>
                         ) : null}
-                        <textarea
-                          rows={4}
-                          value={sec.content}
-                          onChange={(e) => updateSection(key, "content", e.target.value)}
-                          placeholder={`Enter ${label.toLowerCase()} details...`}
-                          disabled={readOnly}
-                          className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
+                        {key === "examinationFindings" ? (
+                          <FindingsSuggestField
+                            value={sec.content}
+                            onChange={(val) => updateSection(key, "content", val)}
+                            placeholder={`Enter ${label.toLowerCase()} details...`}
+                            disabled={readOnly}
+                            rows={4}
+                            className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        ) : (
+                          <textarea
+                            rows={4}
+                            value={sec.content}
+                            onChange={(e) => updateSection(key, "content", e.target.value)}
+                            placeholder={`Enter ${label.toLowerCase()} details...`}
+                            disabled={readOnly}
+                            className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground italic">
