@@ -45,6 +45,7 @@ import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
 import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
 import { BulkSendPatientFilesPanel } from "@/components/patients/bulk-send-patient-files-panel";
+import { RecentRecordsList } from "@/components/patients/patient-history";
 import { bulkDeletePatients } from "@/lib/actions/patients";
 import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
@@ -857,28 +858,10 @@ export function PatientsView() {
               </div>
             </div>
 
-            {/* Active Prescriptions */}
+            {/* Treatment Records (real data, newest first) */}
             <div className="space-y-2 text-xs">
-              <span className="font-bold text-foreground">Active Prescriptions</span>
-              <ul className="space-y-1.5 text-muted-foreground pl-3 list-disc text-xs font-medium">
-                <li><strong className="text-foreground">Folic acid 5mg</strong> — 1 tab daily</li>
-                <li><strong className="text-foreground">Paracetamol 1g</strong> — Every 8 hrs</li>
-              </ul>
-            </div>
-
-            {/* Recent Visits */}
-            <div className="space-y-2 text-xs">
-              <span className="font-bold text-foreground">Recent Visits</span>
-              <div className="space-y-2 text-muted-foreground text-xs font-medium">
-                <div className="rounded-xl bg-muted/40 p-2.5 border border-border/60">
-                  <p className="font-bold text-foreground">Admitted to Maternity, Bed M-04</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">28 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
-                </div>
-                <div className="rounded-xl bg-muted/40 p-2.5 border border-border/60">
-                  <p className="font-bold text-foreground">Antenatal Visit</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">14 Sep 2026 · {selectedPatient.doctor || "Dr. Hauwa Sani"}</p>
-                </div>
-              </div>
+              <span className="font-bold text-foreground">Recent Records</span>
+              <RecentRecordsList patientId={selectedPatient.id} />
             </div>
 
             {/* Quick Form Actions for This Patient */}

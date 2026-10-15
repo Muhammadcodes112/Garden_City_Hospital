@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, UserPlus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { PATIENT_STATUSES } from "@/lib/validators/patient";
 
 type Props = {
   open: boolean;
@@ -298,12 +299,9 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
               >
-                <option value="Outpatient">Outpatient</option>
-                <option value="Admitted · Maternity">Admitted · Maternity</option>
-                <option value="Admitted · Surgical">Admitted · Surgical</option>
-                <option value="Admitted · ICU">Admitted · ICU</option>
-                <option value="Admitted · Paediatrics">Admitted · Paediatrics</option>
-                <option value="Discharged">Discharged</option>
+                {PATIENT_STATUSES.map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
               </select>
             </div>
             <div>

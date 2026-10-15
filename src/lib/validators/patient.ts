@@ -7,6 +7,19 @@ const phoneField = z
   .default("")
   .refine((val) => val === "" || isValidNigerianPhone(val), NIGERIAN_PHONE_MESSAGE);
 
+/**
+ * Outpatient: seen and sent home the same day. Admitted (inpatient): occupying
+ * a ward bed — counted on the Inpatient tab. Discharged: was admitted, now home.
+ */
+export const PATIENT_STATUSES = [
+  "Outpatient",
+  "Admitted · Maternity",
+  "Admitted · Surgical",
+  "Admitted · ICU",
+  "Admitted · Paediatrics",
+  "Discharged",
+] as const;
+
 export const draftPatientSchema = z.object({
   surname: z.string().optional().default(""),
   firstNames: z.string().optional().default(""),

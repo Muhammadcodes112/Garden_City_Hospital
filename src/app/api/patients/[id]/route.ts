@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { db } from "@/db";
-import { patients, formRecords } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { patients, formRecords, patientPayments } from "@/db/schema";
+import { and, eq, desc, isNull } from "drizzle-orm";
 import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 import { deletePatientsCascade } from "@/lib/patient-deletion";
 
@@ -31,12 +31,19 @@ export async function GET(
         data: formRecords.data,
       })
       .from(formRecords)
-      .where(eq(formRecords.patientId, id))
+      .where(and(eq(formRecords.patientId, id), isNull(formRecords.deletedAt)))
       .orderBy(desc(formRecords.updatedAt));
+
+    const payments = await db
+      .select()
+      .from(patientPayments)
+      .where(eq(patientPayments.patientId, id))
+      .orderBy(desc(patientPayments.confirmedAt));
 
     return NextResponse.json({
       patient,
       records,
+      payments,
     });
   } catch (err) {
     console.error("Failed to fetch patient detail:", err);

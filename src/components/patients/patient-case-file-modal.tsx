@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2, CreditCard, CheckCircle2, Clock, Image as ImageIcon, Eye } from "lucide-react";
 import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
+import { CaseFileHistory } from "@/components/patients/patient-history";
+import { PATIENT_STATUSES } from "@/lib/validators/patient";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
@@ -72,7 +74,8 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
   const [deleting, setDeleting] = useState(false);
   const [showCashierModal, setShowCashierModal] = useState(false);
   const [currentPatient, setCurrentPatient] = useState<PatientRecord>(patient);
-  const [activeTab, setActiveTab] = useState<"cover" | "inside" | "operations">("inside");
+  const [activeTab, setActiveTab] = useState<"history" | "cover" | "inside" | "operations">("history");
+  const [historyKey, setHistoryKey] = useState(0);
 
   useEffect(() => {
     setCurrentPatient(patient);
@@ -374,6 +377,15 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
           <div className="flex items-center gap-2 overflow-x-auto">
             <button
               type="button"
+              onClick={() => setActiveTab("history")}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === "history" ? "bg-pink-600 text-white shadow-xs" : "bg-pink-100 text-pink-900 hover:bg-pink-50"
+              }`}
+            >
+              Records & Payments
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab("cover")}
               className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === "cover" ? "bg-pink-600 text-white shadow-xs" : "bg-pink-100 text-pink-900 hover:bg-pink-50"
@@ -418,6 +430,8 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         {/* PHYSICAL PINK CASE FOLDER CONTAINER */}
         <div className="p-6 space-y-6 bg-pink-50/60 min-h-[550px]">
           
+          {activeTab === "history" && <CaseFileHistory patientId={patient.id} refreshKey={historyKey} />}
+
           {/* TAB 1: COVER PAGE (IMAGE 1) */}
           {activeTab === "cover" && (
             <div className="max-w-2xl mx-auto border-2 border-slate-900 rounded-lg p-6 bg-[#ffdede] shadow-xl text-slate-900 space-y-6">
@@ -611,6 +625,26 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                     />
                   ) : (
                     <p className="font-semibold text-sm text-slate-900 border-b border-pink-400/60 pb-1">{formData.dob || `${formData.age} Yrs`}</p>
+                  )}
+                </div>
+
+                <div>
+                  <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">Patient Status:</span>
+                  {editing ? (
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="h-8 w-full rounded-md border border-pink-300 bg-white px-2 text-xs mt-1"
+                    >
+                      {!(PATIENT_STATUSES as readonly string[]).includes(formData.status) && (
+                        <option value={formData.status}>{formData.status}</option>
+                      )}
+                      {PATIENT_STATUSES.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="font-semibold text-sm text-slate-900 border-b border-pink-400/60 pb-1">{formData.status}</p>
                   )}
                 </div>
               </div>
@@ -1127,6 +1161,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
           if (updated) {
             setCurrentPatient(updated);
           }
+          setHistoryKey((k) => k + 1);
           if (onUpdated) onUpdated();
         }}
       />

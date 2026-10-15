@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff } from "@/lib/authz";
 import { db } from "@/db";
-import { patients } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { patientPayments, patients } from "@/db/schema";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { logEvent } from "@/lib/activity";
 import { detectFileSignature, MAX_ATTACHMENT_BYTES } from "@/lib/file-signature";
 import { put } from "@vercel/blob";
@@ -110,6 +110,22 @@ export async function POST(
     const paymentConfirmedAt = isPaid ? new Date() : null;
     const paymentConfirmedBy = isPaid ? cashierName : "";
 
+    const [latestPayment] = await db
+      .select({ id: patientPayments.id })
+      .from(patientPayments)
+      .where(and(eq(patientPayments.patientId, id), isNull(patientPayments.revertedAt)))
+      .orderBy(desc(patientPayments.confirmedAt))
+      .limit(1);
+    const historyFields = {
+      amount,
+      method,
+      reference,
+      notes,
+      evidenceUrl,
+      evidenceName,
+      confirmedBy: cashierName,
+    };
+
     const [updated] = await db
       .update(patients)
       .set({
@@ -126,6 +142,17 @@ export async function POST(
       })
       .where(eq(patients.id, id))
       .returning();
+
+    // Payment history: a pending -> paid confirmation is a new payment;
+    // editing details/proof while already paid amends that same payment;
+    // reverting to pending marks it reverted rather than erasing it.
+    if (isPaid && patient.paymentStatus === "paid" && latestPayment) {
+      await db.update(patientPayments).set(historyFields).where(eq(patientPayments.id, latestPayment.id));
+    } else if (isPaid) {
+      await db.insert(patientPayments).values({ patientId: id, ...historyFields });
+    } else if (patient.paymentStatus === "paid" && latestPayment) {
+      await db.update(patientPayments).set({ revertedAt: new Date() }).where(eq(patientPayments.id, latestPayment.id));
+    }
 
     // Log the audit event for compliance
     await logEvent({

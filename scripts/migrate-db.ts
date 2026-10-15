@@ -644,6 +644,33 @@ async function migrate() {
         ON "medication_administrations" ("form_record_id", "item_id", "date", "slot");
     `);
 
+    // Payment history: one row per cashier confirmation. Backfills each
+    // currently-paid patient's existing payment as their first history row.
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS "patient_payments" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "patient_id" uuid NOT NULL REFERENCES "public"."patients"("id") ON DELETE cascade,
+        "amount" text DEFAULT '',
+        "method" text DEFAULT '',
+        "reference" text DEFAULT '',
+        "notes" text DEFAULT '',
+        "evidence_url" text DEFAULT '',
+        "evidence_name" text DEFAULT '',
+        "confirmed_by" text DEFAULT '',
+        "confirmed_at" timestamp DEFAULT now() NOT NULL,
+        "reverted_at" timestamp
+      );
+      CREATE INDEX IF NOT EXISTS "patient_payments_patient_id_idx" ON "patient_payments" ("patient_id");
+
+      INSERT INTO "patient_payments" ("patient_id", "amount", "method", "reference", "notes", "evidence_url", "evidence_name", "confirmed_by", "confirmed_at")
+      SELECT p."id", p."payment_amount", p."payment_method", p."payment_reference", p."payment_notes",
+             p."payment_evidence_url", p."payment_evidence_name", p."payment_confirmed_by",
+             COALESCE(p."payment_confirmed_at", p."updated_at")
+      FROM "patients" p
+      WHERE p."payment_status" = 'paid'
+        AND NOT EXISTS (SELECT 1 FROM "patient_payments" pp WHERE pp."patient_id" = p."id");
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

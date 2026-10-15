@@ -595,3 +595,29 @@ export const medicationAdministrations = pgTable(
     uniqueIndex("medication_administrations_dose_unique_idx").on(table.formRecordId, table.itemId, table.date, table.slot),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Payment history. The patients.payment_* columns hold the current clearance
+// state; each cashier confirmation also lands here so earlier payments are
+// kept when a returning patient is cleared again.
+// ---------------------------------------------------------------------------
+
+export const patientPayments = pgTable(
+  "patient_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    amount: text("amount").default(""),
+    method: text("method").default(""),
+    reference: text("reference").default(""),
+    notes: text("notes").default(""),
+    evidenceUrl: text("evidence_url").default(""),
+    evidenceName: text("evidence_name").default(""),
+    confirmedBy: text("confirmed_by").default(""),
+    confirmedAt: timestamp("confirmed_at").notNull().defaultNow(),
+    revertedAt: timestamp("reverted_at"),
+  },
+  (table) => [index("patient_payments_patient_id_idx").on(table.patientId)],
+);
