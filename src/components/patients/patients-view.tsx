@@ -26,21 +26,26 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/patient-case-file-modal";
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
 import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
+import { BulkSendPatientFilesPanel } from "@/components/patients/bulk-send-patient-files-panel";
+import { bulkDeletePatients } from "@/lib/actions/patients";
 import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
@@ -72,6 +77,12 @@ export function PatientsView() {
   // Deletion state
   const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkSendModal, setShowBulkSendModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Fetch patients list
   const fetchPatients = async () => {
@@ -133,6 +144,44 @@ export function PatientsView() {
       toast.error("Error deleting patient file");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(patients.map((p) => p.id)) : new Set());
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!isSuperAdmin) {
+      toast.error("Only Super Admin accounts can delete patient files");
+      return;
+    }
+
+    setBulkDeleting(true);
+    try {
+      const result = await bulkDeletePatients(Array.from(selectedIds));
+      toast.success(`${result.count} patient file${result.count === 1 ? "" : "s"} deleted`);
+      if (selectedPatient && selectedIds.has(selectedPatient.id)) {
+        setSelectedPatient(null);
+      }
+      setSelectedIds(new Set());
+      setShowBulkDeleteModal(false);
+      fetchPatients();
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete selected patient files");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -343,6 +392,25 @@ export function PatientsView() {
         </div>
       </div>
 
+      {/* BULK SELECTION ACTION BAR */}
+      {selectedIds.size > 0 && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span className="font-semibold text-foreground">
+            {selectedIds.size} patient file{selectedIds.size === 1 ? "" : "s"} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowBulkSendModal(true)} className="gap-2">
+              <Send className="h-3.5 w-3.5" /> Send to Colleague(s)
+            </Button>
+            {isSuperAdmin && (
+              <Button size="sm" variant="destructive" onClick={() => setShowBulkDeleteModal(true)} className="gap-2">
+                <Trash2 className="h-3.5 w-3.5" /> Delete Selected
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* MAIN TWO-COLUMN CONTAINER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN: PATIENTS TABLE */}
@@ -365,6 +433,13 @@ export function PatientsView() {
                 <table className="w-full min-w-[820px] text-left text-xs">
                   <thead className="bg-muted/50 border-b border-border font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
                     <tr>
+                      <th className="py-3.5 px-3 w-10 text-center">
+                        <Checkbox
+                          checked={patients.length > 0 && selectedIds.size === patients.length}
+                          onCheckedChange={(checked) => toggleSelectAll(Boolean(checked))}
+                          aria-label="Select all patients on this page"
+                        />
+                      </th>
                       <th className="py-3.5 px-4 min-w-[190px]">PATIENT</th>
                       <th className="py-3.5 px-3 whitespace-nowrap min-w-[90px]">AGE / SEX</th>
                       <th className="py-3.5 px-3 whitespace-nowrap min-w-[210px]">PAYMENT STATUS</th>
@@ -376,6 +451,7 @@ export function PatientsView() {
                   <tbody className="divide-y divide-border">
                     {patients.map((p) => {
                       const isSelected = selectedPatient?.id === p.id;
+                      const isChecked = selectedIds.has(p.id);
                       const initials = getInitials(p.surname, p.firstNames);
 
                       return (
@@ -386,6 +462,13 @@ export function PatientsView() {
                             isSelected ? "bg-muted/60 font-medium" : ""
                           }`}
                         >
+                          <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={() => toggleSelect(p.id)}
+                              aria-label={`Select patient file for ${p.surname}`}
+                            />
+                          </td>
                           {/* PATIENT INFO */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
@@ -480,18 +563,30 @@ export function PatientsView() {
               <ul className="flex flex-col gap-2.5 p-3 md:hidden">
                 {patients.map((p) => {
                   const isSelected = selectedPatient?.id === p.id;
+                  const isChecked = selectedIds.has(p.id);
                   const initials = getInitials(p.surname, p.firstNames);
 
                   return (
                     <li key={p.id}>
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedPatient(p)}
-                        className={`w-full rounded-xl border border-border p-3.5 text-left transition-colors shadow-2xs ${
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") setSelectedPatient(p);
+                        }}
+                        className={`w-full rounded-xl border border-border p-3.5 text-left transition-colors shadow-2xs cursor-pointer ${
                           isSelected ? "bg-muted/60 ring-2 ring-brand-green/30" : "bg-background hover:bg-muted/30"
                         }`}
                       >
                         <div className="flex items-center gap-3">
+                          <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={() => toggleSelect(p.id)}
+                              aria-label={`Select patient file for ${p.surname}`}
+                            />
+                          </div>
                           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
                             {initials}
                           </div>
@@ -521,7 +616,7 @@ export function PatientsView() {
                           <span className="truncate">{p.doctor || "Dr. Ibrahim Musa"}</span>
                           <span className="whitespace-nowrap">{p.lastVisit || "28 Sep 2026"}</span>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}
@@ -864,6 +959,56 @@ export function PatientsView() {
         open={showExportModal}
         onOpenChange={setShowExportModal}
       />
+
+      {/* Bulk Send Patient Files to Colleague(s) Dialog */}
+      <Dialog open={showBulkSendModal} onOpenChange={setShowBulkSendModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" /> Send Patient File(s) to Colleague(s)
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Send the selected patient files to one or more colleagues via internal messages.
+            </DialogDescription>
+          </DialogHeader>
+          <BulkSendPatientFilesPanel
+            patientIds={Array.from(selectedIds)}
+            onSent={() => {
+              setShowBulkSendModal(false);
+              setSelectedIds(new Set());
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog (Super Admin) */}
+      <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ShieldAlert className="h-5 w-5" /> Delete {selectedIds.size} Patient File{selectedIds.size === 1 ? "" : "s"}?
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Are you sure you want to permanently delete <strong>{selectedIds.size} selected patient file{selectedIds.size === 1 ? "" : "s"}</strong>? This will erase their case files, medical history, lab requests, prescriptions, and medical reports. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowBulkDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={bulkDeleting}
+              onClick={handleConfirmBulkDelete}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold gap-1.5"
+            >
+              {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Delete Selected
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Super Admin Delete Patient Confirmation Dialog */}
       <Dialog open={Boolean(deletingPatient)} onOpenChange={(open) => !open && setDeletingPatient(null)}>

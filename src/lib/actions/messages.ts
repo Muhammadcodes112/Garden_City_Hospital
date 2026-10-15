@@ -6,7 +6,7 @@ import { conversationParticipants, messages, user } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
 import { sendMessageSchema, type SendMessageInput } from "@/lib/validators/message";
 import type { ActorRole } from "@/lib/activity";
-import { checkFormRecordAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
+import { checkFormRecordAvailable, checkPatientFileAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
 import {
   findDmConversationId,
   getMessagesPage,
@@ -148,6 +148,12 @@ export async function checkFormRecordAvailability(formRecordId: string) {
 export async function checkShareLinkAvailability(shareLinkId: string) {
   await requireStaff();
   return checkShareLinkAvailable(shareLinkId);
+}
+
+/** Live re-check for a patient_file attachment — catches a since-deleted patient. */
+export async function checkPatientFileAvailability(patientId: string) {
+  await requireStaff();
+  return checkPatientFileAvailable(patientId);
 }
 
 export async function markConversationRead(conversationId: string) {

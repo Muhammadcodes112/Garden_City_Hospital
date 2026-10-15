@@ -14,13 +14,14 @@ import {
   Check,
   AlertTriangle,
   Paperclip,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PdfPreviewDialog } from "@/components/forms/pdf-preview-dialog";
 import { ImageLightbox } from "./image-lightbox";
-import { checkFormRecordAvailability, checkShareLinkAvailability } from "@/lib/actions/messages";
+import { checkFormRecordAvailability, checkPatientFileAvailability, checkShareLinkAvailability } from "@/lib/actions/messages";
 import { FORM_TYPE_LABELS } from "@/lib/routes";
 import { formatDate } from "@/lib/date";
 import type { SerializedAttachment } from "@/lib/message-attachments";
@@ -45,6 +46,7 @@ function UnavailableCard({ label }: { label: string }) {
 export function AttachmentCard({ attachment }: { attachment: SerializedAttachment }) {
   if (attachment.kind === "form_record") return <FormRecordAttachment attachment={attachment} />;
   if (attachment.kind === "share_link") return <ShareLinkAttachment attachment={attachment} />;
+  if (attachment.kind === "patient_file") return <PatientFileAttachment attachment={attachment} />;
   return <FileAttachment attachment={attachment} />;
 }
 
@@ -178,6 +180,57 @@ function ShareLinkAttachment({ attachment }: { attachment: Extract<SerializedAtt
         </Button>
         <Button type="button" size="sm" variant="ghost" className="h-7 flex-1 gap-1 text-[11px]" onClick={handleCopy}>
           {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PatientFileAttachment({ attachment }: { attachment: Extract<SerializedAttachment, { kind: "patient_file" }> }) {
+  const router = useRouter();
+  const [stillAvailable, setStillAvailable] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  if (!attachment.available || !stillAvailable) {
+    return <UnavailableCard label="This patient file is no longer available." />;
+  }
+
+  const { patientId, surname, firstNames, hospitalNumber, status } = attachment;
+
+  async function handleOpen() {
+    setBusy(true);
+    try {
+      const result = await checkPatientFileAvailability(patientId);
+      if (!result.available) {
+        setStillAvailable(false);
+        return;
+      }
+      router.push(`/patients?open=${patientId}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="w-64 overflow-hidden rounded-lg border border-border bg-background/60">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <FolderOpen className="h-4 w-4 shrink-0 text-brand-green" />
+        <span className="truncate text-xs font-semibold text-foreground">Patient File</span>
+      </div>
+      <div className="px-3 py-2 space-y-1">
+        <p className="truncate text-sm font-medium text-foreground">
+          {firstNames} {surname}
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-xs font-mono text-muted-foreground">{hospitalNumber}</span>
+          <Badge variant="secondary" className="shrink-0 text-[10px]">
+            {status}
+          </Badge>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 border-t border-border p-1.5">
+        <Button type="button" size="sm" variant="ghost" className="h-7 flex-1 gap-1 text-[11px]" disabled={busy} onClick={handleOpen}>
+          <ExternalLink className="h-3 w-3" /> Open file
         </Button>
       </div>
     </div>

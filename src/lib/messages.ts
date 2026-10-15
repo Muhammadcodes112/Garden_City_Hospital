@@ -126,6 +126,7 @@ const ATTACHMENT_PREVIEW_LABEL: Record<string, string> = {
   form_record: "Shared a record",
   share_link: "Shared a link",
   file: "Sent a file",
+  patient_file: "Shared a patient file",
 };
 
 async function getUnreadCounts(
@@ -271,6 +272,26 @@ export async function getOrCreateDmConversation(meId: string, targetUserId: stri
   return conversationId;
 }
 
+function attachmentInsertValues(messageId: string, attachment: MessageAttachmentInput) {
+  switch (attachment.kind) {
+    case "form_record":
+      return { messageId, kind: "form_record" as const, formRecordId: attachment.formRecordId };
+    case "share_link":
+      return { messageId, kind: "share_link" as const, shareLinkId: attachment.shareLinkId };
+    case "patient_file":
+      return { messageId, kind: "patient_file" as const, patientId: attachment.patientId };
+    case "file":
+      return {
+        messageId,
+        kind: "file" as const,
+        fileUrl: attachment.fileUrl,
+        fileName: attachment.fileName,
+        fileSize: attachment.fileSize,
+        mimeType: attachment.mimeType,
+      };
+  }
+}
+
 /**
  * Inserts a message (+ optional attachment) and bumps the conversation's
  * last_message_at, all in one transaction. Shared by the composer's
@@ -298,20 +319,7 @@ export async function insertMessageWithAttachment(params: {
     const [message] = await tx.insert(messages).values({ conversationId, senderId, body }).returning();
 
     if (attachment) {
-      await tx.insert(messageAttachments).values(
-        attachment.kind === "form_record"
-          ? { messageId: message!.id, kind: "form_record", formRecordId: attachment.formRecordId }
-          : attachment.kind === "share_link"
-            ? { messageId: message!.id, kind: "share_link", shareLinkId: attachment.shareLinkId }
-            : {
-                messageId: message!.id,
-                kind: "file",
-                fileUrl: attachment.fileUrl,
-                fileName: attachment.fileName,
-                fileSize: attachment.fileSize,
-                mimeType: attachment.mimeType,
-              },
-      );
+      await tx.insert(messageAttachments).values(attachmentInsertValues(message!.id, attachment));
     }
 
     await tx.update(conversations).set({ lastMessageAt: message!.createdAt }).where(eq(conversations.id, conversationId));

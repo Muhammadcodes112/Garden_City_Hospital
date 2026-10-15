@@ -2,11 +2,13 @@
 
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { formRecords, user } from "@/db/schema";
+import { formRecords, patients, user } from "@/db/schema";
 import { requireStaff } from "@/lib/authz";
 import {
+  sendPatientFilesToColleaguesSchema,
   sendRecordToColleaguesSchema,
   sendRecordsToColleaguesSchema,
+  type SendPatientFilesToColleaguesInput,
   type SendRecordToColleaguesInput,
   type SendRecordsToColleaguesInput,
 } from "@/lib/validators/send-to-colleague";
@@ -126,4 +128,57 @@ export async function sendRecordsToColleagues(
   }
 
   return { count: recipientIds.length * records.length };
+}
+
+/** Bulk variant for the Patients page: sends several patient files to several colleagues in one go. */
+export async function sendPatientFilesToColleagues(
+  input: SendPatientFilesToColleaguesInput,
+): Promise<{ count: number }> {
+  const session = await requireStaff();
+  const meId = session.user.id;
+  const parsed = sendPatientFilesToColleaguesSchema.parse(input);
+
+  const patientRows = await db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(inArray(patients.id, parsed.patientIds));
+  if (patientRows.length === 0) throw new Error("Patient files not found");
+
+  const recipientRows = await db
+    .select({ id: user.id, banned: user.banned, deletedAt: user.deletedAt })
+    .from(user)
+    .where(inArray(user.id, parsed.recipientUserIds));
+  const recipientIds = recipientRows.filter((r) => r.id !== meId && !r.banned && !r.deletedAt).map((r) => r.id);
+  if (recipientIds.length === 0) throw new Error("No valid recipients selected");
+
+  const totalMessages = recipientIds.length * patientRows.length;
+  if (!(await isUnderSendRateLimit(meId, totalMessages))) {
+    throw new Error("Too many messages at once — try sending fewer patient files or colleagues, or again in a minute.");
+  }
+
+  const note = parsed.note && parsed.note.length > 0 ? parsed.note : null;
+
+  for (const recipientId of recipientIds) {
+    const conversationId =
+      (await findDmConversationId(meId, recipientId)) ?? (await getOrCreateDmConversation(meId, recipientId));
+
+    for (const [index, patient] of patientRows.entries()) {
+      await insertMessageWithAttachment({
+        conversationId,
+        senderId: meId,
+        body: index === 0 ? note : null,
+        attachment: { kind: "patient_file", patientId: patient.id },
+        activityLog: {
+          category: "sharing",
+          action: "patient_file.shared_colleague",
+          summary: `${session.user.name} sent ${patientRows.length} patient file${patientRows.length === 1 ? "" : "s"} to a colleague`,
+          actorRoleAtTime: (session.user as { role?: ActorRole }).role ?? null,
+          actorLabel: session.user.name,
+          metadata: { recipientId, patientId: patient.id },
+        },
+      });
+    }
+  }
+
+  return { count: recipientIds.length * patientRows.length };
 }

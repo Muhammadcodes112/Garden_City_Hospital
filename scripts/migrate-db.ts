@@ -609,6 +609,22 @@ async function migrate() {
       ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "signature_updated_at" timestamp;
     `);
 
+    // Bulk "send patient file to colleague(s)" — a new message attachment
+    // kind pointing at a patient row, alongside the existing form_record/
+    // share_link/file kinds.
+    await sql.unsafe(`
+      ALTER TYPE "public"."message_attachment_kind" ADD VALUE IF NOT EXISTS 'patient_file';
+      ALTER TABLE "message_attachments" ADD COLUMN IF NOT EXISTS "patient_id" uuid;
+    `);
+
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'message_attachments_patient_id_patients_id_fk') THEN
+          ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_patient_id_patients_id_fk" FOREIGN KEY ("patient_id") REFERENCES "public"."patients"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

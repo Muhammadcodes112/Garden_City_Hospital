@@ -26,7 +26,18 @@ export type SerializedAttachment =
     }
   | { kind: "form_record"; id: string; formRecordId: string; available: false }
   | { kind: "share_link"; id: string; shareLinkId: string; url: string; expiresAt: string; revoked: boolean; expired: boolean }
-  | { kind: "file"; id: string; fileName: string; fileSize: number; mimeType: string };
+  | { kind: "file"; id: string; fileName: string; fileSize: number; mimeType: string }
+  | {
+      kind: "patient_file";
+      id: string;
+      patientId: string;
+      available: true;
+      surname: string;
+      firstNames: string;
+      hospitalNumber: string;
+      status: string;
+    }
+  | { kind: "patient_file"; id: string; patientId: string; available: false };
 
 async function resolveBaseUrl(): Promise<string> {
   try {
@@ -49,6 +60,7 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
 
   const formRecordIds = [...new Set(rows.filter((r) => r.kind === "form_record" && r.formRecordId).map((r) => r.formRecordId!))];
   const shareLinkIds = [...new Set(rows.filter((r) => r.kind === "share_link" && r.shareLinkId).map((r) => r.shareLinkId!))];
+  const patientFileIds = [...new Set(rows.filter((r) => r.kind === "patient_file" && r.patientId).map((r) => r.patientId!))];
 
   const formRecordMap = new Map<
     string,
@@ -89,6 +101,15 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
       .from(shareLinks)
       .where(inArray(shareLinks.id, shareLinkIds));
     for (const r of slRows) shareLinkMap.set(r.id, { token: r.token, expiresAt: r.expiresAt, revokedAt: r.revokedAt });
+  }
+
+  const patientFileMap = new Map<string, { surname: string; firstNames: string; hospitalNumber: string; status: string | null }>();
+  if (patientFileIds.length > 0) {
+    const pRows = await db
+      .select({ id: patients.id, surname: patients.surname, firstNames: patients.firstNames, hospitalNumber: patients.hospitalNumber, status: patients.status })
+      .from(patients)
+      .where(inArray(patients.id, patientFileIds));
+    for (const r of pRows) patientFileMap.set(r.id, { surname: r.surname, firstNames: r.firstNames, hospitalNumber: r.hospitalNumber, status: r.status });
   }
 
   const baseUrl = shareLinkIds.length > 0 ? await resolveBaseUrl() : "";
@@ -134,6 +155,22 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
         fileSize: r.fileSize ?? 0,
         mimeType: r.mimeType ?? "application/octet-stream",
       });
+    } else if (r.kind === "patient_file" && r.patientId) {
+      const pf = patientFileMap.get(r.patientId);
+      list.push(
+        pf
+          ? {
+              kind: "patient_file",
+              id: r.id,
+              patientId: r.patientId,
+              available: true,
+              surname: pf.surname,
+              firstNames: pf.firstNames,
+              hospitalNumber: pf.hospitalNumber,
+              status: pf.status || "Outpatient",
+            }
+          : { kind: "patient_file", id: r.id, patientId: r.patientId, available: false },
+      );
     }
     result.set(r.messageId, list);
   }
@@ -161,6 +198,12 @@ export async function checkShareLinkAvailable(shareLinkId: string): Promise<{ av
     .where(eq(shareLinks.id, shareLinkId));
   if (!row || row.revokedAt || row.expiresAt < new Date()) return { available: false };
   return { available: true };
+}
+
+/** Live re-check used right before "Open file" acts on a patient_file attachment card. */
+export async function checkPatientFileAvailable(patientId: string): Promise<{ available: boolean }> {
+  const [row] = await db.select({ id: patients.id }).from(patients).where(eq(patients.id, patientId));
+  return { available: Boolean(row) };
 }
 
 export type SharedWithEntry = {

@@ -328,6 +328,7 @@ export const messageAttachmentKind = pgEnum("message_attachment_kind", [
   "form_record",
   "share_link",
   "file",
+  "patient_file",
 ]);
 
 export const conversations = pgTable(
@@ -387,6 +388,7 @@ export const messageAttachments = pgTable("message_attachments", {
   kind: messageAttachmentKind("kind").notNull(),
   formRecordId: uuid("form_record_id").references(() => formRecords.id),
   shareLinkId: uuid("share_link_id").references(() => shareLinks.id),
+  patientId: uuid("patient_id").references(() => patients.id),
   fileUrl: text("file_url"),
   fileName: text("file_name"),
   fileSize: integer("file_size"),

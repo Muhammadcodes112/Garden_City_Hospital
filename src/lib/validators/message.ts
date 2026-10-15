@@ -3,6 +3,7 @@ import { z } from "zod";
 export const messageAttachmentInputSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("form_record"), formRecordId: z.string().uuid() }),
   z.object({ kind: z.literal("share_link"), shareLinkId: z.string().uuid() }),
+  z.object({ kind: z.literal("patient_file"), patientId: z.string().uuid() }),
   z.object({
     kind: z.literal("file"),
     fileUrl: z.string().min(1),

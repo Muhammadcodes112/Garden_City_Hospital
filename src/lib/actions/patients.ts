@@ -1,9 +1,11 @@
 "use server";
 
-import { eq, ilike, or } from "drizzle-orm";
+import { eq, ilike, inArray, or } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { patients } from "@/db/schema";
-import { requireStaff } from "@/lib/authz";
+import { formRecords, patients } from "@/db/schema";
+import { requireStaff, requireSuperAdmin } from "@/lib/authz";
+import { logEvent, type ActorRole } from "@/lib/activity";
 import { patientSchema, type PatientInput } from "@/lib/validators/patient";
 
 export type PatientRow = {
@@ -76,6 +78,45 @@ export async function upsertPatientForForm(
     })
     .returning({ id: patients.id });
   return { patientId: row!.id };
+}
+
+/** Super-admin-only bulk delete, used by the Patients page's multi-select action bar. */
+export async function bulkDeletePatients(patientIds: string[]): Promise<{ count: number }> {
+  const session = await requireSuperAdmin();
+  if (!patientIds || patientIds.length === 0) return { count: 0 };
+
+  const rows = await db
+    .select({ id: patients.id, surname: patients.surname, firstNames: patients.firstNames, hospitalNumber: patients.hospitalNumber })
+    .from(patients)
+    .where(inArray(patients.id, patientIds));
+  if (rows.length === 0) return { count: 0 };
+
+  const actorLabel = session.user.name;
+  const actorRole = (session.user as { role?: ActorRole }).role ?? null;
+
+  await db.transaction(async (tx) => {
+    await tx.delete(formRecords).where(inArray(formRecords.patientId, patientIds));
+    await tx.delete(patients).where(inArray(patients.id, patientIds));
+
+    for (const row of rows) {
+      await logEvent({
+        tx,
+        category: "records",
+        action: "patient.deleted",
+        summary: `${actorLabel} deleted patient file ${row.firstNames} ${row.surname} (${row.hospitalNumber}) (bulk action)`,
+        actorId: session.user.id,
+        actorRoleAtTime: actorRole,
+        actorLabel,
+        targetType: "patient",
+        targetId: row.id,
+        metadata: { bulk: true, bulkCount: rows.length },
+      });
+    }
+  });
+
+  revalidatePath("/patients");
+  revalidatePath("/dashboard");
+  return { count: rows.length };
 }
 
 export async function createDraftPatient(): Promise<{ patientId: string; hospitalNumber: string }> {
