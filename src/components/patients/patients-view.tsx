@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -47,6 +48,8 @@ import { toast } from "sonner";
 export function PatientsView() {
   const { data: session } = useSession();
   const isSuperAdmin = (session?.user as { role?: string })?.role === "super_admin";
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +139,30 @@ export function PatientsView() {
   useEffect(() => {
     fetchPatients();
   }, [query, activeTab, paymentFilter, page]);
+
+  // Deep link from elsewhere (e.g. the dashboard's "Open file" action): open a
+  // specific patient's case file directly, even if it isn't on the current page.
+  useEffect(() => {
+    const openId = searchParams.get("open");
+    if (!openId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/patients/${openId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.patient) {
+            setSelectedPatient(data.patient);
+            setShowCaseFileModal(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to open patient file:", err);
+      } finally {
+        router.replace("/patients");
+      }
+    })();
+  }, [searchParams, router]);
 
   // Counts for tabs
   const outpatientCount = patients.filter((p) => p.status?.includes("Outpatient")).length;

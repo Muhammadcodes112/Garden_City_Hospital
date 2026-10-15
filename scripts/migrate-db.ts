@@ -603,6 +603,12 @@ async function migrate() {
       console.log("Seeded 5 doctors with Monday-Saturday schedules.");
     }
 
+    // Doctor/staff signature image, reused automatically on every new form.
+    await sql.unsafe(`
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "signature_url" text;
+      ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "signature_updated_at" timestamp;
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

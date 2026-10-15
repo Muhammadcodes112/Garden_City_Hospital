@@ -14,11 +14,13 @@ import {
 import { draftPatientSchema, patientSchema, type PatientInput } from "@/lib/validators/patient";
 import { createDraftPatient } from "@/lib/actions/patients";
 import { buildSearchText } from "@/lib/search";
+import { getSavedSignatureUrl } from "@/lib/signature";
 
 export type MedicalReportFormBundle = {
   recordId: string;
   status: "draft" | "completed";
   updatedAt: string;
+  savedSignatureUrl: string | null;
   patient: {
     id: string;
     surname: string;
@@ -48,6 +50,10 @@ export async function createMedicalReportDraftRecord(): Promise<{ recordId: stri
   const { patientId } = await createDraftPatient();
   const refNo = await generateRefNo();
   const data = defaultMedicalReportData(refNo);
+  const savedSignatureUrl = await getSavedSignatureUrl(session.user.id);
+  if (savedSignatureUrl) {
+    data.doctorSignature = { mode: "image", data: savedSignatureUrl };
+  }
 
   const patientRow = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
   const searchText = patientRow[0] ? buildSearchText(patientRow[0], data, "medical_report") : "";
@@ -84,7 +90,7 @@ export async function createMedicalReportDraftRecord(): Promise<{ recordId: stri
 export async function getMedicalReportFormRecord(
   recordId: string,
 ): Promise<MedicalReportFormBundle | null> {
-  await requireStaff();
+  const session = await requireStaff();
   const rows = await db
     .select({
       recordId: formRecords.id,
@@ -112,6 +118,7 @@ export async function getMedicalReportFormRecord(
     recordId: row.recordId,
     status: row.status,
     updatedAt: row.updatedAt.toISOString(),
+    savedSignatureUrl: await getSavedSignatureUrl(session.user.id),
     data: medicalReportDataSchema.parse(row.data),
     patient: {
       id: row.patientId,

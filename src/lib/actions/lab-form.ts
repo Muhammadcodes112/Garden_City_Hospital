@@ -14,11 +14,13 @@ import {
 import { draftPatientSchema, patientSchema, type PatientInput } from "@/lib/validators/patient";
 import { createDraftPatient } from "@/lib/actions/patients";
 import { buildSearchText } from "@/lib/search";
+import { getSavedSignatureUrl } from "@/lib/signature";
 
 export type LabFormBundle = {
   recordId: string;
   status: "draft" | "completed";
   updatedAt: string;
+  savedSignatureUrl: string | null;
   patient: {
     id: string;
     surname: string;
@@ -36,6 +38,10 @@ export async function createLabDraftRecord(): Promise<{ recordId: string }> {
   const session = await requireStaff();
   const { patientId } = await createDraftPatient();
   const data = defaultLabRequestData();
+  const savedSignatureUrl = await getSavedSignatureUrl(session.user.id);
+  if (savedSignatureUrl) {
+    data.doctorSignature = { mode: "image", data: savedSignatureUrl };
+  }
   const patientRow = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
   const searchText = patientRow[0] ? buildSearchText(patientRow[0], data, "lab") : "";
 
@@ -69,7 +75,7 @@ export async function createLabDraftRecord(): Promise<{ recordId: string }> {
 }
 
 export async function getLabFormRecord(recordId: string): Promise<LabFormBundle | null> {
-  await requireStaff();
+  const session = await requireStaff();
   const rows = await db
     .select({
       recordId: formRecords.id,
@@ -97,6 +103,7 @@ export async function getLabFormRecord(recordId: string): Promise<LabFormBundle 
     recordId: row.recordId,
     status: row.status,
     updatedAt: row.updatedAt.toISOString(),
+    savedSignatureUrl: await getSavedSignatureUrl(session.user.id),
     data: labRequestDataSchema.parse(row.data),
     patient: {
       id: row.patientId,

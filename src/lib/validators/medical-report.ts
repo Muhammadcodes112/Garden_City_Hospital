@@ -49,7 +49,7 @@ export const medicalReportDataSchema = z.object({
   doctorDesignation: z.string().default("Medical Officer"),
   doctorSignature: z
     .object({
-      mode: z.enum(["draw", "type"]).default("draw"),
+      mode: z.enum(["draw", "type", "image"]).default("draw"),
       data: z.string().default(""),
     })
     .default({ mode: "draw", data: "" }),

@@ -83,3 +83,28 @@ export async function listRecentFormRecords(limit = 50): Promise<RecentFormRow[]
     .orderBy(desc(formRecords.updatedAt))
     .limit(limit);
 }
+
+export type RecentPatientFileRow = {
+  id: string;
+  surname: string;
+  firstNames: string;
+  hospitalNumber: string;
+  status: string | null;
+  updatedAt: Date;
+};
+
+/** Every patient case file created/updated, newest first — shown on the dashboard by default. */
+export async function listRecentPatientFiles(limit = 50): Promise<RecentPatientFileRow[]> {
+  return db
+    .select({
+      id: patients.id,
+      surname: patients.surname,
+      firstNames: patients.firstNames,
+      hospitalNumber: patients.hospitalNumber,
+      status: patients.status,
+      updatedAt: patients.updatedAt,
+    })
+    .from(patients)
+    .orderBy(desc(patients.updatedAt))
+    .limit(limit);
+}

@@ -155,7 +155,7 @@ export function PrescriptionLetterheadPreview({ patient, data, isDraft }: Props)
 
           <div>
             {data.prescriberSignature?.data ? (
-              data.prescriberSignature.mode === "draw" ? (
+              data.prescriberSignature.mode !== "type" ? (
                 <img src={data.prescriberSignature.data} alt="Sig" className="h-8 max-w-[140px] mb-1" />
               ) : (
                 <div className="font-serif italic text-blue-900 font-bold text-sm mb-1">

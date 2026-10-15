@@ -490,6 +490,7 @@ export function MedicalReportEditor({ initial }: Props) {
                     }))
                   }
                   disabled={readOnly}
+                  savedSignatureUrl={initial.savedSignatureUrl}
                 />
               </div>
 

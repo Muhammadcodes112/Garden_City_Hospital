@@ -376,6 +376,7 @@ export function LabFormEditor({ initial }: Props) {
                 value={data.doctorSignature}
                 onChange={(doctorSignature) => setData((d) => ({ ...d, doctorSignature }))}
                 disabled={readOnly}
+                savedSignatureUrl={initial.savedSignatureUrl}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>

@@ -19,7 +19,7 @@ function escapeHtml(s: string) {
 
 function signatureHtml(sig: MedicalReportData["doctorSignature"]) {
   if (!sig?.data) return "";
-  if (sig.mode === "draw") {
+  if (sig.mode !== "type") {
     return `<img src="${sig.data}" alt="Signature" class="sig-img" />`;
   }
   return `<span class="sig-text">${escapeHtml(sig.data)}</span>`;

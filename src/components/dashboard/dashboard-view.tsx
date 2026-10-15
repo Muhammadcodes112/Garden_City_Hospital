@@ -29,26 +29,102 @@ export type RecentFormItem = {
   hospitalNumber: string;
 };
 
+export type RecentPatientFileItem = {
+  id: string;
+  surname: string;
+  firstNames: string;
+  hospitalNumber: string;
+  status: string;
+  updatedAt: string;
+};
+
 type Props = {
   userName: string;
   todayLabel: string;
   stats: DashboardStats;
   recentForms: RecentFormItem[];
+  recentPatientFiles: RecentPatientFileItem[];
 };
 
-export function DashboardView({ userName, todayLabel, stats, recentForms }: Props) {
+type RecentFilter = "patient_file" | "lab" | "prescription" | "medical_report" | "all";
+
+const RECENT_FILTER_LABELS: Record<RecentFilter, string> = {
+  patient_file: "Patient File",
+  lab: "Lab Request",
+  prescription: "Prescription",
+  medical_report: "Medical Report",
+  all: "All Files",
+};
+
+/** A row shape both patient files and forms can be rendered through, so the dashboard list can show either. */
+type UnifiedRow = {
+  id: string;
+  typeLabel: string;
+  statusLabel: string;
+  statusVariant: "draft" | "completed" | "secondary";
+  updatedAt: string;
+  surname: string;
+  firstNames: string;
+  hospitalNumber: string;
+  href: string;
+  actionLabel: string;
+};
+
+function patientFileToRow(row: RecentPatientFileItem): UnifiedRow {
+  return {
+    id: row.id,
+    typeLabel: "Patient File",
+    statusLabel: row.status || "Outpatient",
+    statusVariant: "secondary",
+    updatedAt: row.updatedAt,
+    surname: row.surname,
+    firstNames: row.firstNames,
+    hospitalNumber: row.hospitalNumber,
+    href: `/patients?open=${row.id}`,
+    actionLabel: "Open file",
+  };
+}
+
+function formToRow(row: RecentFormItem): UnifiedRow {
+  const isDraft = row.status === "draft";
+  return {
+    id: row.id,
+    typeLabel: FORM_TYPE_LABELS[row.type],
+    statusLabel: isDraft ? "Draft" : "Completed",
+    statusVariant: isDraft ? "draft" : "completed",
+    updatedAt: row.updatedAt,
+    surname: row.surname,
+    firstNames: row.firstNames,
+    hospitalNumber: row.hospitalNumber,
+    href: formEditHref(row.type, row.id),
+    actionLabel: isDraft ? "Continue" : "View",
+  };
+}
+
+export function DashboardView({ userName, todayLabel, stats, recentForms, recentPatientFiles }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<RecentFilter>("patient_file");
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+
+  const rows = useMemo<UnifiedRow[]>(() => {
+    if (typeFilter === "patient_file") return recentPatientFiles.map(patientFileToRow);
+    if (typeFilter === "all") {
+      return [...recentPatientFiles.map(patientFileToRow), ...recentForms.map(formToRow)].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+    }
+    return recentForms.filter((row) => row.type === typeFilter).map(formToRow);
+  }, [typeFilter, recentForms, recentPatientFiles]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return recentForms;
-    return recentForms.filter((row) => {
+    if (!q) return rows;
+    return rows.filter((row) => {
       const name = `${row.surname} ${row.firstNames}`.toLowerCase();
       return name.includes(q) || row.hospitalNumber.toLowerCase().includes(q);
     });
-  }, [query, recentForms]);
+  }, [query, rows]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,18 +176,32 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
       />
 
       <Card>
-        <CardHeader className="gap-4 space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Recent forms</CardTitle>
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by name or hospital no."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
-              aria-label="Search recent forms by patient name or hospital number"
-            />
+        <CardHeader className="gap-3 space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle>Recent files</CardTitle>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as RecentFilter)}
+              aria-label="Filter recent files by type"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {Object.entries(RECENT_FILTER_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by name or hospital no."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+                aria-label="Search recent files by patient name or hospital number"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -125,7 +215,7 @@ export function DashboardView({ userName, todayLabel, stats, recentForms }: Prop
                     <tr className="border-b border-border text-muted-foreground">
                       <th className="pb-2 pr-4 font-medium">Patient</th>
                       <th className="pb-2 pr-4 font-medium">Hospital no.</th>
-                      <th className="pb-2 pr-4 font-medium">Form type</th>
+                      <th className="pb-2 pr-4 font-medium">File type</th>
                       <th className="pb-2 pr-4 font-medium">Status</th>
                       <th className="pb-2 pr-4 font-medium">Last updated</th>
                       <th className="pb-2 font-medium">Actions</th>
@@ -255,25 +345,22 @@ function RecentRow({
   row,
   layout,
 }: {
-  row: RecentFormItem;
+  row: UnifiedRow;
   layout: "table" | "card";
 }) {
   const patientName = `${row.surname} ${row.firstNames}`;
-  const typeLabel = FORM_TYPE_LABELS[row.type];
   const updated = formatDate(row.updatedAt);
-  const isDraft = row.status === "draft";
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
-      {isDraft ? (
-        <Button asChild size="sm" variant="default" className="text-xs h-8">
-          <Link href={formEditHref(row.type, row.id)}>Continue</Link>
-        </Button>
-      ) : (
-        <Button asChild size="sm" variant="outline" className="text-xs h-8">
-          <Link href={formEditHref(row.type, row.id)}>View</Link>
-        </Button>
-      )}
+      <Button
+        asChild
+        size="sm"
+        variant={row.statusVariant === "draft" ? "default" : "outline"}
+        className="text-xs h-8"
+      >
+        <Link href={row.href}>{row.actionLabel}</Link>
+      </Button>
     </div>
   );
 
@@ -285,14 +372,12 @@ function RecentRow({
             <p className="font-medium text-foreground">{patientName}</p>
             <p className="text-xs text-muted-foreground">{row.hospitalNumber}</p>
           </div>
-          <Badge variant={isDraft ? "draft" : "completed"}>
-            {isDraft ? "Draft" : "Completed"}
-          </Badge>
+          <Badge variant={row.statusVariant}>{row.statusLabel}</Badge>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
           <div>
-            <dt className="font-medium text-foreground/80">Form</dt>
-            <dd>{typeLabel}</dd>
+            <dt className="font-medium text-foreground/80">File</dt>
+            <dd>{row.typeLabel}</dd>
           </div>
           <div>
             <dt className="font-medium text-foreground/80">Updated</dt>
@@ -308,11 +393,9 @@ function RecentRow({
     <tr className="border-b border-border last:border-0">
       <td className="py-3 pr-4 font-medium text-foreground">{patientName}</td>
       <td className="py-3 pr-4 text-muted-foreground">{row.hospitalNumber}</td>
-      <td className="py-3 pr-4">{typeLabel}</td>
+      <td className="py-3 pr-4">{row.typeLabel}</td>
       <td className="py-3 pr-4">
-        <Badge variant={isDraft ? "draft" : "completed"}>
-          {isDraft ? "Draft" : "Completed"}
-        </Badge>
+        <Badge variant={row.statusVariant}>{row.statusLabel}</Badge>
       </td>
       <td className="py-3 pr-4 text-muted-foreground">{updated}</td>
       <td className="py-3">{actions}</td>
@@ -325,12 +408,12 @@ function EmptyRecent({ hasQuery }: { hasQuery: boolean }) {
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-6 py-12 text-center">
       <FileText className="h-10 w-10 text-muted-foreground/60" />
       <p className="mt-3 text-sm font-medium text-foreground">
-        {hasQuery ? "No forms match your search" : "No forms yet"}
+        {hasQuery ? "No files match your search" : "No files yet"}
       </p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         {hasQuery
           ? "Try a different patient name or hospital number."
-          : "Create a lab request, prescription, or medical report to see it here."}
+          : "Register a patient, or create a lab request, prescription, or medical report to see it here."}
       </p>
     </div>
   );

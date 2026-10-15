@@ -139,7 +139,7 @@ export function MedicalReportLetterheadPreview({ patient, data, isDraft }: Props
           <HospitalStamp className="absolute -top-16 right-4" />
           <div>
             {data.doctorSignature?.data ? (
-              data.doctorSignature.mode === "draw" ? (
+              data.doctorSignature.mode !== "type" ? (
                 <img src={data.doctorSignature.data} alt="Sig" className="h-8 max-w-[140px] mb-1" />
               ) : (
                 <div className="font-serif italic text-blue-900 font-bold text-sm mb-1">

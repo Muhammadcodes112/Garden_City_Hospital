@@ -4,7 +4,7 @@ import { ALL_LAB_TESTS } from "@/lib/lab-tests/catalog";
 const validTestIds = new Set(ALL_LAB_TESTS.map((t) => t.id));
 
 export const doctorSignatureSchema = z.object({
-  mode: z.enum(["draw", "type"]),
+  mode: z.enum(["draw", "type", "image"]),
   data: z.string(),
 });
 

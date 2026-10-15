@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Moon, Sun } from "lucide-react";
+import { LogOut, Moon, PenTool, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { initialsFromName } from "@/lib/brand";
 import { useTheme } from "@/components/theme/theme-provider";
+import { SignatureSettingsModal } from "@/components/account/signature-settings-modal";
 
-export function UserMenu({ userName, userEmail }: { userName: string; userEmail: string }) {
+export function UserMenu({
+  userName,
+  userEmail,
+  initialSignatureUrl = null,
+}: {
+  userName: string;
+  userEmail: string;
+  initialSignatureUrl?: string | null;
+}) {
   const [open, setOpen] = useState(false);
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState(initialSignatureUrl);
   const rootRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -76,6 +87,18 @@ export function UserMenu({ userName, userEmail }: { userName: string; userEmail:
           <button
             type="button"
             role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+            onClick={() => {
+              setOpen(false);
+              setSignatureModalOpen(true);
+            }}
+          >
+            <PenTool className="h-4 w-4" />
+            My signature
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
             onClick={handleSignOut}
           >
@@ -84,6 +107,13 @@ export function UserMenu({ userName, userEmail }: { userName: string; userEmail:
           </button>
         </div>
       ) : null}
+
+      <SignatureSettingsModal
+        open={signatureModalOpen}
+        onOpenChange={setSignatureModalOpen}
+        signatureUrl={signatureUrl}
+        onUpdated={setSignatureUrl}
+      />
     </div>
   );
 }

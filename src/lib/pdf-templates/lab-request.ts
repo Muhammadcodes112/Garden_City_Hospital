@@ -74,7 +74,7 @@ function renderColumn(blocks: (typeof LAB_FORM_COLUMNS)[0]["blocks"], selected: 
 
 function signatureHtml(sig: LabRequestData["doctorSignature"]) {
   if (!sig?.data) return "";
-  if (sig.mode === "draw") {
+  if (sig.mode !== "type") {
     return `<img src="${sig.data}" alt="Signature" class="sig-img" />`;
   }
   return escapeHtml(sig.data);

@@ -14,11 +14,13 @@ import {
 import { draftPatientSchema, patientSchema, type PatientInput } from "@/lib/validators/patient";
 import { createDraftPatient } from "@/lib/actions/patients";
 import { buildSearchText } from "@/lib/search";
+import { getSavedSignatureUrl } from "@/lib/signature";
 
 export type PrescriptionFormBundle = {
   recordId: string;
   status: "draft" | "completed";
   updatedAt: string;
+  savedSignatureUrl: string | null;
   patient: {
     id: string;
     surname: string;
@@ -36,6 +38,10 @@ export async function createPrescriptionDraftRecord(): Promise<{ recordId: strin
   const session = await requireStaff();
   const { patientId } = await createDraftPatient();
   const data = defaultPrescriptionData();
+  const savedSignatureUrl = await getSavedSignatureUrl(session.user.id);
+  if (savedSignatureUrl) {
+    data.prescriberSignature = { mode: "image", data: savedSignatureUrl };
+  }
   const patientRow = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
   const searchText = patientRow[0] ? buildSearchText(patientRow[0], data, "prescription") : "";
 
@@ -71,7 +77,7 @@ export async function createPrescriptionDraftRecord(): Promise<{ recordId: strin
 export async function getPrescriptionFormRecord(
   recordId: string,
 ): Promise<PrescriptionFormBundle | null> {
-  await requireStaff();
+  const session = await requireStaff();
   const rows = await db
     .select({
       recordId: formRecords.id,
@@ -99,6 +105,7 @@ export async function getPrescriptionFormRecord(
     recordId: row.recordId,
     status: row.status,
     updatedAt: row.updatedAt.toISOString(),
+    savedSignatureUrl: await getSavedSignatureUrl(session.user.id),
     data: prescriptionDataSchema.parse(row.data),
     patient: {
       id: row.patientId,

@@ -52,7 +52,7 @@ function formatPrescriptionItem(item: PrescriptionItem, index: number): string {
 
 function signatureHtml(sig: PrescriptionData["prescriberSignature"]) {
   if (!sig?.data) return "";
-  if (sig.mode === "draw") {
+  if (sig.mode !== "type") {
     return `<img src="${sig.data}" alt="Signature" class="sig-img" />`;
   }
   return escapeHtml(sig.data);

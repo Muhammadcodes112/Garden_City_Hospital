@@ -41,6 +41,11 @@ export const user = pgTable(
     promotedBy: text("promoted_by"),
     promotedAt: timestamp("promoted_at"),
     roleChangedReason: text("role_changed_reason"),
+    // Doctor/staff signature image, uploaded once from the account menu and
+    // reused automatically on every new form they create (see createLabDraftRecord,
+    // createPrescriptionDraftRecord, createMedicalReportDraftRecord).
+    signatureUrl: text("signature_url"),
+    signatureUpdatedAt: timestamp("signature_updated_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

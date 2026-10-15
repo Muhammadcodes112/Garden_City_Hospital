@@ -10,10 +10,18 @@ type Props = {
   value: LabRequestData["doctorSignature"];
   onChange: (value: LabRequestData["doctorSignature"]) => void;
   disabled?: boolean;
+  /** The signature image saved on the current user's account, if any (see "My signature" in the account menu). */
+  savedSignatureUrl?: string | null;
 };
 
-export function SignaturePad({ value, onChange, disabled }: Props) {
-  const [mode, setMode] = useState<"draw" | "type">(value?.mode ?? "type");
+export function SignaturePad({ value, onChange, disabled, savedSignatureUrl }: Props) {
+  const [mode, setMode] = useState<"draw" | "type" | "image">(value?.mode ?? "type");
+
+  function useSavedSignature() {
+    if (!savedSignatureUrl) return;
+    setMode("image");
+    onChange({ mode: "image", data: savedSignatureUrl });
+  }
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
 
@@ -68,7 +76,18 @@ export function SignaturePad({ value, onChange, disabled }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {savedSignatureUrl ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "image" ? "default" : "outline"}
+            onClick={useSavedSignature}
+            disabled={disabled}
+          >
+            Use my signature
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"
@@ -88,7 +107,20 @@ export function SignaturePad({ value, onChange, disabled }: Props) {
           Draw signature
         </Button>
       </div>
-      {mode === "type" ? (
+      {mode === "image" ? (
+        <div>
+          <Label>Saved signature</Label>
+          {value?.data ? (
+            <img
+              src={value.data}
+              alt="Saved signature"
+              className="mt-1 h-20 max-w-xs rounded-md border border-border bg-white object-contain p-2"
+            />
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">No saved signature selected.</p>
+          )}
+        </div>
+      ) : mode === "type" ? (
         <div>
           <Label htmlFor="sig-type">Doctor&apos;s signature (typed)</Label>
           <Input

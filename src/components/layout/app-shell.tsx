@@ -18,10 +18,12 @@ import { useMessagesPoll } from "@/hooks/use-messages-poll";
 export function AppShell({
   userName,
   userEmail,
+  initialSignatureUrl = null,
   children,
 }: {
   userName: string;
   userEmail: string;
+  initialSignatureUrl?: string | null;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -104,7 +106,7 @@ export function AppShell({
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <GlobalSearch />
-              <UserMenu userName={userName} userEmail={userEmail} />
+              <UserMenu userName={userName} userEmail={userEmail} initialSignatureUrl={initialSignatureUrl} />
             </div>
           </div>
         </header>

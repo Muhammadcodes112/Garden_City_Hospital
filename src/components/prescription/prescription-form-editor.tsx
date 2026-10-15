@@ -672,6 +672,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
               value={data.prescriberSignature}
               onChange={(sig) => setData((d) => ({ ...d, prescriberSignature: sig }))}
               disabled={readOnly}
+              savedSignatureUrl={initial.savedSignatureUrl}
             />
           </div>
 
