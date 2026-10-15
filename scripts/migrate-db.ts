@@ -625,6 +625,25 @@ async function migrate() {
       END $$;
     `);
 
+    // Medication administration chart (given / not given per dose round).
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS "medication_administrations" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "form_record_id" uuid NOT NULL REFERENCES "public"."form_records"("id") ON DELETE cascade,
+        "item_id" text NOT NULL,
+        "drug_label" text NOT NULL,
+        "date" text NOT NULL,
+        "slot" text NOT NULL,
+        "given" boolean NOT NULL,
+        "reason" text,
+        "recorded_by" text REFERENCES "public"."user"("id"),
+        "recorded_by_name" text NOT NULL,
+        "recorded_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "medication_administrations_dose_unique_idx"
+        ON "medication_administrations" ("form_record_id", "item_id", "date", "slot");
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

@@ -34,6 +34,7 @@ import { logFormDownload, reopenFormRecord } from "@/lib/actions/share";
 import { Download, Share2, Unlock, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PrescriptionLetterheadPreview } from "./prescription-letterhead-preview";
+import { MedicationChart } from "./medication-chart";
 
 type AutosavePayload = {
   patient: PatientFields;
@@ -555,6 +556,8 @@ export function PrescriptionFormEditor({ initial }: Props) {
           <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
         </div>
       </div>
+
+      <MedicationChart recordId={initial.recordId} items={data.items} />
 
       <ShareDialog
         open={shareOpen}

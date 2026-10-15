@@ -565,3 +565,33 @@ export const smsLogs = pgTable(
   ],
 );
 
+
+// ---------------------------------------------------------------------------
+// Medication administration chart: one row per prescribed drug, per day, per
+// dose round, recording whether it was given (and, if not, why) so the next
+// shift can see what has and hasn't been administered. Kept out of the
+// prescription's form JSON so concurrent charting by different staff can't
+// clobber each other via the editor's autosave.
+// ---------------------------------------------------------------------------
+
+export const medicationAdministrations = pgTable(
+  "medication_administrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    formRecordId: uuid("form_record_id")
+      .notNull()
+      .references(() => formRecords.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    drugLabel: text("drug_label").notNull(),
+    date: text("date").notNull(), // YYYY-MM-DD
+    slot: text("slot").notNull(), // morning | afternoon | evening | night
+    given: boolean("given").notNull(),
+    reason: text("reason"),
+    recordedBy: text("recorded_by").references(() => user.id),
+    recordedByName: text("recorded_by_name").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("medication_administrations_dose_unique_idx").on(table.formRecordId, table.itemId, table.date, table.slot),
+  ],
+);
