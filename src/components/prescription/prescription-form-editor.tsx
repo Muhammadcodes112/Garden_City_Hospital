@@ -305,181 +305,14 @@ export function PrescriptionFormEditor({ initial }: Props) {
           ) : null}
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
-                  <th className="p-2 w-8 text-center">#</th>
-                  <th className="p-2 min-w-[180px]">Drug Name</th>
-                  <th className="p-2 w-24">Strength</th>
-                  <th className="p-2 w-28">Form</th>
-                  <th className="p-2 w-24">Dose</th>
-                  <th className="p-2 w-24">Route</th>
-                  <th className="p-2 w-28">Frequency</th>
-                  <th className="p-2 w-24">Duration</th>
-                  <th className="p-2 w-20">Qty</th>
-                  <th className="p-2 min-w-[140px]">Instructions</th>
-                  {!readOnly ? <th className="p-2 w-24 text-center">Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data.items.map((item, index) => (
-                  <tr key={item.id ?? index} className="hover:bg-muted/30">
-                    <td className="p-2 text-center font-medium text-muted-foreground">
-                      {index + 1}
-                    </td>
-                    <td className="p-2">
-                      <DrugInput
-                        value={item.drugName}
-                        onChange={(val) => updateItem(index, "drugName", val)}
-                        onSelectInventoryItem={(inv) => {
-                          setData((prev) => {
-                            const nextItems = [...prev.items];
-                            nextItems[index] = {
-                              ...nextItems[index],
-                              drugName: inv.name,
-                              strength: inv.strength || nextItems[index].strength,
-                              frequency: inv.defaultFrequency || nextItems[index].frequency,
-                              duration: inv.defaultDuration || nextItems[index].duration,
-                              unitPrice: inv.unitPrice,
-                            };
-                            return { ...prev, items: nextItems };
-                          });
-                        }}
-                        disabled={readOnly}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.strength}
-                        onChange={(e) => updateItem(index, "strength", e.target.value)}
-                        placeholder="500mg"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <select
-                        value={item.dosageForm}
-                        onChange={(e) => updateItem(index, "dosageForm", e.target.value)}
-                        disabled={readOnly}
-                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      >
-                        {DOSAGE_FORMS.map((f) => (
-                          <option key={f} value={f}>
-                            {f}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.dose}
-                        onChange={(e) => updateItem(index, "dose", e.target.value)}
-                        placeholder="1 cap"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <select
-                        value={item.route}
-                        onChange={(e) => updateItem(index, "route", e.target.value)}
-                        disabled={readOnly}
-                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      >
-                        {ROUTES.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.frequency}
-                        onChange={(e) => updateItem(index, "frequency", e.target.value)}
-                        placeholder="8-hourly / TDS"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.duration}
-                        onChange={(e) => updateItem(index, "duration", e.target.value)}
-                        placeholder="5 days"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                        placeholder="15"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        value={item.instructions}
-                        onChange={(e) => updateItem(index, "instructions", e.target.value)}
-                        placeholder="After meals"
-                        disabled={readOnly}
-                        className="h-9"
-                      />
-                    </td>
-                    {!readOnly ? (
-                      <td className="p-2 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={index === 0}
-                            onClick={() => moveItem(index, "up")}
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={index === data.items.length - 1}
-                            onClick={() => moveItem(index, "down")}
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive"
-                            onClick={() => removeItem(index)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="space-y-4 lg:hidden">
+          <div className="space-y-4">
             {data.items.map((item, index) => (
               <div
                 key={item.id ?? index}
                 className="rounded-lg border border-border p-4 space-y-3 bg-card"
               >
                 <div className="flex items-center justify-between font-medium">
-                  <span>Drug #{index + 1}</span>
+                  <span>Medication #{index + 1}</span>
                   {!readOnly ? (
                     <div className="flex items-center gap-1">
                       <Button
@@ -536,7 +369,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
                     disabled={readOnly}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2">
                   <div>
                     <Label>Strength</Label>
                     <Input
@@ -561,8 +394,6 @@ export function PrescriptionFormEditor({ initial }: Props) {
                       ))}
                     </select>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label>Dose</Label>
                     <Input
@@ -588,7 +419,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2">
                   <div>
                     <Label>Frequency</Label>
                     <Input
