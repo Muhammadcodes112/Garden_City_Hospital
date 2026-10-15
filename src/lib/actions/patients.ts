@@ -3,9 +3,10 @@
 import { eq, ilike, inArray, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { formRecords, patients } from "@/db/schema";
+import { patients } from "@/db/schema";
 import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { logEvent, type ActorRole } from "@/lib/activity";
+import { deletePatientsCascade } from "@/lib/patient-deletion";
 import { patientSchema, type PatientInput } from "@/lib/validators/patient";
 
 export type PatientRow = {
@@ -95,8 +96,7 @@ export async function bulkDeletePatients(patientIds: string[]): Promise<{ count:
   const actorRole = (session.user as { role?: ActorRole }).role ?? null;
 
   await db.transaction(async (tx) => {
-    await tx.delete(formRecords).where(inArray(formRecords.patientId, patientIds));
-    await tx.delete(patients).where(inArray(patients.id, patientIds));
+    await deletePatientsCascade(tx, rows.map((r) => r.id));
 
     for (const row of rows) {
       await logEvent({

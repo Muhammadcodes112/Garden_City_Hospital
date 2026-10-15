@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { patients, formRecords } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
+import { deletePatientsCascade } from "@/lib/patient-deletion";
 
 export async function GET(
   req: NextRequest,
@@ -90,9 +91,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Delete associated medical form records first to prevent FK constraint errors
-    await db.delete(formRecords).where(eq(formRecords.patientId, id));
-    await db.delete(patients).where(eq(patients.id, id));
+    await db.transaction((tx) => deletePatientsCascade(tx, [id]));
     return NextResponse.json({ success: true, message: "Patient file deleted successfully" });
   } catch (err) {
     console.error("Failed to delete patient:", err);

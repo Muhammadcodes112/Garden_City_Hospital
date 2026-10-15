@@ -117,14 +117,15 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
 
   for (const r of rows) {
     const list = result.get(r.messageId) ?? [];
-    if (r.kind === "form_record" && r.formRecordId) {
-      const fr = formRecordMap.get(r.formRecordId);
+    if (r.kind === "form_record") {
+      // formRecordId is nulled when the record's patient file is hard-deleted.
+      const fr = r.formRecordId ? formRecordMap.get(r.formRecordId) : undefined;
       list.push(
         fr && !fr.deletedAt
           ? {
               kind: "form_record",
               id: r.id,
-              formRecordId: r.formRecordId,
+              formRecordId: r.formRecordId!,
               available: true,
               formType: fr.type,
               status: fr.status,
@@ -132,7 +133,7 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
               hospitalNumber: fr.hospitalNumber,
               updatedAt: fr.updatedAt.toISOString(),
             }
-          : { kind: "form_record", id: r.id, formRecordId: r.formRecordId, available: false },
+          : { kind: "form_record", id: r.id, formRecordId: r.formRecordId ?? "", available: false },
       );
     } else if (r.kind === "share_link" && r.shareLinkId) {
       const sl = shareLinkMap.get(r.shareLinkId);
@@ -155,21 +156,22 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
         fileSize: r.fileSize ?? 0,
         mimeType: r.mimeType ?? "application/octet-stream",
       });
-    } else if (r.kind === "patient_file" && r.patientId) {
-      const pf = patientFileMap.get(r.patientId);
+    } else if (r.kind === "patient_file") {
+      // patientId is nulled when the patient file is hard-deleted.
+      const pf = r.patientId ? patientFileMap.get(r.patientId) : undefined;
       list.push(
         pf
           ? {
               kind: "patient_file",
               id: r.id,
-              patientId: r.patientId,
+              patientId: r.patientId!,
               available: true,
               surname: pf.surname,
               firstNames: pf.firstNames,
               hospitalNumber: pf.hospitalNumber,
               status: pf.status || "Outpatient",
             }
-          : { kind: "patient_file", id: r.id, patientId: r.patientId, available: false },
+          : { kind: "patient_file", id: r.id, patientId: r.patientId ?? "", available: false },
       );
     }
     result.set(r.messageId, list);
