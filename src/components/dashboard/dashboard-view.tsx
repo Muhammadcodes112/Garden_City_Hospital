@@ -134,7 +134,6 @@ export function DashboardView({ userName, todayLabel, stats, recentForms, recent
       <WelcomeBanner
         userName={userName}
         todayLabel={todayLabel}
-        onAddPatient={() => setRegisterModalOpen(true)}
         className="lg:flex-1 lg:min-w-0"
       />
 
@@ -267,12 +266,10 @@ export function DashboardView({ userName, todayLabel, stats, recentForms, recent
 function WelcomeBanner({
   userName,
   todayLabel,
-  onAddPatient,
   className,
 }: {
   userName: string;
   todayLabel: string;
-  onAddPatient?: () => void;
   className?: string;
 }) {
   return (
@@ -301,16 +298,6 @@ function WelcomeBanner({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {onAddPatient && (
-            <Button
-              type="button"
-              onClick={onAddPatient}
-              className="bg-white text-brand-green hover:bg-emerald-50 font-bold shadow-md gap-1.5 text-xs h-8 px-3"
-            >
-              <UserPlus className="h-3.5 w-3.5 text-brand-green" />
-              Add New Patient
-            </Button>
-          )}
           <Image
             src="/brand/logo-mark-dark.svg"
             alt=""
