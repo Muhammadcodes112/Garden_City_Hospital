@@ -543,7 +543,7 @@ export function MedicalReportEditor({ initial }: Props) {
         </div>
 
         {/* RIGHT PANE: LIVE LETTERHEAD PREVIEW (DESKTOP STICKY) */}
-        <div className="hidden lg:block lg:col-span-5 sticky top-6">
+        <div className="hidden lg:block lg:col-span-5 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
           <Card>
             <CardHeader className="py-3">
               <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center justify-between">

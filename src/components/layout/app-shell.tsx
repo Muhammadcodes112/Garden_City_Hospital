@@ -111,7 +111,8 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 p-3 sm:p-4 lg:p-8 min-w-0 overflow-x-hidden">{children}</main>
+        {/* overflow-x-clip, not -hidden: hidden turns <main> into a scroll container, which breaks every position: sticky inside it. */}
+        <main className="flex-1 p-3 sm:p-4 lg:p-8 min-w-0 overflow-x-clip">{children}</main>
       </div>
     </div>
   );

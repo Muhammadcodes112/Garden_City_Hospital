@@ -552,7 +552,7 @@ export function PrescriptionFormEditor({ initial }: Props) {
         </div>
 
         {/* RIGHT PANE: LIVE A4 LETTERHEAD PREVIEW */}
-        <div className="lg:col-span-5 hidden lg:block sticky top-20">
+        <div className="lg:col-span-5 hidden lg:block sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
           <PrescriptionLetterheadPreview patient={patient} data={data} isDraft={!readOnly} />
         </div>
       </div>
