@@ -17,10 +17,10 @@ export function GlobalSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Keyboard shortcut listener: Ctrl+K / Cmd+K
+  // Keyboard shortcut listener: Ctrl+F / Cmd+F (replaces the browser's find-in-page while signed in)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
         setOpen((prev) => !prev);
       }
@@ -72,7 +72,7 @@ export function GlobalSearch() {
           <span>Search records...</span>
         </span>
         <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium opacity-100">
-          <span className="text-xs">⌘</span>K
+          Ctrl F
         </kbd>
       </button>
 
