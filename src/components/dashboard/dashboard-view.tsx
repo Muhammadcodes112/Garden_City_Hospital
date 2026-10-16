@@ -137,8 +137,8 @@ export function DashboardView({ userName, todayLabel, stats, recentForms, recent
         className="lg:flex-1 lg:min-w-0"
       />
 
-      {/* QUICK ACTIONS NEXT TO (DESKTOP) / BELOW (MOBILE) THE WELCOME BANNER FOR EASY REACH */}
-      <section className="lg:w-[380px] lg:shrink-0 lg:flex lg:flex-col lg:justify-center">
+      {/* QUICK ACTIONS: LEFT OF THE WELCOME BANNER ON DESKTOP, BELOW IT ON MOBILE */}
+      <section className="lg:order-first lg:w-[380px] lg:shrink-0 lg:flex lg:flex-col lg:justify-center">
         <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Quick actions
         </h2>
