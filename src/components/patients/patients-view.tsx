@@ -258,7 +258,10 @@ export function PatientsView() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
+      {/* Desktop: left 2/3 = title, filters & list; right 1/3 = patient panel from the very top */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="lg:col-span-2 space-y-6 min-w-0">
       {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 border-b border-border pb-4">
         <div>
@@ -412,10 +415,8 @@ export function PatientsView() {
         </div>
       )}
 
-      {/* MAIN TWO-COLUMN CONTAINER */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN: PATIENTS TABLE */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
           {loading ? (
             <div className="p-16 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
@@ -640,9 +641,11 @@ export function PatientsView() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL */}
+      </div>
+
+        {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL (~20px below the top bar on desktop) */}
         {selectedPatient ? (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4.5 shadow-xs lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4.5 shadow-xs lg:-mt-3 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
             {/* Header Avatar & Name */}
             <div className="flex items-start gap-3.5">
               <div className="h-13 w-13 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-extrabold text-lg flex items-center justify-center shrink-0 shadow-sm ring-4 ring-emerald-500/10">
@@ -915,7 +918,7 @@ export function PatientsView() {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-10 text-center text-xs text-muted-foreground lg:sticky lg:top-20 lg:self-start">
+          <div className="rounded-2xl border border-border bg-card p-10 text-center text-xs text-muted-foreground lg:-mt-3 lg:sticky lg:top-20 lg:self-start">
             Select a patient from the list to view their summary and case file.
           </div>
         )}
