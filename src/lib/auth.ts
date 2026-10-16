@@ -127,7 +127,8 @@ export const auth = betterAuth({
       defaultRole: "patient",
       adminRole: "super_admin",
     }),
-    twoFactor(),
+    // issuer = the account label shown in authenticator apps.
+    twoFactor({ issuer: "Garden City Hospital" }),
   ],
   trustedOrigins: [
     "https://gardencityhospital.vercel.app",

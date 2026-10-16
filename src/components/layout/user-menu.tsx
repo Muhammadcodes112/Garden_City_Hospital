@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Moon, PenTool, Sun } from "lucide-react";
+import { LogOut, Moon, PenTool, ShieldCheck, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { initialsFromName } from "@/lib/brand";
 import { useTheme } from "@/components/theme/theme-provider";
 import { SignatureSettingsModal } from "@/components/account/signature-settings-modal";
+import { TwoFactorSettingsModal } from "@/components/account/two-factor-settings-modal";
 
 export function UserMenu({
   userName,
@@ -20,6 +21,7 @@ export function UserMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [twoFactorModalOpen, setTwoFactorModalOpen] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState(initialSignatureUrl);
   const rootRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -99,6 +101,18 @@ export function UserMenu({
           <button
             type="button"
             role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+            onClick={() => {
+              setOpen(false);
+              setTwoFactorModalOpen(true);
+            }}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Two-factor authentication
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-muted"
             onClick={handleSignOut}
           >
@@ -114,6 +128,7 @@ export function UserMenu({
         signatureUrl={signatureUrl}
         onUpdated={setSignatureUrl}
       />
+      <TwoFactorSettingsModal open={twoFactorModalOpen} onOpenChange={setTwoFactorModalOpen} />
     </div>
   );
 }
