@@ -28,9 +28,9 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
     surname: "",
     firstNames: "",
     age: "",
-    sex: "Male",
+    sex: "",
     dob: "",
-    maritalStatus: "Single",
+    maritalStatus: "",
     phone: "",
     address: "",
     hospitalNumber: "",
@@ -39,16 +39,16 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
     nextOfKinPhone: "",
     nextOfKinAddress: "",
     xRayNumber: "",
-    placeOfOrigin: "Kaduna",
+    placeOfOrigin: "",
     tribe: "",
     occupation: "",
-    religion: "Islam",
-    bloodGroup: "O+",
-    rhesus: "Positive",
-    genotype: "AA",
+    religion: "",
+    bloodGroup: "",
+    rhesus: "",
+    genotype: "",
     allergies: "",
     status: "Outpatient",
-    doctor: "Dr. Amir Ahmed Ibrahim",
+    doctor: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,9 +83,9 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
           surname: "",
           firstNames: "",
           age: "",
-          sex: "Male",
+          sex: "",
           dob: "",
-          maritalStatus: "Single",
+          maritalStatus: "",
           phone: "",
           address: "",
           hospitalNumber: "",
@@ -94,16 +94,16 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
           nextOfKinPhone: "",
           nextOfKinAddress: "",
           xRayNumber: "",
-          placeOfOrigin: "Kaduna",
+          placeOfOrigin: "",
           tribe: "",
           occupation: "",
-          religion: "Islam",
-          bloodGroup: "O+",
-          rhesus: "Positive",
-          genotype: "AA",
+          religion: "",
+          bloodGroup: "",
+          rhesus: "",
+          genotype: "",
           allergies: "",
           status: "Outpatient",
-          doctor: "Dr. Amir Ahmed Ibrahim",
+          doctor: "",
         });
       } else {
         const data = await res.json();
@@ -178,6 +178,7 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 onChange={(e) => setForm({ ...form, sex: e.target.value })}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
               >
+                <option value="">Select…</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
@@ -189,6 +190,7 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 onChange={(e) => setForm({ ...form, maritalStatus: e.target.value })}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
               >
+                <option value="">Select…</option>
                 <option value="Single">Single</option>
                 <option value="Married">Married</option>
                 <option value="Widowed">Widowed</option>
@@ -269,6 +271,7 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
               >
+                <option value="">Unknown / not tested</option>
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
                 <option value="A+">A+</option>
@@ -286,6 +289,7 @@ export function RegisterPatientModal({ open, onOpenChange, onRegistered }: Props
                 onChange={(e) => setForm({ ...form, genotype: e.target.value })}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 text-xs"
               >
+                <option value="">Unknown / not tested</option>
                 <option value="AA">AA</option>
                 <option value="AS">AS</option>
                 <option value="SS">SS</option>

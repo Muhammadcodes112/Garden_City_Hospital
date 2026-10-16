@@ -117,9 +117,9 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
     surname: patient.surname || "",
     firstNames: patient.firstNames || "",
     age: patient.age || "",
-    sex: patient.sex || "Male",
+    sex: patient.sex || "",
     dob: patient.dob || "",
-    maritalStatus: patient.maritalStatus || "Single",
+    maritalStatus: patient.maritalStatus || "",
     phone: patient.phone || "",
     address: patient.address || "",
     hospitalNumber: patient.hospitalNumber || "",
@@ -132,21 +132,17 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
     tribe: patient.tribe || "",
     occupation: patient.occupation || "",
     religion: patient.religion || "",
-    bloodGroup: patient.bloodGroup || "O+",
-    rhesus: patient.rhesus || "Positive",
-    genotype: patient.genotype || "AA",
+    bloodGroup: patient.bloodGroup || "",
+    rhesus: patient.rhesus || "",
+    genotype: patient.genotype || "",
     allergies: patient.allergies || "",
     status: patient.status || "Outpatient",
     doctor: patient.doctor || "",
     caseFolderPreparedBy: patient.caseFileData?.caseFolderPreparedBy || "Medical Records Officer",
     hasOperations: Boolean(patient.caseFileData?.hasOperations),
-    hospitalHistory: patient.caseFileData?.hospitalHistory || [
-      { dateAttended: "2026-09-20", referredBy: "Dr. Ahmed", physician: "Dr. Ibrahim", wardClinic: "GOPD", dateDischarged: "2026-09-22", disposal: "Discharged Home", assetpay: "Paid" },
-    ],
+    hospitalHistory: patient.caseFileData?.hospitalHistory || [],
     clinicalNotes: patient.caseFileData?.clinicalNotes || [],
-    diagnoses: patient.caseFileData?.diagnoses || [
-      { date: "2026-09-20", diagnosis: "Acute Febrile Illness / Malaria", code: "A75.9" },
-    ],
+    diagnoses: patient.caseFileData?.diagnoses || [],
     operations: patient.caseFileData?.operations || [],
     operationConsents: patient.caseFileData?.operationConsents || [
       { surgeonName: "", procedureName: "", consentDate: "", patientSignature: "", witnessName: "", witnessSignature: "" },
@@ -673,6 +669,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                         onChange={(e) => setFormData({ ...formData, sex: e.target.value })}
                         className="h-8 rounded border border-pink-300 bg-white text-xs px-2"
                       >
+                        <option value="">—</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>
@@ -681,13 +678,14 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                         onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
                         className="h-8 rounded border border-pink-300 bg-white text-xs px-2"
                       >
+                        <option value="">—</option>
                         <option value="Single">Single</option>
                         <option value="Married">Married</option>
                         <option value="Widowed">Widowed</option>
                       </select>
                     </div>
                   ) : (
-                    <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.sex} · {formData.maritalStatus}</p>
+                    <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.sex || "—"} · {formData.maritalStatus || "—"}</p>
                   )}
                 </div>
 
@@ -742,27 +740,27 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 border-b-2 border-pink-300 pb-4">
                 <div>
                   <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">Place of Origin:</span>
-                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.placeOfOrigin || "Kaduna"}</p>
+                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.placeOfOrigin || "N/A"}</p>
                 </div>
 
                 <div>
                   <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">Tribe:</span>
-                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.tribe || "Hausa"}</p>
+                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.tribe || "N/A"}</p>
                 </div>
 
                 <div>
                   <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">Occupation:</span>
-                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.occupation || "Civil Servant"}</p>
+                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.occupation || "N/A"}</p>
                 </div>
 
                 <div>
                   <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">Religion:</span>
-                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.religion || "Islam"}</p>
+                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.religion || "N/A"}</p>
                 </div>
 
                 <div>
                   <span className="font-bold text-pink-950 uppercase tracking-wider text-[10px]">X-Ray Number:</span>
-                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.xRayNumber || "XR-9921"}</p>
+                  <p className="font-medium text-slate-900 border-b border-pink-400/60 pb-1">{formData.xRayNumber || "N/A"}</p>
                 </div>
               </div>
 
@@ -792,6 +790,11 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-pink-200">
+                      {formData.hospitalHistory.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-3 text-center text-slate-400 italic">No visits or admissions recorded</td>
+                        </tr>
+                      )}
                       {formData.hospitalHistory.map((row: any, idx: number) => (
                         <tr key={idx}>
                           <td className="p-2 font-medium">{row.dateAttended}</td>
@@ -914,6 +917,11 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-pink-200">
+                      {formData.diagnoses.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="p-3 text-center text-slate-400 italic">No diagnoses recorded</td>
+                        </tr>
+                      )}
                       {formData.diagnoses.map((row: any, idx: number) => (
                         <tr key={idx}>
                           <td className="p-2 font-medium">{row.date}</td>
@@ -983,7 +991,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                       />
                     ) : (
                       <p className="font-bold text-red-700 text-xs mt-0.5">
-                        {formData.allergies || "No Known Medical Allergies (NKDA)"}
+                        {formData.allergies || "Not recorded"}
                       </p>
                     )}
                   </div>
@@ -992,11 +1000,11 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                 <div className="flex items-center gap-4 border-t md:border-t-0 md:border-l border-red-200 pt-2 md:pt-0 md:pl-4">
                   <div>
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Blood Group / Rhesus:</span>
-                    <p className="font-bold text-xs text-slate-900">{formData.bloodGroup} ({formData.rhesus})</p>
+                    <p className="font-bold text-xs text-slate-900">{formData.bloodGroup || "Not recorded"}{formData.rhesus ? ` (${formData.rhesus})` : ""}</p>
                   </div>
                   <div>
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Hb / Genotype:</span>
-                    <p className="font-bold text-xs text-slate-900">{formData.genotype}</p>
+                    <p className="font-bold text-xs text-slate-900">{formData.genotype || "Not recorded"}</p>
                   </div>
                 </div>
               </div>

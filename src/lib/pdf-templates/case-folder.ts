@@ -464,13 +464,13 @@ export function caseFolderPdfHtml(opts: {
         </td>
         <td>
           <div class="p2-lbl">Address of Next of Kin</div>
-          <div class="p2-val">${escapeHtml(patient.nextOfKinAddress || "Same as patient")}</div>
+          <div class="p2-val">${escapeHtml(patient.nextOfKinAddress || "N/A")}</div>
         </td>
       </tr>
       <tr>
         <td>
           <div class="p2-lbl">Place of Origin</div>
-          <div class="p2-val">${escapeHtml(patient.placeOfOrigin || "Kaduna")}</div>
+          <div class="p2-val">${escapeHtml(patient.placeOfOrigin || "N/A")}</div>
         </td>
         <td>
           <div class="p2-lbl">Tribe / Occupation / Religion</div>
@@ -546,11 +546,11 @@ export function caseFolderPdfHtml(opts: {
   <div class="bottom-box-grid">
     <div class="alert-box">
       <div class="lbl">IMPORTANT: Sensitive / Allergic to:</div>
-      <div class="val">${escapeHtml(patient.allergies || "No Known Medical Allergies (NKDA)")}</div>
+      <div class="val">${escapeHtml(patient.allergies || "Not recorded")}</div>
     </div>
     <div class="blood-box">
       <div class="p2-lbl">Blood Group / Rhesus</div>
-      <div class="p2-val">${escapeHtml(patient.bloodGroup || "N/A")} (${escapeHtml(patient.rhesus || "")})</div>
+      <div class="p2-val">${escapeHtml(patient.bloodGroup || "N/A")}${patient.rhesus ? ` (${escapeHtml(patient.rhesus)})` : ""}</div>
     </div>
     <div class="blood-box">
       <div class="p2-lbl">Hb / Genotype</div>
