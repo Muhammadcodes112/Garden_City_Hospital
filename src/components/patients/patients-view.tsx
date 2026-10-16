@@ -260,7 +260,7 @@ export function PatientsView() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 border-b border-border pb-4">
         <div>
           <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Clinical Records</span>
           <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-3">
@@ -642,7 +642,7 @@ export function PatientsView() {
 
         {/* RIGHT COLUMN: SELECTED PATIENT SUMMARY PANEL */}
         {selectedPatient ? (
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4.5 shadow-xs">
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4.5 shadow-xs lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
             {/* Header Avatar & Name */}
             <div className="flex items-start gap-3.5">
               <div className="h-13 w-13 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-extrabold text-lg flex items-center justify-center shrink-0 shadow-sm ring-4 ring-emerald-500/10">
@@ -663,6 +663,67 @@ export function PatientsView() {
                   <Badge variant="secondary" className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
                     Genotype {selectedPatient.genotype || "AA"}
                   </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* ACTIONS: everything clickable grouped at the top for quick access */}
+            <div className="space-y-2.5">
+              <Button
+                onClick={() => setShowCaseFileModal(true)}
+                className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs rounded-xl"
+              >
+                <FolderOpen className="h-4 w-4" /> Open Full Record / Case File
+              </Button>
+              {/* ULTRA-COOL HOVER CONFIRM BUTTON */}
+              {selectedPatient.paymentStatus === "paid" ? (
+                <Button
+                  size="sm"
+                  onClick={() => setCashierModalPatient(selectedPatient)}
+                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-black text-xs shadow-md shadow-emerald-700/25 hover:shadow-xl hover:shadow-emerald-700/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-emerald-400/40"
+                >
+                  {/* Shimmer sweep effect on hover */}
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    <CreditCard className="h-4 w-4 transition-transform duration-300 ease-out group-hover:scale-125 group-hover:-rotate-6" />
+                    <span className="tracking-wide">Update Payment / View Receipt</span>
+                  </span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setCashierModalPatient(selectedPatient)}
+                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white font-black text-xs shadow-md shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-amber-400/40"
+                >
+                  {/* Shimmer sweep effect on hover */}
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 stroke-[2.5] transition-transform duration-300 ease-out group-hover:scale-125 group-hover:rotate-6" />
+                    <span className="tracking-wide">Confirm Payment (Cashier Desk)</span>
+                  </span>
+                </Button>
+              )}
+              {/* Quick Form Actions for This Patient */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-muted-foreground block uppercase tracking-wider">
+                  New Form for this Patient
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
+                    <Link href={`/lab?patientId=${selectedPatient.id}`}>
+                      <FlaskConical className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Lab request
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
+                    <Link href={`/prescription?patientId=${selectedPatient.id}`}>
+                      <Pill className="h-3.5 w-3.5 mr-1 text-blue-600" /> Rx
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
+                    <Link href={`/medical-report?patientId=${selectedPatient.id}`}>
+                      <FileText className="h-3.5 w-3.5 mr-1 text-amber-600" /> Report
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -801,35 +862,6 @@ export function PatientsView() {
                   </Button>
                 </div>
               )}
-
-              {/* ULTRA-COOL HOVER CONFIRM BUTTON */}
-              {selectedPatient.paymentStatus === "paid" ? (
-                <Button
-                  size="sm"
-                  onClick={() => setCashierModalPatient(selectedPatient)}
-                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-black text-xs shadow-md shadow-emerald-700/25 hover:shadow-xl hover:shadow-emerald-700/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-emerald-400/40"
-                >
-                  {/* Shimmer sweep effect on hover */}
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
-                  <span className="relative flex items-center justify-center gap-2">
-                    <CreditCard className="h-4 w-4 transition-transform duration-300 ease-out group-hover:scale-125 group-hover:-rotate-6" />
-                    <span className="tracking-wide">Update Payment / View Receipt</span>
-                  </span>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => setCashierModalPatient(selectedPatient)}
-                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white font-black text-xs shadow-md shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-amber-400/40"
-                >
-                  {/* Shimmer sweep effect on hover */}
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
-                  <span className="relative flex items-center justify-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 stroke-[2.5] transition-transform duration-300 ease-out group-hover:scale-125 group-hover:rotate-6" />
-                    <span className="tracking-wide">Confirm Payment (Cashier Desk)</span>
-                  </span>
-                </Button>
-              )}
             </div>
 
             {/* Latest Vitals Grid */}
@@ -864,39 +896,8 @@ export function PatientsView() {
               <RecentRecordsList patientId={selectedPatient.id} />
             </div>
 
-            {/* Quick Form Actions for This Patient */}
+            {/* Destructive action kept apart from the everyday buttons at the top */}
             <div className="space-y-2 pt-2 border-t border-border">
-              <span className="text-[10px] font-bold text-muted-foreground block uppercase tracking-wider">
-                New Form for this Patient
-              </span>
-              <div className="grid grid-cols-3 gap-2">
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
-                  <Link href={`/lab?patientId=${selectedPatient.id}`}>
-                    <FlaskConical className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Lab request
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
-                  <Link href={`/prescription?patientId=${selectedPatient.id}`}>
-                    <Pill className="h-3.5 w-3.5 mr-1 text-blue-600" /> Rx
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm" className="h-8 text-[11px] rounded-lg font-semibold shadow-2xs">
-                  <Link href={`/medical-report?patientId=${selectedPatient.id}`}>
-                    <FileText className="h-3.5 w-3.5 mr-1 text-amber-600" /> Report
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-            {/* Primary Action: Open Full Case File Folder */}
-            <div className="space-y-2 pt-1">
-              <Button
-                onClick={() => setShowCaseFileModal(true)}
-                className="w-full bg-brand-green hover:bg-emerald-700 text-white font-bold h-10 gap-2 shadow-xs text-xs rounded-xl"
-              >
-                <FolderOpen className="h-4 w-4" /> Open Full Record / Case File
-              </Button>
-
               {isSuperAdmin ? (
                 <Button
                   variant="outline"
@@ -914,7 +915,7 @@ export function PatientsView() {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-10 text-center text-xs text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-card p-10 text-center text-xs text-muted-foreground lg:sticky lg:top-20 lg:self-start">
             Select a patient from the list to view their summary and case file.
           </div>
         )}
