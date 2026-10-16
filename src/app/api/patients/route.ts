@@ -20,22 +20,23 @@ export async function GET(req: NextRequest) {
     let baseQuery = db.select().from(patients);
     let conditions = [];
 
-    if (q) {
+    // Each word must match some field, so "Ammar Zara" finds first name + surname.
+    for (const word of q.split(/\s+/).filter(Boolean)) {
       conditions.push(
         or(
-          ilike(patients.surname, `%${q}%`),
-          ilike(patients.firstNames, `%${q}%`),
-          ilike(patients.hospitalNumber, `%${q}%`),
-          ilike(patients.phone, `%${q}%`),
-          ilike(patients.doctor, `%${q}%`),
-          ilike(patients.paymentReference, `%${q}%`),
+          ilike(patients.surname, `%${word}%`),
+          ilike(patients.firstNames, `%${word}%`),
+          ilike(patients.hospitalNumber, `%${word}%`),
+          ilike(patients.phone, `%${word}%`),
+          ilike(patients.doctor, `%${word}%`),
+          ilike(patients.paymentReference, `%${word}%`),
         ),
       );
     }
 
     if (statusFilter !== "all") {
       if (statusFilter === "inpatient") {
-        conditions.push(ilike(patients.status, "%Inpatient%") || ilike(patients.status, "%Admitted%"));
+        conditions.push(or(ilike(patients.status, "%Inpatient%"), ilike(patients.status, "%Admitted%")));
       } else if (statusFilter === "outpatient") {
         conditions.push(ilike(patients.status, "%Outpatient%"));
       } else if (statusFilter === "discharged") {

@@ -131,9 +131,9 @@ export async function searchFormRecords(params: SearchRecordsParams) {
   }
 
   // Text search query
-  if (params.query && params.query.trim()) {
-    const q = params.query.trim().toLowerCase();
-    const searchPattern = `%${q}%`;
+  // Each word must match some field, so "Ammar Zara" finds first name + surname.
+  for (const word of (params.query ?? "").trim().toLowerCase().split(/\s+/).filter(Boolean)) {
+    const searchPattern = `%${word}%`;
     conditions.push(
       or(
         ilike(patients.surname, searchPattern),
