@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { db } from "@/db";
-import { patients, formRecords, patientPayments } from "@/db/schema";
+import { patients, formRecords, patientPayments, patientVitals } from "@/db/schema";
 import { and, eq, desc, isNull } from "drizzle-orm";
 import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 import { deletePatientsCascade } from "@/lib/patient-deletion";
@@ -40,10 +40,17 @@ export async function GET(
       .where(eq(patientPayments.patientId, id))
       .orderBy(desc(patientPayments.confirmedAt));
 
+    const vitals = await db
+      .select()
+      .from(patientVitals)
+      .where(eq(patientVitals.patientId, id))
+      .orderBy(desc(patientVitals.recordedAt));
+
     return NextResponse.json({
       patient,
       records,
       payments,
+      vitals,
     });
   } catch (err) {
     console.error("Failed to fetch patient detail:", err);

@@ -45,7 +45,7 @@ import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
 import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
 import { BulkSendPatientFilesPanel } from "@/components/patients/bulk-send-patient-files-panel";
-import { RecentRecordsList } from "@/components/patients/patient-history";
+import { PatientVitals, RecentRecordsList } from "@/components/patients/patient-history";
 import { bulkDeletePatients } from "@/lib/actions/patients";
 import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
@@ -432,7 +432,7 @@ export function PatientsView() {
             <>
               {/* DESKTOP TABLE */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[820px] text-left text-xs">
+                <table className="w-full text-left text-xs">
                   <thead className="bg-muted/50 border-b border-border font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="py-3.5 px-3 w-10 text-center">
@@ -442,12 +442,10 @@ export function PatientsView() {
                           aria-label="Select all patients on this page"
                         />
                       </th>
-                      <th className="py-3.5 px-4 min-w-[190px]">PATIENT</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[90px]">AGE / SEX</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[210px]">PAYMENT STATUS</th>
-                      <th className="py-3.5 px-3 whitespace-nowrap min-w-[110px]">LAST VISIT</th>
-                      <th className="py-3.5 px-3 min-w-[140px]">DOCTOR</th>
-                      <th className="py-3.5 px-4 whitespace-nowrap min-w-[110px]">STATUS</th>
+                      <th className="py-3.5 px-3">PATIENT</th>
+                      <th className="py-3.5 px-3">PAYMENT</th>
+                      <th className="py-3.5 px-3">DOCTOR / LAST VISIT</th>
+                      <th className="py-3.5 px-3">STATUS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -472,31 +470,29 @@ export function PatientsView() {
                             />
                           </td>
                           {/* PATIENT INFO */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-3">
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-2.5">
                               <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs ring-1 ring-emerald-500/20">
                                 {initials}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-bold text-foreground text-xs truncate max-w-[170px]">
+                                <div className="font-bold text-foreground text-xs break-words">
                                   {p.firstNames} {p.surname}
                                 </div>
                                 <div className="text-[11px] text-muted-foreground font-mono">
                                   {p.hospitalNumber || "MRN-PENDING"}
                                 </div>
+                                <div className="text-[11px] text-muted-foreground font-semibold">
+                                  {p.age || "—"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "—"}
+                                </div>
                               </div>
                             </div>
                           </td>
 
-                          {/* AGE / SEX */}
-                          <td className="py-3.5 px-3 text-muted-foreground font-semibold whitespace-nowrap">
-                            {p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}
-                          </td>
-
                           {/* PAYMENT STATUS COLUMN (DISTINCT COMPACT BADGE + PROMINENT CONFIRM BUTTON) */}
-                          <td className="py-3.5 px-3 min-w-[210px] whitespace-nowrap">
+                          <td className="py-3.5 px-3">
                             {p.paymentStatus === "paid" ? (
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-bold text-[11px]">
                                   <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
                                   PAID
@@ -519,7 +515,7 @@ export function PatientsView() {
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold text-[11px]">
                                   <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
                                   PENDING
@@ -540,18 +536,14 @@ export function PatientsView() {
                             )}
                           </td>
 
-                          {/* LAST VISIT */}
-                          <td className="py-3.5 px-3 text-muted-foreground whitespace-nowrap font-medium">
-                            {p.lastVisit || "28 Sep 2026"}
-                          </td>
-
-                          {/* DOCTOR */}
-                          <td className="py-3.5 px-3 text-muted-foreground truncate max-w-[150px]">
-                            {p.doctor || "Dr. Ibrahim Musa"}
+                          {/* DOCTOR / LAST VISIT */}
+                          <td className="py-3.5 px-3 text-muted-foreground">
+                            <div className="font-medium text-foreground break-words">{p.doctor || "—"}</div>
+                            <div className="text-[11px] whitespace-nowrap">{p.lastVisit || "—"}</div>
                           </td>
 
                           {/* STATUS BADGE */}
-                          <td className="py-3.5 px-4 whitespace-nowrap">
+                          <td className="py-3.5 px-3">
                             {getStatusBadge(p.status)}
                           </td>
                         </tr>
@@ -614,9 +606,9 @@ export function PatientsView() {
                           </div>
                         </div>
                         <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground border-t border-border pt-2 font-medium">
-                          <span>{p.age || "28"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "M"}</span>
-                          <span className="truncate">{p.doctor || "Dr. Ibrahim Musa"}</span>
-                          <span className="whitespace-nowrap">{p.lastVisit || "28 Sep 2026"}</span>
+                          <span>{p.age || "—"} · {p.sex ? (p.sex.length === 1 ? p.sex : p.sex[0].toUpperCase()) : "—"}</span>
+                          <span className="truncate">{p.doctor || "—"}</span>
+                          <span className="whitespace-nowrap">{p.lastVisit || "—"}</span>
                         </div>
                       </div>
                     </li>
@@ -656,15 +648,15 @@ export function PatientsView() {
                   {selectedPatient.firstNames} {selectedPatient.surname}
                 </h2>
                 <p className="text-xs text-muted-foreground font-mono font-medium mt-0.5">
-                  {selectedPatient.hospitalNumber} · {selectedPatient.age || "27"} yrs · {selectedPatient.sex || "Female"}
+                  {selectedPatient.hospitalNumber} · {selectedPatient.age ? `${selectedPatient.age} yrs` : "Age —"} · {selectedPatient.sex || "Sex —"}
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {getStatusBadge(selectedPatient.status)}
                   <Badge variant="secondary" className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300">
-                    Blood {selectedPatient.bloodGroup || "B+"}
+                    Blood {selectedPatient.bloodGroup || "—"}
                   </Badge>
                   <Badge variant="secondary" className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
-                    Genotype {selectedPatient.genotype || "AA"}
+                    Genotype {selectedPatient.genotype || "—"}
                   </Badge>
                 </div>
               </div>
@@ -741,7 +733,7 @@ export function PatientsView() {
                   Clinical Allergy Alert
                 </div>
                 <div className="text-xs font-bold text-foreground break-words">
-                  Allergies: {selectedPatient.allergies || "Penicillin"}
+                  Allergies: {selectedPatient.allergies || "Not recorded"}
                 </div>
               </div>
             </div>
@@ -867,31 +859,8 @@ export function PatientsView() {
               )}
             </div>
 
-            {/* Latest Vitals Grid */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-foreground">Latest Vitals</span>
-                <span className="text-[11px] text-muted-foreground font-medium">Today, 09:50</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">BP</span>
-                  <span className="font-black text-xs text-foreground mt-0.5 block">124/80</span>
-                </div>
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">Pulse</span>
-                  <span className="font-black text-xs text-foreground mt-0.5 block">88 bpm</span>
-                </div>
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">Temp</span>
-                  <span className="font-black text-xs text-foreground mt-0.5 block">37.1°C</span>
-                </div>
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">SpO₂</span>
-                  <span className="font-black text-xs text-foreground mt-0.5 block">98%</span>
-                </div>
-              </div>
-            </div>
+            {/* Latest Vitals (recorded readings) */}
+            <PatientVitals patientId={selectedPatient.id} />
 
             {/* Treatment Records (real data, newest first) */}
             <div className="space-y-2 text-xs">

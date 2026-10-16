@@ -621,3 +621,27 @@ export const patientPayments = pgTable(
   },
   (table) => [index("patient_payments_patient_id_idx").on(table.patientId)],
 );
+
+// ---------------------------------------------------------------------------
+// Vital signs: one row per reading so the trend (and who took it, when) is
+// kept. The Patients page shows the latest; the case file shows them all.
+// ---------------------------------------------------------------------------
+
+export const patientVitals = pgTable(
+  "patient_vitals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    bloodPressure: text("blood_pressure"), // e.g. "120/80"
+    pulse: integer("pulse"), // bpm
+    temperature: text("temperature"), // °C, kept as entered e.g. "37.2"
+    spo2: integer("spo2"), // %
+    notes: text("notes"),
+    recordedBy: text("recorded_by").references(() => user.id),
+    recordedByName: text("recorded_by_name").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("patient_vitals_patient_recorded_idx").on(table.patientId, table.recordedAt)],
+);

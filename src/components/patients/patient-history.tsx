@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, FlaskConical, Loader2, Pill, CreditCard, ExternalLink } from "lucide-react";
+import { FileText, FlaskConical, Loader2, Pill, CreditCard, ExternalLink, Activity, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { recordVitals } from "@/lib/actions/vitals";
 import { FORM_TYPE_LABELS } from "@/lib/routes";
 import { formatDate } from "@/lib/date";
 import type { FormType } from "@/lib/validators/form-data";
@@ -29,6 +35,22 @@ type HistoryPayment = {
   confirmedAt: string;
   revertedAt: string | null;
 };
+
+type HistoryVitals = {
+  id: string;
+  bloodPressure: string | null;
+  pulse: number | null;
+  temperature: string | null;
+  spo2: number | null;
+  notes: string | null;
+  recordedByName: string;
+  recordedAt: string;
+};
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${formatDate(d)} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
 
 const TYPE_ICONS: Record<FormType, typeof Pill> = {
   prescription: Pill,
@@ -71,6 +93,7 @@ function formatNaira(amount: string | null): string {
 export function usePatientHistory(patientId: string, refreshKey = 0) {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [payments, setPayments] = useState<HistoryPayment[]>([]);
+  const [vitals, setVitals] = useState<HistoryVitals[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadedFor, setLoadedFor] = useState(patientId);
 
@@ -88,6 +111,7 @@ export function usePatientHistory(patientId: string, refreshKey = 0) {
         if (cancelled) return;
         setRecords(data.records ?? []);
         setPayments(data.payments ?? []);
+        setVitals(data.vitals ?? []);
       })
       .catch((err) => console.error("Failed to load patient history:", err))
       .finally(() => {
@@ -98,12 +122,12 @@ export function usePatientHistory(patientId: string, refreshKey = 0) {
     };
   }, [patientId, refreshKey]);
 
-  return { records, payments, loading };
+  return { records, payments, vitals, loading };
 }
 
 /** Full treatment & payment history, styled for the (always-light) pink case folder. */
 export function CaseFileHistory({ patientId, refreshKey }: { patientId: string; refreshKey?: number }) {
-  const { records, payments, loading } = usePatientHistory(patientId, refreshKey);
+  const { records, payments, vitals, loading } = usePatientHistory(patientId, refreshKey);
 
   if (loading) {
     return (
@@ -162,6 +186,48 @@ export function CaseFileHistory({ patientId, refreshKey }: { patientId: string; 
                     </tr>
                   );
                 })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-xs uppercase tracking-wider text-pink-950 mb-2 flex items-center gap-1.5">
+          <Activity className="h-3.5 w-3.5" /> VITAL SIGNS ({vitals.length})
+        </h3>
+        <div className="overflow-x-auto border border-pink-300 rounded bg-white">
+          <table className="w-full min-w-[560px] text-left text-[11px]">
+            <thead className="bg-pink-100 text-pink-950 font-bold border-b border-pink-300">
+              <tr>
+                <th className="p-2 w-32">Date / Time</th>
+                <th className="p-2">BP</th>
+                <th className="p-2">Pulse</th>
+                <th className="p-2">Temp</th>
+                <th className="p-2">SpO₂</th>
+                <th className="p-2">Notes</th>
+                <th className="p-2">Taken By</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-pink-200">
+              {vitals.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-3 text-center text-slate-400 italic">
+                    No vitals recorded. Use &quot;Record vitals&quot; on the Patients page.
+                  </td>
+                </tr>
+              ) : (
+                vitals.map((v) => (
+                  <tr key={v.id}>
+                    <td className="p-2 font-medium whitespace-nowrap">{formatDateTime(v.recordedAt)}</td>
+                    <td className="p-2 font-mono">{v.bloodPressure ?? "—"}</td>
+                    <td className="p-2 font-mono">{v.pulse != null ? `${v.pulse} bpm` : "—"}</td>
+                    <td className="p-2 font-mono">{v.temperature ? `${v.temperature}°C` : "—"}</td>
+                    <td className="p-2 font-mono">{v.spo2 != null ? `${v.spo2}%` : "—"}</td>
+                    <td className="p-2 text-slate-600">{v.notes || "—"}</td>
+                    <td className="p-2">{v.recordedByName}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -265,6 +331,119 @@ export function RecentRecordsList({ patientId, limit = 4 }: { patientId: string;
           +{records.length - limit} more in the full case file
         </p>
       ) : null}
+    </div>
+  );
+}
+
+const EMPTY_VITALS_FORM = { bloodPressure: "", pulse: "", temperature: "", spo2: "", notes: "" };
+
+/** Latest vital signs + "Record vitals" for the Patients page side panel (theme-aware). */
+export function PatientVitals({ patientId }: { patientId: string }) {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { vitals, loading } = usePatientHistory(patientId, refreshKey);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_VITALS_FORM);
+  const [saving, setSaving] = useState(false);
+  const latest = vitals[0];
+
+  const tiles = [
+    { label: "BP", value: latest?.bloodPressure },
+    { label: "Pulse", value: latest?.pulse != null ? `${latest.pulse} bpm` : null },
+    { label: "Temp", value: latest?.temperature ? `${latest.temperature}°C` : null },
+    { label: "SpO₂", value: latest?.spo2 != null ? `${latest.spo2}%` : null },
+  ];
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await recordVitals({ patientId, ...form });
+      if (!res.success) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Vitals recorded");
+      setOpen(false);
+      setForm(EMPTY_VITALS_FORM);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error("Failed to record vitals:", err);
+      toast.error("Failed to record vitals");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const field = (key: keyof typeof EMPTY_VITALS_FORM, label: string, placeholder: string, inputMode?: "numeric" | "decimal") => (
+    <div className="space-y-1">
+      <Label htmlFor={`vitals-${key}`} className="text-xs">{label}</Label>
+      <Input
+        id={`vitals-${key}`}
+        inputMode={inputMode}
+        placeholder={placeholder}
+        value={form[key]}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+      />
+    </div>
+  );
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="font-bold text-foreground">Latest Vitals</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)} className="h-7 gap-1 px-2 text-[11px] font-semibold rounded-lg">
+          <Plus className="h-3 w-3" /> Record vitals
+        </Button>
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading vitals...
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {tiles.map((t) => (
+              <div
+                key={t.label}
+                className="rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2.5 border border-slate-200 dark:border-slate-800 shadow-2xs"
+              >
+                <span className="text-[10px] text-muted-foreground font-bold block uppercase tracking-wider">{t.label}</span>
+                <span className="font-black text-xs text-foreground mt-0.5 block">{t.value ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {latest ? `Taken ${formatDateTime(latest.recordedAt)} by ${latest.recordedByName}` : "No vitals recorded yet."}
+          </p>
+        </>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" /> Record Vitals
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Fill in what you measured and leave the rest blank. Each reading is kept with your name and the time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            {field("bloodPressure", "Blood pressure (mmHg)", "120/80")}
+            {field("pulse", "Pulse (bpm)", "72", "numeric")}
+            {field("temperature", "Temperature (°C)", "36.8", "decimal")}
+            {field("spo2", "SpO₂ (%)", "98", "numeric")}
+          </div>
+          {field("notes", "Notes (optional)", "e.g. patient febrile, taken after walking")}
+          <DialogFooter className="pt-2 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" disabled={saving} onClick={handleSave} className="gap-1.5">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

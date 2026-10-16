@@ -671,6 +671,23 @@ async function migrate() {
         AND NOT EXISTS (SELECT 1 FROM "patient_payments" pp WHERE pp."patient_id" = p."id");
     `);
 
+    // Vital signs history (BP, pulse, temperature, SpO2) per patient.
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS "patient_vitals" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "patient_id" uuid NOT NULL REFERENCES "public"."patients"("id") ON DELETE cascade,
+        "blood_pressure" text,
+        "pulse" integer,
+        "temperature" text,
+        "spo2" integer,
+        "notes" text,
+        "recorded_by" text REFERENCES "public"."user"("id"),
+        "recorded_by_name" text NOT NULL,
+        "recorded_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "patient_vitals_patient_recorded_idx" ON "patient_vitals" ("patient_id", "recorded_at");
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);
