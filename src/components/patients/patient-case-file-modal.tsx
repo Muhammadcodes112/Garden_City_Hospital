@@ -237,6 +237,30 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
     }));
   };
 
+  type RowList = "hospitalHistory" | "diagnoses" | "operations";
+
+  const updateRow = (list: RowList, idx: number, field: string, value: string) => {
+    setFormData((prev) => {
+      const next = [...prev[list]];
+      next[idx] = { ...next[idx], [field]: value };
+      return { ...prev, [list]: next };
+    });
+  };
+
+  const removeRow = (list: RowList, idx: number) => {
+    setFormData((prev) => ({ ...prev, [list]: prev[list].filter((_: unknown, i: number) => i !== idx) }));
+  };
+
+  const rowInput = (list: RowList, idx: number, field: string, opts: { type?: "date"; placeholder?: string } = {}) => (
+    <Input
+      type={opts.type}
+      value={(formData[list][idx] as Record<string, string> | undefined)?.[field] ?? ""}
+      onChange={(e) => updateRow(list, idx, field, e.target.value)}
+      placeholder={opts.placeholder}
+      className="h-8 min-w-[90px] text-xs bg-white border-pink-300"
+    />
+  );
+
   const addDiagnosisRow = () => {
     setFormData((prev) => ({
       ...prev,
@@ -787,23 +811,31 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                         <th className="p-2">Date Discharged</th>
                         <th className="p-2">Disposal</th>
                         <th className="p-2">Assetpay</th>
+                        {editing && <th className="p-2 w-10" />}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-pink-200">
                       {formData.hospitalHistory.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="p-3 text-center text-slate-400 italic">No visits or admissions recorded</td>
+                          <td colSpan={editing ? 8 : 7} className="p-3 text-center text-slate-400 italic">No visits or admissions recorded</td>
                         </tr>
                       )}
                       {formData.hospitalHistory.map((row: any, idx: number) => (
                         <tr key={idx}>
-                          <td className="p-2 font-medium">{row.dateAttended}</td>
-                          <td className="p-2">{row.referredBy}</td>
-                          <td className="p-2">{row.physician}</td>
-                          <td className="p-2">{row.wardClinic}</td>
-                          <td className="p-2">{row.dateDischarged}</td>
-                          <td className="p-2">{row.disposal}</td>
-                          <td className="p-2">{row.assetpay}</td>
+                          <td className="p-2 font-medium">{editing ? rowInput("hospitalHistory", idx, "dateAttended", { type: "date" }) : row.dateAttended}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "referredBy", { placeholder: "Referred by" }) : row.referredBy}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "physician", { placeholder: "Physician" }) : row.physician}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "wardClinic", { placeholder: "e.g. GOPD" }) : row.wardClinic}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "dateDischarged", { type: "date" }) : row.dateDischarged}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "disposal", { placeholder: "e.g. Discharged home" }) : row.disposal}</td>
+                          <td className="p-2">{editing ? rowInput("hospitalHistory", idx, "assetpay", { placeholder: "Paid / pending" }) : row.assetpay}</td>
+                          {editing && (
+                            <td className="p-2 text-center">
+                              <Button size="icon" variant="ghost" onClick={() => removeRow("hospitalHistory", idx)} className="h-7 w-7 text-rose-600 hover:text-rose-700" aria-label="Remove row">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -914,19 +946,27 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                         <th className="p-2 w-28">Date</th>
                         <th className="p-2">Clinical Diagnosis</th>
                         <th className="p-2 w-28">Code Number</th>
+                        {editing && <th className="p-2 w-10" />}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-pink-200">
                       {formData.diagnoses.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="p-3 text-center text-slate-400 italic">No diagnoses recorded</td>
+                          <td colSpan={editing ? 4 : 3} className="p-3 text-center text-slate-400 italic">No diagnoses recorded</td>
                         </tr>
                       )}
                       {formData.diagnoses.map((row: any, idx: number) => (
                         <tr key={idx}>
-                          <td className="p-2 font-medium">{row.date}</td>
-                          <td className="p-2">{row.diagnosis}</td>
-                          <td className="p-2 font-mono">{row.code}</td>
+                          <td className="p-2 font-medium">{editing ? rowInput("diagnoses", idx, "date", { type: "date" }) : row.date}</td>
+                          <td className="p-2">{editing ? rowInput("diagnoses", idx, "diagnosis", { placeholder: "e.g. Acute malaria" }) : row.diagnosis}</td>
+                          <td className="p-2 font-mono">{editing ? rowInput("diagnoses", idx, "code", { placeholder: "ICD-10 e.g. B54" }) : row.code}</td>
+                          {editing && (
+                            <td className="p-2 text-center">
+                              <Button size="icon" variant="ghost" onClick={() => removeRow("diagnoses", idx)} className="h-7 w-7 text-rose-600 hover:text-rose-700" aria-label="Remove row">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -953,19 +993,27 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                         <th className="p-2 w-28">Date</th>
                         <th className="p-2">Operation Procedure</th>
                         <th className="p-2 w-28">Code Number</th>
+                        {editing && <th className="p-2 w-10" />}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-pink-200">
                       {formData.operations.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="p-3 text-center text-slate-400 italic">No operations performed</td>
+                          <td colSpan={editing ? 4 : 3} className="p-3 text-center text-slate-400 italic">No operations performed</td>
                         </tr>
                       ) : (
                         formData.operations.map((row: any, idx: number) => (
                           <tr key={idx}>
-                            <td className="p-2 font-medium">{row.date}</td>
-                            <td className="p-2">{row.operation}</td>
-                            <td className="p-2 font-mono">{row.code}</td>
+                            <td className="p-2 font-medium">{editing ? rowInput("operations", idx, "date", { type: "date" }) : row.date}</td>
+                            <td className="p-2">{editing ? rowInput("operations", idx, "operation", { placeholder: "e.g. Appendicectomy" }) : row.operation}</td>
+                            <td className="p-2 font-mono">{editing ? rowInput("operations", idx, "code", { placeholder: "Code" }) : row.code}</td>
+                            {editing && (
+                              <td className="p-2 text-center">
+                                <Button size="icon" variant="ghost" onClick={() => removeRow("operations", idx)} className="h-7 w-7 text-rose-600 hover:text-rose-700" aria-label="Remove row">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </td>
+                            )}
                           </tr>
                         ))
                       )}
@@ -1000,11 +1048,42 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                 <div className="flex items-center gap-4 border-t md:border-t-0 md:border-l border-red-200 pt-2 md:pt-0 md:pl-4">
                   <div>
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Blood Group / Rhesus:</span>
-                    <p className="font-bold text-xs text-slate-900">{formData.bloodGroup || "Not recorded"}{formData.rhesus ? ` (${formData.rhesus})` : ""}</p>
+                    {editing ? (
+                      <select
+                        value={formData.bloodGroup}
+                        onChange={(e) => {
+                          const bg = e.target.value;
+                          // Rhesus follows the +/- of the blood group so the two can't disagree.
+                          const rhesus = bg.endsWith("+") ? "Positive" : bg.endsWith("-") ? "Negative" : "";
+                          setFormData({ ...formData, bloodGroup: bg, rhesus });
+                        }}
+                        className="h-8 rounded-md border border-red-300 bg-white px-2 text-xs mt-0.5"
+                      >
+                        <option value="">Unknown / not tested</option>
+                        {["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((bg) => (
+                          <option key={bg} value={bg}>{bg}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="font-bold text-xs text-slate-900">{formData.bloodGroup || "Not recorded"}{formData.rhesus ? ` (${formData.rhesus})` : ""}</p>
+                    )}
                   </div>
                   <div>
                     <span className="text-[9px] font-bold text-slate-500 uppercase">Hb / Genotype:</span>
-                    <p className="font-bold text-xs text-slate-900">{formData.genotype || "Not recorded"}</p>
+                    {editing ? (
+                      <select
+                        value={formData.genotype}
+                        onChange={(e) => setFormData({ ...formData, genotype: e.target.value })}
+                        className="h-8 rounded-md border border-red-300 bg-white px-2 text-xs mt-0.5"
+                      >
+                        <option value="">Unknown / not tested</option>
+                        {["AA", "AS", "SS", "AC", "SC"].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="font-bold text-xs text-slate-900">{formData.genotype || "Not recorded"}</p>
+                    )}
                   </div>
                 </div>
               </div>
