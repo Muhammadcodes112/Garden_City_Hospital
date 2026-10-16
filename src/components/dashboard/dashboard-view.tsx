@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/date";
 import { HOSPITAL_NAME, TAGLINE } from "@/lib/brand";
+import { cn } from "@/lib/utils";
 import {
   FORM_TYPE_LABELS,
   formEditHref,
@@ -128,14 +129,17 @@ export function DashboardView({ userName, todayLabel, stats, recentForms, recent
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Desktop: banner and quick actions side by side so Recent files sits higher */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
       <WelcomeBanner
         userName={userName}
         todayLabel={todayLabel}
         onAddPatient={() => setRegisterModalOpen(true)}
+        className="lg:flex-1 lg:min-w-0"
       />
 
-      {/* QUICK ACTIONS IMMEDIATELY BELOW WELCOME BANNER FOR EASY REACH */}
-      <section>
+      {/* QUICK ACTIONS NEXT TO (DESKTOP) / BELOW (MOBILE) THE WELCOME BANNER FOR EASY REACH */}
+      <section className="lg:w-[380px] lg:shrink-0 lg:flex lg:flex-col lg:justify-center">
         <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Quick actions
         </h2>
@@ -168,6 +172,7 @@ export function DashboardView({ userName, todayLabel, stats, recentForms, recent
           </Button>
         </div>
       </section>
+      </div>
 
       <RegisterPatientModal
         open={registerModalOpen}
@@ -263,13 +268,15 @@ function WelcomeBanner({
   userName,
   todayLabel,
   onAddPatient,
+  className,
 }: {
   userName: string;
   todayLabel: string;
   onAddPatient?: () => void;
+  className?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-xl bg-brand-green px-5 py-6 text-white shadow-sm">
+    <div className={cn("relative overflow-hidden rounded-xl bg-brand-green px-5 py-6 text-white shadow-sm", className)}>
       <div
         className="pointer-events-none absolute inset-0 opacity-30"
         style={{
