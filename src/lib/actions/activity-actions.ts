@@ -155,6 +155,7 @@ export async function getActivityFilterMeta(): Promise<{
       messages: 0,
       appointments: 0,
       accounts: 0,
+      billing: 0,
     };
 
     let total = 0;

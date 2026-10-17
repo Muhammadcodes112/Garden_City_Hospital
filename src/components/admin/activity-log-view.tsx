@@ -24,6 +24,7 @@ import {
   Share2,
   MessageSquare,
   Key,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ const CATEGORY_TABS = [
   { id: "messages", label: "Messages", icon: MessageSquare },
   { id: "appointments", label: "Appointments", icon: Calendar },
   { id: "accounts", label: "Accounts", icon: Key },
+  { id: "billing", label: "Billing", icon: Banknote },
 ] as const;
 
 export function ActivityLogView({

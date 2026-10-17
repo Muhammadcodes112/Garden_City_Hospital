@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { db } from "@/db";
 import { activityEvents } from "@/db/schema";
 
-export type ActivityCategory = "auth" | "records" | "sharing" | "messages" | "appointments" | "accounts";
+export type ActivityCategory = "auth" | "records" | "sharing" | "messages" | "appointments" | "accounts" | "billing";
 export type ActorRole = "patient" | "admin" | "super_admin";
 
 export type LogEventInput = {

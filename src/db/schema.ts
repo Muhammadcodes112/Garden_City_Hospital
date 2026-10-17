@@ -411,6 +411,7 @@ export const activityCategory = pgEnum("activity_category", [
   "messages",
   "appointments",
   "accounts",
+  "billing",
 ]);
 
 export const activityEvents = pgTable(
@@ -644,4 +645,57 @@ export const patientVitals = pgTable(
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("patient_vitals_patient_recorded_idx").on(table.patientId, table.recordedAt)],
+);
+
+// ---------------------------------------------------------------------------
+// Service catalogue & price list. Every amount is integer kobo in a bigint
+// column (₦12,000 = 1200000) — never a float. A price of 0 means the hospital
+// hasn't set it yet ("needs price"). Receipts must snapshot the price charged,
+// never reference services.price_kobo, so old receipts keep old figures.
+// ---------------------------------------------------------------------------
+
+export const serviceCategories = pgTable("service_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+});
+
+export const services = pgTable(
+  "services",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => serviceCategories.id),
+    name: text("name").notNull(),
+    code: text("code"),
+    priceKobo: bigint("price_kobo", { mode: "number" }).notNull().default(0),
+    // Matches the physical folder colours on the registration desk.
+    folderColour: text("folder_colour"),
+    // e.g. "Others": the cashier types the amount at the point of sale.
+    allowCustomAmount: boolean("allow_custom_amount").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("services_category_name_unique_idx").on(table.categoryId, table.name)],
+);
+
+export const servicePriceHistory = pgTable(
+  "service_price_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id),
+    oldPriceKobo: bigint("old_price_kobo", { mode: "number" }).notNull(),
+    newPriceKobo: bigint("new_price_kobo", { mode: "number" }).notNull(),
+    changedBy: text("changed_by").references(() => user.id),
+    changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+    reason: text("reason").notNull(),
+  },
+  (table) => [index("service_price_history_service_idx").on(table.serviceId, table.changedAt)],
 );

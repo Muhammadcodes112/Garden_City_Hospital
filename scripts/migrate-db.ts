@@ -688,6 +688,118 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "patient_vitals_patient_recorded_idx" ON "patient_vitals" ("patient_id", "recorded_at");
     `);
 
+    // Billing activity category (price list changes, and later receipts).
+    await sql.unsafe(`ALTER TYPE "public"."activity_category" ADD VALUE IF NOT EXISTS 'billing';`);
+
+    // Service catalogue & price list. Amounts are integer kobo (bigint).
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS "service_categories" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "name" text NOT NULL UNIQUE,
+        "sort_order" integer DEFAULT 0 NOT NULL,
+        "active" boolean DEFAULT true NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "services" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "category_id" uuid NOT NULL REFERENCES "public"."service_categories"("id"),
+        "name" text NOT NULL,
+        "code" text,
+        "price_kobo" bigint DEFAULT 0 NOT NULL CHECK ("price_kobo" >= 0),
+        "folder_colour" text,
+        "allow_custom_amount" boolean DEFAULT false NOT NULL,
+        "sort_order" integer DEFAULT 0 NOT NULL,
+        "active" boolean DEFAULT true NOT NULL,
+        "notes" text,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "services_category_name_unique_idx" ON "services" ("category_id", "name");
+
+      CREATE TABLE IF NOT EXISTS "service_price_history" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "service_id" uuid NOT NULL REFERENCES "public"."services"("id"),
+        "old_price_kobo" bigint NOT NULL,
+        "new_price_kobo" bigint NOT NULL,
+        "changed_by" text REFERENCES "public"."user"("id"),
+        "changed_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "reason" text NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "service_price_history_service_idx" ON "service_price_history" ("service_id", "changed_at");
+    `);
+
+    // Seed the catalogue. Insert-if-missing only: re-running never duplicates
+    // a service or overwrites a price the hospital has since set.
+    // price 0 = not yet known ("needs price" in the UI).
+    const catalogue: {
+      category: string;
+      items: { name: string; naira: number; folderColour?: string; allowCustomAmount?: boolean }[];
+    }[] = [
+      {
+        category: "Registration (folders)",
+        items: [
+          { name: "White folder — Single", naira: 5000, folderColour: "white" },
+          { name: "Pink folder — Family", naira: 10000, folderColour: "pink" },
+          { name: "Green folder — Dr. Mrs.", naira: 0, folderColour: "green" },
+          { name: "Yellow folder — CACHMA", naira: 0, folderColour: "yellow" },
+          { name: "Blue folder — NHIS", naira: 0, folderColour: "blue" },
+          { name: "Gynaecology (GYU)", naira: 17000 },
+          { name: "ANC registration", naira: 65000 },
+        ],
+      },
+      {
+        category: "Scans",
+        items: [
+          { name: "Scan — General Doctor", naira: 5000 },
+          { name: "Scan — Dr. Mrs.", naira: 10000 },
+          { name: "Egg scan", naira: 25000 },
+          { name: "Breast scan", naira: 7500 },
+        ],
+      },
+      {
+        category: "Consultation",
+        items: [
+          { name: "General Doctor", naira: 0 },
+          { name: "Dr. Mrs.", naira: 0 },
+          { name: "Dr. Amir", naira: 0 },
+          { name: "Other doctor", naira: 0 },
+        ],
+      },
+      {
+        category: "Other",
+        items: [
+          { name: "Lab Test / Investigation", naira: 0 },
+          { name: "X-Ray", naira: 0 },
+          { name: "ECG", naira: 0 },
+          { name: "Drugs", naira: 0 },
+          { name: "Vaccine", naira: 0 },
+          { name: "Antenatal", naira: 0 },
+          { name: "Admission", naira: 0 },
+          { name: "Discharge", naira: 0 },
+          { name: "Delivery deposit", naira: 0 },
+          { name: "Plaster", naira: 0 },
+          { name: "Others", naira: 0, allowCustomAmount: true },
+        ],
+      },
+    ];
+
+    for (const [catIndex, cat] of catalogue.entries()) {
+      await sql`
+        INSERT INTO service_categories (name, sort_order)
+        VALUES (${cat.category}, ${catIndex})
+        ON CONFLICT (name) DO NOTHING;
+      `;
+      const [{ id: categoryId }] = await sql`SELECT id FROM service_categories WHERE name = ${cat.category};`;
+      for (const [itemIndex, item] of cat.items.entries()) {
+        await sql`
+          INSERT INTO services (category_id, name, price_kobo, folder_colour, allow_custom_amount, sort_order)
+          VALUES (${categoryId}, ${item.name}, ${item.naira * 100}, ${item.folderColour ?? null}, ${item.allowCustomAmount ?? false}, ${itemIndex})
+          ON CONFLICT (category_id, name) DO NOTHING;
+        `;
+      }
+    }
+    console.log("Service catalogue ready.");
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);
