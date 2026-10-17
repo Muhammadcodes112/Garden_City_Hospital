@@ -22,7 +22,7 @@ export default function SignInPage() {
   /** Role-aware destination, honouring a safe same-origin ?redirect= param. */
   function goHome(user: unknown) {
     const role = (user as { role?: string } | undefined)?.role;
-    let target = role === "patient" ? "/patient" : "/dashboard";
+    let target = role === "patient" ? "/patient" : role === "cashier" ? "/cashier" : "/dashboard";
     const redirectParam = new URLSearchParams(window.location.search).get("redirect");
     if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
       target = redirectParam;

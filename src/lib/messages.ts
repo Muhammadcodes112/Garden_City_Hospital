@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { STAFF_ROLES } from "@/lib/authz";
 import { db } from "@/db";
 import { conversationParticipants, conversations, messageAttachments, messages, user } from "@/db/schema";
 import { hydrateAttachments, type SerializedAttachment } from "@/lib/message-attachments";
@@ -127,6 +128,7 @@ const ATTACHMENT_PREVIEW_LABEL: Record<string, string> = {
   share_link: "Shared a link",
   file: "Sent a file",
   patient_file: "Shared a patient file",
+  shift_report: "Sent a shift report",
 };
 
 async function getUnreadCounts(
@@ -169,7 +171,7 @@ export async function listMessagePeople(meId: string): Promise<PersonSummary[]> 
       deletedAt: user.deletedAt,
     })
     .from(user)
-    .where(ne(user.id, meId));
+    .where(and(ne(user.id, meId), inArray(user.role, [...STAFF_ROLES, "cashier"])));
 
   const myParticipantRows = await db
     .select({
@@ -205,6 +207,8 @@ export async function listMessagePeople(meId: string): Promise<PersonSummary[]> 
     const removed = Boolean(u.banned) || Boolean(u.deletedAt);
     const conversationId = convIdByOtherUser.get(u.id) ?? null;
     if (removed && !conversationId) continue;
+    // Cashiers aren't messaging participants; one appears only when they've sent a shift report.
+    if (u.role === "cashier" && !conversationId) continue;
 
     const last = conversationId ? lastMsgByConv.get(conversationId) : undefined;
     results.push({
@@ -272,8 +276,13 @@ export async function getOrCreateDmConversation(meId: string, targetUserId: stri
   return conversationId;
 }
 
-function attachmentInsertValues(messageId: string, attachment: MessageAttachmentInput) {
+/** What can be attached to a message. shift_report is system-sent only, never accepted from user input. */
+export type InternalAttachmentInput = MessageAttachmentInput | { kind: "shift_report"; shiftReportId: string };
+
+function attachmentInsertValues(messageId: string, attachment: InternalAttachmentInput) {
   switch (attachment.kind) {
+    case "shift_report":
+      return { messageId, kind: "shift_report" as const, shiftReportId: attachment.shiftReportId };
     case "form_record":
       return { messageId, kind: "form_record" as const, formRecordId: attachment.formRecordId };
     case "share_link":
@@ -302,7 +311,7 @@ export async function insertMessageWithAttachment(params: {
   conversationId: string;
   senderId: string;
   body: string | null;
-  attachment?: MessageAttachmentInput;
+  attachment?: InternalAttachmentInput;
   /** NEVER include message body here — sender, recipient, and attachment count only. */
   activityLog?: {
     category: "messages" | "sharing";

@@ -800,6 +800,240 @@ async function migrate() {
     }
     console.log("Service catalogue ready.");
 
+    // Step 21: cashier role, shifts and receipts.
+    await sql.unsafe(`
+      ALTER TYPE "public"."user_role" ADD VALUE IF NOT EXISTS 'cashier' BEFORE 'admin';
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_mode') THEN
+          CREATE TYPE "public"."payment_mode" AS ENUM('cash', 'transfer', 'pos', 'cheque');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'receipt_status') THEN
+          CREATE TYPE "public"."receipt_status" AS ENUM('issued', 'voided');
+        END IF;
+      END $$;
+
+      -- Receipt numbers come ONLY from this sequence: concurrent cashiers can
+      -- never collide, and a consumed number is never reused (even if the
+      -- issuing transaction later rolls back, the gap is left, not refilled).
+      -- Starts at 1 per the hospital (the old paper book is in the 0037xxx range).
+      CREATE SEQUENCE IF NOT EXISTS "receipt_no_seq" AS bigint START WITH 1 MINVALUE 1 NO CYCLE;
+
+      CREATE TABLE IF NOT EXISTS "cashier_shifts" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "cashier_id" text NOT NULL REFERENCES "public"."user"("id"),
+        "opened_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "closed_at" timestamp with time zone
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS "cashier_shifts_one_open_idx" ON "cashier_shifts" ("cashier_id") WHERE closed_at IS NULL;
+      CREATE INDEX IF NOT EXISTS "cashier_shifts_opened_at_idx" ON "cashier_shifts" ("opened_at");
+
+      CREATE TABLE IF NOT EXISTS "receipts" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "receipt_no" bigint DEFAULT nextval('receipt_no_seq') NOT NULL UNIQUE,
+        "patient_id" uuid REFERENCES "public"."patients"("id") ON DELETE SET NULL,
+        "payer_name" text NOT NULL CHECK (length(trim("payer_name")) > 0),
+        "total_kobo" bigint NOT NULL CHECK ("total_kobo" > 0),
+        "amount_in_words" text NOT NULL,
+        "payment_mode" "public"."payment_mode" NOT NULL,
+        "teller_or_transfer_ref" text,
+        "cheque_no" text,
+        "shift_id" uuid NOT NULL REFERENCES "public"."cashier_shifts"("id"),
+        "issued_by" text NOT NULL REFERENCES "public"."user"("id"),
+        "issued_at" timestamp with time zone DEFAULT now() NOT NULL,
+        "status" "public"."receipt_status" DEFAULT 'issued' NOT NULL,
+        "voided_by" text REFERENCES "public"."user"("id"),
+        "voided_at" timestamp with time zone,
+        "void_reason" text,
+        CONSTRAINT "receipts_void_fields_check" CHECK (
+          ("status" = 'issued' AND "voided_by" IS NULL AND "voided_at" IS NULL AND "void_reason" IS NULL)
+          OR ("status" = 'voided' AND "voided_by" IS NOT NULL AND "voided_at" IS NOT NULL AND "void_reason" IS NOT NULL AND length(trim("void_reason")) > 0)
+        )
+      );
+      ALTER SEQUENCE "receipt_no_seq" OWNED BY "receipts"."receipt_no";
+      CREATE INDEX IF NOT EXISTS "receipts_shift_idx" ON "receipts" ("shift_id", "issued_at");
+      CREATE INDEX IF NOT EXISTS "receipts_patient_idx" ON "receipts" ("patient_id");
+      CREATE INDEX IF NOT EXISTS "receipts_issued_at_idx" ON "receipts" ("issued_at");
+
+      CREATE TABLE IF NOT EXISTS "receipt_lines" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "receipt_id" uuid NOT NULL REFERENCES "public"."receipts"("id"),
+        "service_id" uuid REFERENCES "public"."services"("id"),
+        "description" text NOT NULL,
+        "qty" integer NOT NULL CHECK ("qty" > 0),
+        "unit_price_kobo" bigint NOT NULL CHECK ("unit_price_kobo" > 0),
+        "line_total_kobo" bigint NOT NULL,
+        CONSTRAINT "receipt_lines_total_check" CHECK ("line_total_kobo" = "qty" * "unit_price_kobo")
+      );
+      CREATE INDEX IF NOT EXISTS "receipt_lines_receipt_idx" ON "receipt_lines" ("receipt_id");
+
+      CREATE TABLE IF NOT EXISTS "receipt_prints" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "receipt_id" uuid NOT NULL REFERENCES "public"."receipts"("id"),
+        "printed_by" text REFERENCES "public"."user"("id"),
+        "printed_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "receipt_prints_receipt_idx" ON "receipt_prints" ("receipt_id");
+
+      -- Receipts are never deleted (not by a cashier, a super admin, or a
+      -- cron job), and the only permitted change is issued -> voided with
+      -- the void fields filled in; every other column is frozen at issue.
+      CREATE OR REPLACE FUNCTION receipts_guard() RETURNS trigger AS $BODY$
+      BEGIN
+        IF TG_OP = 'DELETE' THEN
+          RAISE EXCEPTION 'receipts are never deleted (receipt %)', OLD.receipt_no;
+        END IF;
+        -- A Super Admin deleting a patient file only unlinks it (FK ON DELETE
+        -- SET NULL); the receipt, including payer_name, is otherwise untouched.
+        IF OLD.patient_id IS NOT NULL AND NEW.patient_id IS NULL
+          AND (NEW.id, NEW.receipt_no, NEW.payer_name, NEW.total_kobo, NEW.amount_in_words, NEW.payment_mode,
+               NEW.teller_or_transfer_ref, NEW.cheque_no, NEW.shift_id, NEW.issued_by, NEW.issued_at,
+               NEW.status, NEW.voided_by, NEW.voided_at, NEW.void_reason)
+              IS NOT DISTINCT FROM
+              (OLD.id, OLD.receipt_no, OLD.payer_name, OLD.total_kobo, OLD.amount_in_words, OLD.payment_mode,
+               OLD.teller_or_transfer_ref, OLD.cheque_no, OLD.shift_id, OLD.issued_by, OLD.issued_at,
+               OLD.status, OLD.voided_by, OLD.voided_at, OLD.void_reason)
+        THEN
+          RETURN NEW;
+        END IF;
+        IF OLD.status = 'voided' THEN
+          RAISE EXCEPTION 'receipt % is already voided and cannot change', OLD.receipt_no;
+        END IF;
+        IF NEW.status <> 'voided'
+          OR (NEW.id, NEW.receipt_no, NEW.patient_id, NEW.payer_name, NEW.total_kobo, NEW.amount_in_words,
+              NEW.payment_mode, NEW.teller_or_transfer_ref, NEW.cheque_no, NEW.shift_id, NEW.issued_by, NEW.issued_at)
+             IS DISTINCT FROM
+             (OLD.id, OLD.receipt_no, OLD.patient_id, OLD.payer_name, OLD.total_kobo, OLD.amount_in_words,
+              OLD.payment_mode, OLD.teller_or_transfer_ref, OLD.cheque_no, OLD.shift_id, OLD.issued_by, OLD.issued_at)
+        THEN
+          RAISE EXCEPTION 'receipt % can only be voided, not edited', OLD.receipt_no;
+        END IF;
+        RETURN NEW;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS receipts_guard_trigger ON "receipts";
+      CREATE TRIGGER receipts_guard_trigger
+        BEFORE UPDATE OR DELETE ON "receipts"
+        FOR EACH ROW EXECUTE FUNCTION receipts_guard();
+
+      -- Lines and print logs are fully append-only (same pattern as activity_events).
+      CREATE OR REPLACE FUNCTION append_only_guard() RETURNS trigger AS $BODY$
+      BEGIN
+        RAISE EXCEPTION '% is append-only: % is not permitted', TG_TABLE_NAME, TG_OP;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS receipt_lines_append_only_trigger ON "receipt_lines";
+      CREATE TRIGGER receipt_lines_append_only_trigger
+        BEFORE UPDATE OR DELETE ON "receipt_lines"
+        FOR EACH STATEMENT EXECUTE FUNCTION append_only_guard();
+
+      DROP TRIGGER IF EXISTS receipt_prints_append_only_trigger ON "receipt_prints";
+      CREATE TRIGGER receipt_prints_append_only_trigger
+        BEFORE UPDATE OR DELETE ON "receipt_prints"
+        FOR EACH STATEMENT EXECUTE FUNCTION append_only_guard();
+
+      -- TRUNCATE skips row/statement DELETE triggers, so block it explicitly.
+      DROP TRIGGER IF EXISTS receipts_no_truncate_trigger ON "receipts";
+      CREATE TRIGGER receipts_no_truncate_trigger
+        BEFORE TRUNCATE ON "receipts"
+        FOR EACH STATEMENT EXECUTE FUNCTION append_only_guard();
+      DROP TRIGGER IF EXISTS receipt_lines_no_truncate_trigger ON "receipt_lines";
+      CREATE TRIGGER receipt_lines_no_truncate_trigger
+        BEFORE TRUNCATE ON "receipt_lines"
+        FOR EACH STATEMENT EXECUTE FUNCTION append_only_guard();
+    `);
+
+    // Step 22: shift floats & cash reconciliation, immutable closed shifts,
+    // stored report snapshots, and the shift_report message attachment.
+    await sql.unsafe(`
+      ALTER TYPE "public"."message_attachment_kind" ADD VALUE IF NOT EXISTS 'shift_report';
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_status') THEN
+          CREATE TYPE "public"."shift_status" AS ENUM('open', 'closed');
+        END IF;
+      END $$;
+
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "status" "public"."shift_status" DEFAULT 'open' NOT NULL;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "opening_float_kobo" bigint DEFAULT 0 NOT NULL;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "expected_cash_kobo" bigint;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "counted_cash_kobo" bigint;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "variance_kobo" bigint;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "closing_note" text;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "report_sent_at" timestamp with time zone;
+      UPDATE "cashier_shifts" SET "status" = 'closed' WHERE "closed_at" IS NOT NULL AND "status" = 'open';
+
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cashier_shifts_state_check') THEN
+          ALTER TABLE "cashier_shifts" ADD CONSTRAINT "cashier_shifts_state_check" CHECK (
+            "opening_float_kobo" >= 0
+            AND ("counted_cash_kobo" IS NULL OR "counted_cash_kobo" >= 0)
+            AND (("status" = 'open' AND "closed_at" IS NULL)
+                 OR ("status" = 'closed' AND "closed_at" IS NOT NULL))
+            -- A short or over drawer can't be closed without an explanation.
+            AND ("variance_kobo" IS NULL OR "variance_kobo" = 0
+                 OR ("closing_note" IS NOT NULL AND length(trim("closing_note")) > 0))
+          );
+        END IF;
+      END $$;
+
+      -- Shifts are never deleted. A closed shift is frozen: the only change
+      -- still allowed is stamping report_sent_at once ("Send to management").
+      CREATE OR REPLACE FUNCTION cashier_shifts_guard() RETURNS trigger AS $BODY$
+      BEGIN
+        IF TG_OP = 'DELETE' THEN
+          RAISE EXCEPTION 'cashier shifts are never deleted';
+        END IF;
+        IF OLD.status = 'closed' THEN
+          IF OLD.report_sent_at IS NULL AND NEW.report_sent_at IS NOT NULL
+            AND (NEW.id, NEW.cashier_id, NEW.opened_at, NEW.closed_at, NEW.status, NEW.opening_float_kobo,
+                 NEW.expected_cash_kobo, NEW.counted_cash_kobo, NEW.variance_kobo, NEW.closing_note)
+                IS NOT DISTINCT FROM
+                (OLD.id, OLD.cashier_id, OLD.opened_at, OLD.closed_at, OLD.status, OLD.opening_float_kobo,
+                 OLD.expected_cash_kobo, OLD.counted_cash_kobo, OLD.variance_kobo, OLD.closing_note)
+          THEN
+            RETURN NEW;
+          END IF;
+          RAISE EXCEPTION 'shift % is closed and cannot be reopened or edited', OLD.id;
+        END IF;
+        IF (NEW.id, NEW.cashier_id, NEW.opened_at, NEW.opening_float_kobo)
+           IS DISTINCT FROM (OLD.id, OLD.cashier_id, OLD.opened_at, OLD.opening_float_kobo) THEN
+          RAISE EXCEPTION 'a shift''s cashier, start time and opening float are fixed when it opens';
+        END IF;
+        RETURN NEW;
+      END;
+      $BODY$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS cashier_shifts_guard_trigger ON "cashier_shifts";
+      CREATE TRIGGER cashier_shifts_guard_trigger
+        BEFORE UPDATE OR DELETE ON "cashier_shifts"
+        FOR EACH ROW EXECUTE FUNCTION cashier_shifts_guard();
+
+      CREATE TABLE IF NOT EXISTS "shift_reports" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "shift_id" uuid NOT NULL UNIQUE REFERENCES "public"."cashier_shifts"("id"),
+        "snapshot" jsonb NOT NULL,
+        "created_at" timestamp with time zone DEFAULT now() NOT NULL
+      );
+      DROP TRIGGER IF EXISTS shift_reports_append_only_trigger ON "shift_reports";
+      CREATE TRIGGER shift_reports_append_only_trigger
+        BEFORE UPDATE OR DELETE ON "shift_reports"
+        FOR EACH STATEMENT EXECUTE FUNCTION append_only_guard();
+
+      ALTER TABLE "message_attachments" ADD COLUMN IF NOT EXISTS "shift_report_id" uuid;
+    `);
+
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'message_attachments_shift_report_id_shift_reports_id_fk') THEN
+          ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_shift_report_id_shift_reports_id_fk"
+            FOREIGN KEY ("shift_report_id") REFERENCES "public"."shift_reports"("id") ON DELETE no action ON UPDATE no action;
+        END IF;
+      END $$;
+    `);
+
     console.log("✅ Database schema migration complete!");
   } catch (err) {
     console.error("Migration error:", err);

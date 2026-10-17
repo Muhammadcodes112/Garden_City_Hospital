@@ -2,7 +2,10 @@ import "server-only";
 import { forbidden, unauthorized } from "next/navigation";
 import { getSession } from "@/lib/session";
 
-export type Role = "patient" | "admin" | "super_admin";
+export type Role = "patient" | "cashier" | "admin" | "super_admin";
+
+/** Clinical staff. A cashier is deliberately NOT in this list. */
+export const STAFF_ROLES = ["admin", "super_admin"] as const;
 
 type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 type SessionUser = Session["user"] & {
@@ -34,12 +37,28 @@ export async function requireUser(): Promise<Session> {
   return session;
 }
 
-/** Staff only: admin or super_admin. Patients are forbidden. */
+/**
+ * Clinical staff only: admin or super_admin. Patients AND cashiers are
+ * forbidden — a cashier is staff but not clinical, so every route this
+ * protects (forms, records, patient files, messages, appointments,
+ * inventory) stays closed to them. Cashier routes use requireCashierArea().
+ */
 export async function requireStaff(): Promise<Session> {
   const session = await requireUser();
   const role = roleOf(session);
   if (role !== "admin" && role !== "super_admin") forbidden();
   return session;
+}
+
+/**
+ * The cashier area (/cashier): a cashier, or a Super Admin (who can see
+ * every cashier's shifts and receipts and void them, but not issue).
+ */
+export async function requireCashierArea(): Promise<{ session: Session; role: "cashier" | "super_admin" }> {
+  const session = await requireUser();
+  const role = roleOf(session);
+  if (role !== "cashier" && role !== "super_admin") forbidden();
+  return { session, role };
 }
 
 /** Super Admin only. */

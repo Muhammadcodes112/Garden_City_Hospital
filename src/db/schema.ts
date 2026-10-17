@@ -18,7 +18,7 @@ import { sql } from "drizzle-orm";
 // Better Auth tables (email/password only + admin plugin & 2FA plugin).
 // ---------------------------------------------------------------------------
 
-export const userRole = pgEnum("user_role", ["patient", "admin", "super_admin"]);
+export const userRole = pgEnum("user_role", ["patient", "cashier", "admin", "super_admin"]);
 
 export const user = pgTable(
   "user",
@@ -329,6 +329,7 @@ export const messageAttachmentKind = pgEnum("message_attachment_kind", [
   "share_link",
   "file",
   "patient_file",
+  "shift_report",
 ]);
 
 export const conversations = pgTable(
@@ -389,6 +390,8 @@ export const messageAttachments = pgTable("message_attachments", {
   formRecordId: uuid("form_record_id").references(() => formRecords.id),
   shareLinkId: uuid("share_link_id").references(() => shareLinks.id),
   patientId: uuid("patient_id").references(() => patients.id),
+  // Cashier shift report sent to management (Step 22). No FK: shift_reports is declared later in this file.
+  shiftReportId: uuid("shift_report_id"),
   fileUrl: text("file_url"),
   fileName: text("file_name"),
   fileSize: integer("file_size"),
@@ -699,3 +702,118 @@ export const servicePriceHistory = pgTable(
   },
   (table) => [index("service_price_history_service_idx").on(table.serviceId, table.changedAt)],
 );
+
+// ---------------------------------------------------------------------------
+// Cashier shifts & receipts (Step 21). Receipts are cash-accountability
+// records: numbered from a Postgres SEQUENCE (never count/max+1), never
+// deleted (DB trigger), and only ever changed by voiding. Lines store the
+// price AS CHARGED, not a reference to the current price.
+// ---------------------------------------------------------------------------
+
+export const paymentMode = pgEnum("payment_mode", ["cash", "transfer", "pos", "cheque"]);
+export const receiptStatus = pgEnum("receipt_status", ["issued", "voided"]);
+export const shiftStatus = pgEnum("shift_status", ["open", "closed"]);
+
+export const cashierShifts = pgTable(
+  "cashier_shifts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cashierId: text("cashier_id")
+      .notNull()
+      .references(() => user.id),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    status: shiftStatus("status").notNull().default("open"),
+    // Cash already in the drawer at handover, entered when the shift starts.
+    openingFloatKobo: bigint("opening_float_kobo", { mode: "number" }).notNull().default(0),
+    // Set once, at close: what the system expected, what was counted, and the difference (counted − expected).
+    expectedCashKobo: bigint("expected_cash_kobo", { mode: "number" }),
+    countedCashKobo: bigint("counted_cash_kobo", { mode: "number" }),
+    varianceKobo: bigint("variance_kobo", { mode: "number" }),
+    closingNote: text("closing_note"),
+    reportSentAt: timestamp("report_sent_at", { withTimezone: true }),
+  },
+  (table) => [
+    // At most one open shift per cashier.
+    uniqueIndex("cashier_shifts_one_open_idx").on(table.cashierId).where(sql`closed_at IS NULL`),
+    index("cashier_shifts_opened_at_idx").on(table.openedAt),
+  ],
+);
+
+export const receipts = pgTable(
+  "receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // From receipt_no_seq; displayed zero-padded to 7 digits (0000001).
+    receiptNo: bigint("receipt_no", { mode: "number" })
+      .notNull()
+      .unique()
+      .default(sql`nextval('receipt_no_seq')`),
+    // Deleting a patient file unlinks (SET NULL); payer_name keeps the receipt readable.
+    patientId: uuid("patient_id").references(() => patients.id, { onDelete: "set null" }),
+    payerName: text("payer_name").notNull(),
+    totalKobo: bigint("total_kobo", { mode: "number" }).notNull(),
+    amountInWords: text("amount_in_words").notNull(),
+    paymentMode: paymentMode("payment_mode").notNull(),
+    tellerOrTransferRef: text("teller_or_transfer_ref"),
+    chequeNo: text("cheque_no"),
+    shiftId: uuid("shift_id")
+      .notNull()
+      .references(() => cashierShifts.id),
+    issuedBy: text("issued_by")
+      .notNull()
+      .references(() => user.id),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    status: receiptStatus("status").notNull().default("issued"),
+    voidedBy: text("voided_by").references(() => user.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidReason: text("void_reason"),
+  },
+  (table) => [
+    index("receipts_shift_idx").on(table.shiftId, table.issuedAt),
+    index("receipts_patient_idx").on(table.patientId),
+    index("receipts_issued_at_idx").on(table.issuedAt),
+  ],
+);
+
+export const receiptLines = pgTable(
+  "receipt_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    receiptId: uuid("receipt_id")
+      .notNull()
+      .references(() => receipts.id),
+    serviceId: uuid("service_id").references(() => services.id),
+    description: text("description").notNull(),
+    qty: integer("qty").notNull(),
+    unitPriceKobo: bigint("unit_price_kobo", { mode: "number" }).notNull(),
+    lineTotalKobo: bigint("line_total_kobo", { mode: "number" }).notNull(),
+  },
+  (table) => [index("receipt_lines_receipt_idx").on(table.receiptId)],
+);
+
+// One row per print. The first print is the original; later ones print "DUPLICATE".
+export const receiptPrints = pgTable(
+  "receipt_prints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    receiptId: uuid("receipt_id")
+      .notNull()
+      .references(() => receipts.id),
+    printedBy: text("printed_by").references(() => user.id),
+    printedAt: timestamp("printed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("receipt_prints_receipt_idx").on(table.receiptId)],
+);
+
+// Immutable snapshot of a shift's report, written when the shift closes.
+// Reopening it later shows what was sent, not what the data looks like now.
+export const shiftReports = pgTable("shift_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  shiftId: uuid("shift_id")
+    .notNull()
+    .unique()
+    .references(() => cashierShifts.id),
+  snapshot: jsonb("snapshot").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { activityEvents } from "@/db/schema";
 
 export type ActivityCategory = "auth" | "records" | "sharing" | "messages" | "appointments" | "accounts" | "billing";
-export type ActorRole = "patient" | "admin" | "super_admin";
+export type ActorRole = "patient" | "cashier" | "admin" | "super_admin";
 
 export type LogEventInput = {
   category: ActivityCategory;

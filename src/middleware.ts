@@ -16,6 +16,9 @@ const STAFF_PAGES = [
   "/inventory",
   "/users",
   "/activity",
+  "/price-list",
+  "/metrics",
+  "/cashier",
 ];
 const PATIENT_PAGES = ["/patient"];
 const PROTECTED_PAGES = [...STAFF_PAGES, ...PATIENT_PAGES];
@@ -93,12 +96,14 @@ export async function middleware(request: NextRequest) {
     // instead of hitting the 403 boundary.
     const cache = await getCookieCache(request);
     const role = (cache?.user as { role?: string } | undefined)?.role;
-    const home = role === "patient" ? "/patient" : "/dashboard";
+    const home = role === "patient" ? "/patient" : role === "cashier" ? "/cashier" : "/dashboard";
 
     if (isAuthPage && role) {
       response = NextResponse.redirect(new URL(home, request.url));
     } else if (isStaffPage && role === "patient") {
       response = NextResponse.redirect(new URL("/patient", request.url));
+    } else if (isStaffPage && role === "cashier" && !pathname.startsWith("/cashier")) {
+      response = NextResponse.redirect(new URL("/cashier", request.url));
     } else {
       response = NextResponse.next();
     }

@@ -3,7 +3,7 @@
 import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { formRecords, patients, user } from "@/db/schema";
-import { requireStaff } from "@/lib/authz";
+import { STAFF_ROLES, requireStaff } from "@/lib/authz";
 import {
   sendPatientFilesToColleaguesSchema,
   sendRecordToColleaguesSchema,
@@ -24,7 +24,14 @@ export async function listActiveAdmins(): Promise<ActiveAdmin[]> {
   const rows = await db
     .select({ id: user.id, name: user.name, email: user.email, role: user.role })
     .from(user)
-    .where(and(ne(user.id, session.user.id), eq(user.banned, false), isNull(user.deletedAt)));
+    .where(
+      and(
+        ne(user.id, session.user.id),
+        eq(user.banned, false),
+        isNull(user.deletedAt),
+        inArray(user.role, [...STAFF_ROLES]),
+      ),
+    );
   return rows.map((r) => ({ id: r.id, name: r.name, email: r.email, isSuperAdmin: r.role === "super_admin" }));
 }
 
@@ -39,7 +46,7 @@ export async function sendRecordToColleagues(input: SendRecordToColleaguesInput)
   const recipientRows = await db
     .select({ id: user.id, banned: user.banned, deletedAt: user.deletedAt })
     .from(user)
-    .where(inArray(user.id, parsed.recipientUserIds));
+    .where(and(inArray(user.id, parsed.recipientUserIds), inArray(user.role, [...STAFF_ROLES])));
   const recipientIds = recipientRows.filter((r) => r.id !== meId && !r.banned && !r.deletedAt).map((r) => r.id);
   if (recipientIds.length === 0) throw new Error("No valid recipients selected");
 
@@ -94,7 +101,7 @@ export async function sendRecordsToColleagues(
   const recipientRows = await db
     .select({ id: user.id, banned: user.banned, deletedAt: user.deletedAt })
     .from(user)
-    .where(inArray(user.id, parsed.recipientUserIds));
+    .where(and(inArray(user.id, parsed.recipientUserIds), inArray(user.role, [...STAFF_ROLES])));
   const recipientIds = recipientRows.filter((r) => r.id !== meId && !r.banned && !r.deletedAt).map((r) => r.id);
   if (recipientIds.length === 0) throw new Error("No valid recipients selected");
 
@@ -147,7 +154,7 @@ export async function sendPatientFilesToColleagues(
   const recipientRows = await db
     .select({ id: user.id, banned: user.banned, deletedAt: user.deletedAt })
     .from(user)
-    .where(inArray(user.id, parsed.recipientUserIds));
+    .where(and(inArray(user.id, parsed.recipientUserIds), inArray(user.role, [...STAFF_ROLES])));
   const recipientIds = recipientRows.filter((r) => r.id !== meId && !r.banned && !r.deletedAt).map((r) => r.id);
   if (recipientIds.length === 0) throw new Error("No valid recipients selected");
 

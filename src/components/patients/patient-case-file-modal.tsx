@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2, CreditCard, CheckCircle2, Clock, Image as ImageIcon, Eye } from "lucide-react";
-import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
+import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2, Image as ImageIcon } from "lucide-react";
 import { CaseFileHistory } from "@/components/patients/patient-history";
 import { PATIENT_STATUSES } from "@/lib/validators/patient";
 import { useSession } from "@/lib/auth-client";
@@ -72,14 +71,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showCashierModal, setShowCashierModal] = useState(false);
-  const [currentPatient, setCurrentPatient] = useState<PatientRecord>(patient);
   const [activeTab, setActiveTab] = useState<"history" | "cover" | "inside" | "operations">("history");
-  const [historyKey, setHistoryKey] = useState(0);
-
-  useEffect(() => {
-    setCurrentPatient(patient);
-  }, [patient]);
 
   const handleDelete = async () => {
     if (!isSuperAdmin) {
@@ -300,31 +292,6 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                 <Badge variant="secondary" className="border-pink-400 bg-pink-50 text-pink-900 font-mono text-xs">
                   {formData.hospitalNumber}
                 </Badge>
-                {/* PAYMENT TICKER BADGE */}
-                {currentPatient.paymentStatus === "paid" ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowCashierModal(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs cursor-pointer transition-colors"
-                    title="Payment confirmed by cashier. Click to view details/proof."
-                  >
-                    <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
-                    <span>PAID</span>
-                    {currentPatient.paymentEvidenceUrl && (
-                      <span className="text-[10px] bg-emerald-700/80 px-1 rounded">📷 Proof</span>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowCashierModal(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] shadow-xs cursor-pointer transition-colors animate-pulse"
-                    title="Awaiting cashier confirmation. Click to confirm payment."
-                  >
-                    <Clock className="h-3 w-3" />
-                    <span>PENDING PAYMENT</span>
-                  </button>
-                )}
               </DialogTitle>
               <p className="text-xs text-pink-800 font-medium">
                 GARDEN CITY SPECIALIST HOSPITAL · KADUNA, NIGERIA
@@ -333,18 +300,6 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => setShowCashierModal(true)}
-              className={`text-xs font-semibold gap-1.5 text-white ${
-                currentPatient.paymentStatus === "paid"
-                  ? "bg-emerald-700 hover:bg-emerald-600"
-                  : "bg-amber-600 hover:bg-amber-700"
-              }`}
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              {currentPatient.paymentStatus === "paid" ? "Payment Cleared" : "Confirm Payment"}
-            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -450,7 +405,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         {/* PHYSICAL PINK CASE FOLDER CONTAINER */}
         <div className="p-6 space-y-6 bg-pink-50/60 min-h-[550px]">
           
-          {activeTab === "history" && <CaseFileHistory patientId={patient.id} refreshKey={historyKey} />}
+          {activeTab === "history" && <CaseFileHistory patientId={patient.id} />}
 
           {/* TAB 1: COVER PAGE (IMAGE 1) */}
           {activeTab === "cover" && (
@@ -491,96 +446,6 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                   <div>Tel: 062-293293, 08077062451</div>
                   <div className="italic text-blue-900 font-bold">gardencityspecialisthospital@yahoo.com</div>
                 </div>
-              </div>
-
-              {/* CASHIER PAYMENT CLEARANCE & EVIDENCE SECTION */}
-              <div className="border-2 border-slate-900 bg-white p-4 rounded-lg space-y-2.5 shadow-sm text-left">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-emerald-800" />
-                    <span className="font-extrabold text-xs text-slate-900 tracking-wider uppercase">
-                      Hospital Billing & Cashier Clearance
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {currentPatient.paymentStatus === "paid" ? (
-                      <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1 px-2.5 py-0.5">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> PAID ✓
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-amber-500 text-white font-bold text-xs gap-1 px-2.5 py-0.5 animate-pulse">
-                        <Clock className="h-3.5 w-3.5" /> PENDING PAYMENT
-                      </Badge>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowCashierModal(true)}
-                      className="h-7 text-xs border-slate-400 font-semibold"
-                    >
-                      {currentPatient.paymentStatus === "paid" ? "Update Details / Proof" : "Cashier Tick Payment"}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs pt-1">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Amount Paid</span>
-                    <span className="font-extrabold text-slate-900 text-sm">
-                      {currentPatient.paymentAmount ? `₦${currentPatient.paymentAmount}` : "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Payment Method</span>
-                    <span className="font-bold text-slate-800">
-                      {currentPatient.paymentMethod || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Receipt / Ref No</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      {currentPatient.paymentReference || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Confirmed By</span>
-                    <span className="font-bold text-slate-800 truncate block">
-                      {currentPatient.paymentConfirmedBy || (currentPatient.paymentStatus === "paid" ? "Cashier Desk" : "Pending")}
-                    </span>
-                  </div>
-                </div>
-
-                {currentPatient.paymentEvidenceUrl && (
-                  <div className="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between bg-slate-50 p-2 rounded border">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-9 w-9 rounded border bg-white overflow-hidden shrink-0">
-                        <img
-                          src={currentPatient.paymentEvidenceUrl}
-                          alt="Payment Evidence"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-900 block truncate max-w-[180px]">
-                          {currentPatient.paymentEvidenceName || "Receipt Photo"}
-                        </span>
-                        <span className="text-[10px] text-emerald-700 font-semibold block">
-                          ✓ Evidence Photo Attached
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowCashierModal(true)}
-                      className="h-7 text-xs gap-1 border-slate-300"
-                    >
-                      <Eye className="h-3 w-3" /> View Evidence
-                    </Button>
-                  </div>
-                )}
               </div>
 
               <div className="pt-6 border-t-2 border-slate-900 text-xs font-bold flex items-center justify-between">
@@ -1240,18 +1105,6 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
         </div>
       </DialogContent>
 
-      <CashierPaymentModal
-        open={showCashierModal}
-        onOpenChange={setShowCashierModal}
-        patient={currentPatient}
-        onUpdated={(updated) => {
-          if (updated) {
-            setCurrentPatient(updated);
-          }
-          setHistoryKey((k) => k + 1);
-          if (onUpdated) onUpdated();
-        }}
-      />
     </Dialog>
   );
 }

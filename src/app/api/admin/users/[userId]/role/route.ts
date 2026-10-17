@@ -5,9 +5,9 @@ import { user, session as sessionTable } from "@/db/schema";
 import { requireSuperAdmin } from "@/lib/authz";
 import { logEvent } from "@/lib/activity";
 
-const ROLES = ["patient", "admin", "super_admin"] as const;
+const ROLES = ["patient", "cashier", "admin", "super_admin"] as const;
 type Role = (typeof ROLES)[number];
-const ROLE_RANK: Record<Role, number> = { patient: 0, admin: 1, super_admin: 2 };
+const ROLE_RANK: Record<Role, number> = { patient: 0, cashier: 1, admin: 2, super_admin: 3 };
 
 const LAST_SUPER_ADMIN_ERROR = "LAST_SUPER_ADMIN";
 

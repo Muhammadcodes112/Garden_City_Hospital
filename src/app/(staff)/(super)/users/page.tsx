@@ -22,7 +22,7 @@ import { formatDate } from "@/lib/date";
 import { toast } from "sonner";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
-type Role = "patient" | "admin" | "super_admin";
+type Role = "patient" | "cashier" | "admin" | "super_admin";
 
 type AdminUser = {
   id: string;
@@ -41,18 +41,21 @@ type AdminUser = {
 
 const ROLE_LABEL: Record<Role, string> = {
   patient: "Patient",
+  cashier: "Cashier",
   admin: "Admin",
   super_admin: "Super Admin",
 };
 
 const ROLE_BADGE: Record<Role, string> = {
   patient: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  cashier: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
   admin: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-transparent",
   super_admin: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
 };
 
 const TIER_CARDS: { role: Role; description: string }[] = [
   { role: "patient", description: "Signs up freely, no code needed. No access to staff tools, patient records, or forms — only their own account." },
+  { role: "cashier", description: "Cash desk only. Issues, prints and voids receipts in their own shift and sees their own shift report. Sees a patient's name, hospital number, age, sex, phone and payment history — nothing clinical." },
   { role: "admin", description: "Hospital staff. Full access to patient records, forms, messages, and the records search — but no access to user management, metrics, or deletion." },
   { role: "super_admin", description: "Everything an Admin can do, plus user management, role changes, access codes, and permanent deletion. Requires 2FA before promotion." },
 ];
@@ -166,7 +169,7 @@ export default function UsersAndRolesPage() {
   }
 
   const counts = useMemo(() => {
-    const c: Record<Role, number> = { patient: 0, admin: 0, super_admin: 0 };
+    const c: Record<Role, number> = { patient: 0, cashier: 0, admin: 0, super_admin: 0 };
     for (const u of users) {
       if (u.status === "deleted") continue;
       c[u.role] = (c[u.role] || 0) + 1;
@@ -193,7 +196,7 @@ export default function UsersAndRolesPage() {
       </div>
 
       {/* TIER CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {TIER_CARDS.map(({ role, description }) => (
           <div key={role} className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-2">
             <div className="flex items-center justify-between">
@@ -222,7 +225,7 @@ export default function UsersAndRolesPage() {
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold overflow-x-auto">
-              {(["all", "patient", "admin", "super_admin"] as const).map((r) => (
+              {(["all", "patient", "cashier", "admin", "super_admin"] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -415,7 +418,7 @@ export default function UsersAndRolesPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">New role</Label>
                 <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg text-xs font-semibold">
-                  {(["patient", "admin", "super_admin"] as const).map((r) => (
+                  {(["patient", "cashier", "admin", "super_admin"] as const).map((r) => (
                     <button
                       key={r}
                       type="button"

@@ -8,9 +8,11 @@ import {
   messages,
   patients,
   shareLinks,
+  shiftReports,
   user,
 } from "@/db/schema";
 import type { FormType } from "@/lib/validators/form-data";
+import type { ShiftReportSnapshot } from "@/lib/cashier-service";
 
 export type SerializedAttachment =
   | {
@@ -37,7 +39,19 @@ export type SerializedAttachment =
       hospitalNumber: string;
       status: string;
     }
-  | { kind: "patient_file"; id: string; patientId: string; available: false };
+  | { kind: "patient_file"; id: string; patientId: string; available: false }
+  | {
+      kind: "shift_report";
+      id: string;
+      shiftId: string;
+      available: true;
+      cashierName: string;
+      openedAt: string;
+      issuedKobo: number;
+      voidCount: number;
+      varianceKobo: number | null;
+    }
+  | { kind: "shift_report"; id: string; shiftId: string; available: false };
 
 async function resolveBaseUrl(): Promise<string> {
   try {
@@ -112,6 +126,16 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
     for (const r of pRows) patientFileMap.set(r.id, { surname: r.surname, firstNames: r.firstNames, hospitalNumber: r.hospitalNumber, status: r.status });
   }
 
+  const shiftReportIds = [...new Set(rows.filter((r) => r.kind === "shift_report" && r.shiftReportId).map((r) => r.shiftReportId!))];
+  const shiftReportMap = new Map<string, { shiftId: string; snapshot: ShiftReportSnapshot }>();
+  if (shiftReportIds.length > 0) {
+    const srRows = await db
+      .select({ id: shiftReports.id, shiftId: shiftReports.shiftId, snapshot: shiftReports.snapshot })
+      .from(shiftReports)
+      .where(inArray(shiftReports.id, shiftReportIds));
+    for (const r of srRows) shiftReportMap.set(r.id, { shiftId: r.shiftId, snapshot: r.snapshot as ShiftReportSnapshot });
+  }
+
   const baseUrl = shareLinkIds.length > 0 ? await resolveBaseUrl() : "";
   const now = new Date();
 
@@ -156,6 +180,23 @@ export async function hydrateAttachments(messageIds: string[]): Promise<Map<stri
         fileSize: r.fileSize ?? 0,
         mimeType: r.mimeType ?? "application/octet-stream",
       });
+    } else if (r.kind === "shift_report") {
+      const sr = r.shiftReportId ? shiftReportMap.get(r.shiftReportId) : undefined;
+      list.push(
+        sr
+          ? {
+              kind: "shift_report",
+              id: r.id,
+              shiftId: sr.shiftId,
+              available: true,
+              cashierName: sr.snapshot.shift.cashierName,
+              openedAt: sr.snapshot.shift.openedAt,
+              issuedKobo: sr.snapshot.totals.issuedKobo,
+              voidCount: sr.snapshot.totals.voidCount,
+              varianceKobo: sr.snapshot.cash.varianceKobo,
+            }
+          : { kind: "shift_report", id: r.id, shiftId: "", available: false },
+      );
     } else if (r.kind === "patient_file") {
       // patientId is nulled when the patient file is hard-deleted.
       const pf = r.patientId ? patientFileMap.get(r.patientId) : undefined;

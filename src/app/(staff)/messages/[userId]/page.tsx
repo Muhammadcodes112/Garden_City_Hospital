@@ -25,6 +25,7 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
         initialHasMore={conversation.hasMore}
         initialOtherLastReadAt={conversation.otherLastReadAt}
         readOnly={conversation.readOnly}
+        readOnlyReason={conversation.readOnlyReason}
       />
     </MessagesShell>
   );

@@ -42,6 +42,7 @@ export function ConversationView({
   initialHasMore,
   initialOtherLastReadAt,
   readOnly,
+  readOnlyReason,
 }: {
   meId: string;
   targetUser: TargetUser;
@@ -50,6 +51,7 @@ export function ConversationView({
   initialHasMore: boolean;
   initialOtherLastReadAt: string | null;
   readOnly: boolean;
+  readOnlyReason?: string;
 }) {
   const { people, lastUpdates, updateTick } = useMessagesPoll();
   const [mounted, setMounted] = useState(false);
@@ -295,7 +297,7 @@ export function ConversationView({
 
       <Composer
         disabled={readOnly}
-        disabledReason="This admin's account is no longer active — you can't send new messages here."
+        disabledReason={readOnlyReason ?? "This admin's account is no longer active — you can't send new messages here."}
         onSend={handleSend}
         autoFocus={messages.length === 0}
       />

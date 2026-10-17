@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { conversationParticipants, messages, user } from "@/db/schema";
-import { requireStaff } from "@/lib/authz";
+import { STAFF_ROLES, requireStaff } from "@/lib/authz";
 import { sendMessageSchema, type SendMessageInput } from "@/lib/validators/message";
 import type { ActorRole } from "@/lib/activity";
 import { checkFormRecordAvailable, checkPatientFileAvailable, checkShareLinkAvailable, getRecordShareRecipients, type SharedWithEntry } from "@/lib/message-attachments";
@@ -34,10 +34,13 @@ export async function getConversationWithUser(targetUserId: string) {
     .select({ id: user.id, name: user.name, email: user.email, role: user.role, banned: user.banned, deletedAt: user.deletedAt })
     .from(user)
     .where(eq(user.id, targetUserId));
-  if (!target) return null;
+  const isCashier = target?.role === "cashier";
+  if (!target || (!isCashier && !(STAFF_ROLES as readonly string[]).includes(target.role ?? ""))) return null;
 
   const removed = Boolean(target.banned) || Boolean(target.deletedAt);
   const conversationId = await findDmConversationId(meId, targetUserId);
+  // A cashier thread exists only because they sent a shift report; it's read-only.
+  if (isCashier && !conversationId) return null;
 
   // Can't start a brand-new conversation with an admin who is no longer active.
   if (!conversationId && removed) return null;
@@ -53,7 +56,10 @@ export async function getConversationWithUser(targetUserId: string) {
       isSuperAdmin: target.role === "super_admin",
     },
     conversationId,
-    readOnly: removed,
+    readOnly: removed || isCashier,
+    readOnlyReason: isCashier
+      ? "Cashier accounts don't use messaging. This thread holds the shift reports they've sent."
+      : undefined,
     messages: await serializeMessages(page),
     otherLastReadAt: otherLastReadAt ? otherLastReadAt.toISOString() : null,
     hasMore: page.length === 30,
@@ -79,10 +85,11 @@ export async function sendMessage(input: SendMessageInput) {
   }
 
   const [target] = await db
-    .select({ id: user.id, banned: user.banned, deletedAt: user.deletedAt })
+    .select({ id: user.id, role: user.role, banned: user.banned, deletedAt: user.deletedAt })
     .from(user)
     .where(eq(user.id, parsed.targetUserId));
-  if (!target) throw new Error("Recipient not found");
+  // Messaging is clinical-staff only; never a patient or cashier account.
+  if (!target || !(STAFF_ROLES as readonly string[]).includes(target.role ?? "")) throw new Error("Recipient not found");
 
   const removed = Boolean(target.banned) || Boolean(target.deletedAt);
   let conversationId = await findDmConversationId(meId, parsed.targetUserId);

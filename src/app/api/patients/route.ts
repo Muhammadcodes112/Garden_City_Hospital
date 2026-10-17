@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim().toLowerCase() || "";
   const statusFilter = searchParams.get("status") || "all";
-  const paymentFilter = searchParams.get("payment") || "all";
   const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
   const page = Math.max(parseInt(searchParams.get("page") || "1", 10), 1);
   const offset = (page - 1) * limit;
@@ -29,7 +28,6 @@ export async function GET(req: NextRequest) {
           ilike(patients.hospitalNumber, `%${word}%`),
           ilike(patients.phone, `%${word}%`),
           ilike(patients.doctor, `%${word}%`),
-          ilike(patients.paymentReference, `%${word}%`),
         ),
       );
     }
@@ -41,20 +39,6 @@ export async function GET(req: NextRequest) {
         conditions.push(ilike(patients.status, "%Outpatient%"));
       } else if (statusFilter === "discharged") {
         conditions.push(ilike(patients.status, "%Discharged%"));
-      }
-    }
-
-    if (paymentFilter !== "all") {
-      if (paymentFilter === "paid") {
-        conditions.push(eq(patients.paymentStatus, "paid"));
-      } else if (paymentFilter === "pending") {
-        conditions.push(
-          or(
-            eq(patients.paymentStatus, "pending"),
-            eq(patients.paymentStatus, "unpaid"),
-            sql`${patients.paymentStatus} IS NULL`,
-          ),
-        );
       }
     }
 

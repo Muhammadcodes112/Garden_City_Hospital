@@ -22,10 +22,6 @@ import {
   FolderOpen,
   Trash2,
   ShieldAlert,
-  CreditCard,
-  CheckCircle2,
-  Clock,
-  Eye,
   Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,9 +39,8 @@ import {
 import { RegisterPatientModal } from "@/components/patients/register-patient-modal";
 import { PatientCaseFileModal, type PatientRecord } from "@/components/patients/patient-case-file-modal";
 import { ExportPatientsModal } from "@/components/patients/export-patients-modal";
-import { CashierPaymentModal } from "@/components/patients/cashier-payment-modal";
 import { BulkSendPatientFilesPanel } from "@/components/patients/bulk-send-patient-files-panel";
-import { PatientVitals, RecentRecordsList } from "@/components/patients/patient-history";
+import { PatientReceipts, PatientVitals, RecentRecordsList } from "@/components/patients/patient-history";
 import { bulkDeletePatients } from "@/lib/actions/patients";
 import { useSession } from "@/lib/auth-client";
 import { formatDate } from "@/lib/date";
@@ -64,7 +59,6 @@ export function PatientsView() {
   // Filters state
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>("all");
-  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "pending">("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -73,7 +67,6 @@ export function PatientsView() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCaseFileModal, setShowCaseFileModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [cashierModalPatient, setCashierModalPatient] = useState<PatientRecord | null>(null);
 
   // Deletion state
   const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
@@ -92,7 +85,6 @@ export function PatientsView() {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
       if (activeTab !== "all") params.set("status", activeTab);
-      if (paymentFilter !== "all") params.set("payment", paymentFilter);
       params.set("page", page.toString());
       params.set("limit", "15");
 
@@ -188,7 +180,7 @@ export function PatientsView() {
 
   useEffect(() => {
     fetchPatients();
-  }, [query, activeTab, paymentFilter, page]);
+  }, [query, activeTab, page]);
 
   // Deep link from elsewhere (e.g. the dashboard's "Open file" action): open a
   // specific patient's case file directly, even if it isn't on the current page.
@@ -218,8 +210,6 @@ export function PatientsView() {
   const outpatientCount = patients.filter((p) => p.status?.includes("Outpatient")).length;
   const inpatientCount = patients.filter((p) => p.status?.includes("Admitted") || p.status?.includes("Inpatient")).length;
   const dischargedCount = patients.filter((p) => p.status?.includes("Discharged")).length;
-  const paidCount = patients.filter((p) => p.paymentStatus === "paid").length;
-  const pendingPaymentCount = patients.filter((p) => p.paymentStatus !== "paid").length;
 
   const getInitials = (surname: string, firstNames: string) => {
     const s = surname ? surname[0] : "";
@@ -349,47 +339,7 @@ export function PatientsView() {
           </div>
         </div>
 
-        {/* Tier 2: Payment Clearance Status Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-          <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl text-xs font-bold border border-border/60">
-            <span className="text-[10px] uppercase font-black text-muted-foreground px-2 tracking-wider">
-              Payment Status:
-            </span>
-            <button
-              type="button"
-              onClick={() => { setPaymentFilter("all"); setPage(1); }}
-              className={`px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
-                paymentFilter === "all"
-                  ? "bg-background text-foreground shadow-xs font-black"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All Records <span className="ml-1 text-[10px] opacity-75">{total}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPaymentFilter("paid"); setPage(1); }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
-                paymentFilter === "paid"
-                  ? "bg-emerald-600 text-white shadow-xs font-black"
-                  : "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60"
-              }`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" /> Paid <span className="ml-0.5 text-[10px] opacity-85">({paidCount})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPaymentFilter("pending"); setPage(1); }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all whitespace-nowrap ${
-                paymentFilter === "pending"
-                  ? "bg-amber-600 text-white shadow-xs font-black"
-                  : "text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/60"
-              }`}
-            >
-              <Clock className="h-3.5 w-3.5 stroke-[2.5]" /> Pending Cashier <span className="ml-0.5 text-[10px] opacity-85">({pendingPaymentCount})</span>
-            </button>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
           <div className="text-[11px] font-semibold text-muted-foreground">
             Showing <strong className="text-foreground">{patients.length}</strong> active patient records
           </div>
@@ -443,7 +393,6 @@ export function PatientsView() {
                         />
                       </th>
                       <th className="py-3.5 px-3">PATIENT</th>
-                      <th className="py-3.5 px-3">PAYMENT</th>
                       <th className="py-3.5 px-3">DOCTOR / LAST VISIT</th>
                       <th className="py-3.5 px-3">STATUS</th>
                     </tr>
@@ -487,53 +436,6 @@ export function PatientsView() {
                                 </div>
                               </div>
                             </div>
-                          </td>
-
-                          {/* PAYMENT STATUS COLUMN (DISTINCT COMPACT BADGE + PROMINENT CONFIRM BUTTON) */}
-                          <td className="py-3.5 px-3">
-                            {p.paymentStatus === "paid" ? (
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-bold text-[11px]">
-                                  <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
-                                  PAID
-                                </span>
-                                {p.paymentAmount ? (
-                                  <span className="text-[11px] text-foreground font-mono font-bold shrink-0">
-                                    ₦{Number(p.paymentAmount).toLocaleString()}
-                                  </span>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCashierModalPatient(p);
-                                  }}
-                                  className="inline-flex shrink-0 items-center gap-1 px-2 py-0.5 rounded-md border border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground text-[10px] font-semibold transition-colors cursor-pointer"
-                                  title="View receipt or update clearance"
-                                >
-                                  {p.paymentEvidenceUrl ? "📷 Receipt" : "Edit"}
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold text-[11px]">
-                                  <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                                  PENDING
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCashierModalPatient(p);
-                                  }}
-                                  className="group inline-flex shrink-0 items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold shadow-xs hover:from-amber-600 hover:to-orange-600 hover:shadow-md hover:shadow-amber-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer"
-                                  title="Confirm payment at Cashier Desk"
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5] transition-transform duration-200 group-hover:scale-115" />
-                                  <span>Confirm</span>
-                                </button>
-                              </div>
-                            )}
                           </td>
 
                           {/* DOCTOR / LAST VISIT */}
@@ -593,15 +495,6 @@ export function PatientsView() {
                             </div>
                           </div>
                           <div className="shrink-0 flex items-center gap-1.5">
-                            {p.paymentStatus === "paid" ? (
-                              <Badge className="bg-emerald-600 text-white text-[10px] font-bold gap-1 px-2 py-0.5 shadow-2xs">
-                                <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> PAID
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold gap-1 px-2 py-0.5 shadow-2xs">
-                                <Clock className="h-3 w-3 stroke-[2.5]" /> PENDING
-                              </Badge>
-                            )}
                             {getStatusBadge(p.status)}
                           </div>
                         </div>
@@ -670,34 +563,6 @@ export function PatientsView() {
               >
                 <FolderOpen className="h-4 w-4" /> Open Full Record / Case File
               </Button>
-              {/* ULTRA-COOL HOVER CONFIRM BUTTON */}
-              {selectedPatient.paymentStatus === "paid" ? (
-                <Button
-                  size="sm"
-                  onClick={() => setCashierModalPatient(selectedPatient)}
-                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white font-black text-xs shadow-md shadow-emerald-700/25 hover:shadow-xl hover:shadow-emerald-700/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-emerald-400/40"
-                >
-                  {/* Shimmer sweep effect on hover */}
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
-                  <span className="relative flex items-center justify-center gap-2">
-                    <CreditCard className="h-4 w-4 transition-transform duration-300 ease-out group-hover:scale-125 group-hover:-rotate-6" />
-                    <span className="tracking-wide">Update Payment / View Receipt</span>
-                  </span>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => setCashierModalPatient(selectedPatient)}
-                  className="group relative w-full h-11 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-white font-black text-xs shadow-md shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-300 ease-out overflow-hidden cursor-pointer border border-amber-400/40"
-                >
-                  {/* Shimmer sweep effect on hover */}
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
-                  <span className="relative flex items-center justify-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 stroke-[2.5] transition-transform duration-300 ease-out group-hover:scale-125 group-hover:rotate-6" />
-                    <span className="tracking-wide">Confirm Payment (Cashier Desk)</span>
-                  </span>
-                </Button>
-              )}
               {/* Quick Form Actions for This Patient */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-muted-foreground block uppercase tracking-wider">
@@ -738,126 +603,8 @@ export function PatientsView() {
               </div>
             </div>
 
-            {/* CASHIER PAYMENT CLEARANCE CARD (RESPONSIVE HEADER & NON-OVERFLOWING BADGE) */}
-            <div
-              className={`rounded-2xl border-2 p-4.5 sm:p-5 space-y-3.5 shadow-xs transition-all ${
-                selectedPatient.paymentStatus === "paid"
-                  ? "border-emerald-500/80 bg-card hover:border-emerald-600"
-                  : "border-amber-500/80 bg-card hover:border-amber-600"
-              }`}
-            >
-              {/* Header: Responsive flex layout preventing badge clipping */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-xs text-white shrink-0 mt-0.5 ${
-                      selectedPatient.paymentStatus === "paid"
-                        ? "bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-600/20"
-                        : "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/20"
-                    }`}
-                  >
-                    <CreditCard className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-black text-xs uppercase tracking-wider text-foreground leading-snug">
-                      Hospital Billing Clearance
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
-                      Cashier Clearance Desk
-                    </p>
-                  </div>
-                </div>
-
-                <div className="shrink-0">
-                  {selectedPatient.paymentStatus === "paid" ? (
-                    <Badge className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 font-black text-[11px] gap-1 px-2.5 py-0.5 shadow-2xs whitespace-nowrap">
-                      <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> CLEARED
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-black text-[11px] gap-1 px-2.5 py-0.5 shadow-2xs whitespace-nowrap">
-                      <Clock className="h-3 w-3 stroke-[2.5] animate-pulse" /> PENDING
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Clearance Details / Instructions */}
-              <div className="text-xs space-y-2">
-                {selectedPatient.paymentStatus === "paid" ? (
-                  <div className="rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200/80 dark:border-border/60 p-3.5 space-y-2 text-xs shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground text-[11px] font-medium">Cleared Amount</span>
-                      <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-300">
-                        ₦{selectedPatient.paymentAmount ? Number(selectedPatient.paymentAmount).toLocaleString() : "Cleared"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground font-medium">Payment Mode</span>
-                      <Badge variant="secondary" className="font-semibold text-xs border border-emerald-300/80 dark:border-emerald-700 bg-emerald-100/50 text-emerald-900 dark:text-emerald-200">
-                        {selectedPatient.paymentMethod || "POS Terminal"}
-                      </Badge>
-                    </div>
-                    {selectedPatient.paymentReference && (
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground font-medium">Reference</span>
-                        <code className="font-mono text-[10px] bg-background px-1.5 py-0.5 rounded border border-border text-foreground font-semibold">
-                          {selectedPatient.paymentReference}
-                        </code>
-                      </div>
-                    )}
-                    {selectedPatient.paymentConfirmedBy && (
-                      <div className="flex items-center justify-between text-[11px] border-t border-border/50 pt-2">
-                        <span className="text-muted-foreground font-medium">Cleared By</span>
-                        <span className="font-bold text-foreground text-[11px]">
-                          {selectedPatient.paymentConfirmedBy}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 p-3.5 text-xs text-muted-foreground leading-relaxed flex items-start gap-3">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 mt-0.5">
-                      <Clock className="h-3.5 w-3.5 stroke-[2.5]" />
-                    </div>
-                    <p className="flex-1 text-xs text-muted-foreground leading-relaxed">
-                      Awaiting cashier confirmation. Verify payment via POS terminal, transfer alert, or cash collection, then click below to clear and attach proof.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Evidence Preview if photo is attached */}
-              {selectedPatient.paymentEvidenceUrl && (
-                <div className="rounded-xl border border-border bg-background p-2.5 flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-10 w-10 rounded-lg border bg-card overflow-hidden shrink-0 shadow-2xs">
-                      <img
-                        src={selectedPatient.paymentEvidenceUrl}
-                        alt="Payment Evidence"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold text-foreground truncate block max-w-[130px]">
-                        {selectedPatient.paymentEvidenceName || "Payment Receipt"}
-                      </span>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 stroke-[2.5]" /> Proof Attached
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setCashierModalPatient(selectedPatient)}
-                    className="h-7 text-xs px-2.5 gap-1 font-semibold rounded-lg"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> View
-                  </Button>
-                </div>
-              )}
-            </div>
+            {/* Payments: the patient's receipts from the cashier desk */}
+            <PatientReceipts patientId={selectedPatient.id} />
 
             {/* Latest Vitals (recorded readings) */}
             <PatientVitals patientId={selectedPatient.id} />
@@ -1007,22 +754,6 @@ export function PatientsView() {
         </DialogContent>
       </Dialog>
 
-      {/* Cashier Payment Modal */}
-      {cashierModalPatient && (
-        <CashierPaymentModal
-          open={Boolean(cashierModalPatient)}
-          onOpenChange={(open) => {
-            if (!open) setCashierModalPatient(null);
-          }}
-          patient={cashierModalPatient}
-          onUpdated={(updated) => {
-            fetchPatients();
-            if (selectedPatient?.id === cashierModalPatient.id && updated) {
-              setSelectedPatient(updated);
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

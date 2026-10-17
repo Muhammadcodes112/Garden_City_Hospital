@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npx tsx scripts/test-suite.ts",
     "test:appointments": "npx tsx scripts/test-appointments.ts",
+    "test:amount-words": "npx tsx scripts/test-amount-words.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "npx tsx scripts/migrate-db.ts",
     "create-admin": "tsx scripts/create-admin.ts",

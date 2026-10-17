@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { recordVitals } from "@/lib/actions/vitals";
+import { formatKobo } from "@/lib/money";
+import { PAYMENT_MODE_LABELS, formatReceiptNo, type PaymentMode } from "@/lib/validators/cashier";
 import { FORM_TYPE_LABELS } from "@/lib/routes";
 import { formatDate } from "@/lib/date";
 import type { FormType } from "@/lib/validators/form-data";
@@ -34,6 +36,18 @@ type HistoryPayment = {
   confirmedBy: string | null;
   confirmedAt: string;
   revertedAt: string | null;
+};
+
+type HistoryReceipt = {
+  id: string;
+  receiptNo: number;
+  issuedAt: string;
+  payerName: string;
+  totalKobo: number;
+  paymentMode: PaymentMode;
+  status: "issued" | "voided";
+  voidReason: string | null;
+  issuedByName: string;
 };
 
 type HistoryVitals = {
@@ -92,6 +106,7 @@ function formatNaira(amount: string | null): string {
 /** Fetches a patient's forms (newest first) and payment history. `refreshKey` forces a refetch. */
 export function usePatientHistory(patientId: string, refreshKey = 0) {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
+  const [receipts, setReceipts] = useState<HistoryReceipt[]>([]);
   const [payments, setPayments] = useState<HistoryPayment[]>([]);
   const [vitals, setVitals] = useState<HistoryVitals[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +125,7 @@ export function usePatientHistory(patientId: string, refreshKey = 0) {
       .then((data) => {
         if (cancelled) return;
         setRecords(data.records ?? []);
+        setReceipts(data.receipts ?? []);
         setPayments(data.payments ?? []);
         setVitals(data.vitals ?? []);
       })
@@ -122,12 +138,12 @@ export function usePatientHistory(patientId: string, refreshKey = 0) {
     };
   }, [patientId, refreshKey]);
 
-  return { records, payments, vitals, loading };
+  return { records, receipts, payments, vitals, loading };
 }
 
 /** Full treatment & payment history, styled for the (always-light) pink case folder. */
 export function CaseFileHistory({ patientId, refreshKey }: { patientId: string; refreshKey?: number }) {
-  const { records, payments, vitals, loading } = usePatientHistory(patientId, refreshKey);
+  const { records, receipts, payments, vitals, loading } = usePatientHistory(patientId, refreshKey);
 
   if (loading) {
     return (
@@ -236,7 +252,55 @@ export function CaseFileHistory({ patientId, refreshKey }: { patientId: string; 
 
       <div>
         <h3 className="font-bold text-xs uppercase tracking-wider text-pink-950 mb-2 flex items-center gap-1.5">
-          <CreditCard className="h-3.5 w-3.5" /> PAYMENT HISTORY ({payments.length})
+          <CreditCard className="h-3.5 w-3.5" /> PAYMENTS: RECEIPTS ({receipts.length})
+        </h3>
+        <div className="overflow-x-auto border border-pink-300 rounded bg-white">
+          <table className="w-full min-w-[560px] text-left text-[11px]">
+            <thead className="bg-pink-100 text-pink-950 font-bold border-b border-pink-300">
+              <tr>
+                <th className="p-2 w-24">Receipt Nº</th>
+                <th className="p-2 w-24">Date</th>
+                <th className="p-2 w-24">Amount</th>
+                <th className="p-2">Mode</th>
+                <th className="p-2">Received From / Issued By</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-pink-200">
+              {receipts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-3 text-center text-slate-400 italic">
+                    No receipts issued yet
+                  </td>
+                </tr>
+              ) : (
+                receipts.map((r) => {
+                  const voided = r.status === "voided";
+                  return (
+                    <tr key={r.id} className={voided ? "text-slate-400" : ""}>
+                      <td className="p-2 font-mono font-semibold">{formatReceiptNo(r.receiptNo)}</td>
+                      <td className="p-2 whitespace-nowrap">{formatDate(r.issuedAt)}</td>
+                      <td className={`p-2 font-mono font-bold ${voided ? "line-through" : "text-emerald-700"}`}>{formatKobo(r.totalKobo)}</td>
+                      <td className="p-2">
+                        {PAYMENT_MODE_LABELS[r.paymentMode]}
+                        {voided ? <span className="block font-semibold text-rose-600">VOIDED: {r.voidReason}</span> : null}
+                      </td>
+                      <td className="p-2">
+                        {r.payerName}
+                        <span className="block text-slate-500">by {r.issuedByName}</span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {payments.length > 0 ? (
+      <div>
+        <h3 className="font-bold text-xs uppercase tracking-wider text-pink-950 mb-2 flex items-center gap-1.5">
+          <CreditCard className="h-3.5 w-3.5" /> EARLIER PAYMENT CLEARANCES, BEFORE RECEIPTS ({payments.length})
         </h3>
         <div className="overflow-x-auto border border-pink-300 rounded bg-white">
           <table className="w-full min-w-[560px] text-left text-[11px]">
@@ -287,6 +351,7 @@ export function CaseFileHistory({ patientId, refreshKey }: { patientId: string; 
           </table>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }
@@ -444,6 +509,49 @@ export function PatientVitals({ patientId }: { patientId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** The patient's receipts for the Patients page side panel (theme-aware). */
+export function PatientReceipts({ patientId, limit = 3 }: { patientId: string; limit?: number }) {
+  const { receipts, loading } = usePatientHistory(patientId);
+  const paidKobo = receipts.filter((r) => r.status === "issued").reduce((sum, r) => sum + r.totalKobo, 0);
+
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-bold text-foreground">Payments</span>
+        {!loading && receipts.length > 0 ? (
+          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatKobo(paidKobo)} total</span>
+        ) : null}
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading payments...
+        </div>
+      ) : receipts.length === 0 ? (
+        <p className="italic text-muted-foreground">No receipts yet. Payments are taken at the cashier desk.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {receipts.slice(0, limit).map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5">
+              <span className="min-w-0">
+                <span className="block font-mono font-semibold text-foreground">Nº {formatReceiptNo(r.receiptNo)}</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  {formatDate(r.issuedAt)} · {PAYMENT_MODE_LABELS[r.paymentMode]}
+                </span>
+              </span>
+              <span className={`font-mono font-bold ${r.status === "voided" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                {formatKobo(r.totalKobo)}
+              </span>
+            </li>
+          ))}
+          {receipts.length > limit ? (
+            <li className="text-[11px] text-muted-foreground">+{receipts.length - limit} more in the full case file</li>
+          ) : null}
+        </ul>
+      )}
     </div>
   );
 }

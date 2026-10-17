@@ -14,10 +14,13 @@ export function UserMenu({
   userName,
   userEmail,
   initialSignatureUrl = null,
+  showSignature = true,
 }: {
   userName: string;
   userEmail: string;
   initialSignatureUrl?: string | null;
+  /** Off for cashiers: the form signature is a clinical-staff feature. */
+  showSignature?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
@@ -86,18 +89,20 @@ export function UserMenu({
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
-            onClick={() => {
-              setOpen(false);
-              setSignatureModalOpen(true);
-            }}
-          >
-            <PenTool className="h-4 w-4" />
-            My signature
-          </button>
+          {showSignature ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              onClick={() => {
+                setOpen(false);
+                setSignatureModalOpen(true);
+              }}
+            >
+              <PenTool className="h-4 w-4" />
+              My signature
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"

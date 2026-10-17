@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   FlaskConical,
   Pill,
@@ -25,6 +26,8 @@ import { checkFormRecordAvailability, checkPatientFileAvailability, checkShareLi
 import { FORM_TYPE_LABELS } from "@/lib/routes";
 import { formatDate } from "@/lib/date";
 import type { SerializedAttachment } from "@/lib/message-attachments";
+import { formatKobo } from "@/lib/money";
+import { SHIFT_VOID_ALERT_THRESHOLD, describeVariance } from "@/lib/cashier-policy";
 
 const FORM_ICONS = { lab: FlaskConical, prescription: Pill, medical_report: FileText } as const;
 
@@ -47,6 +50,7 @@ export function AttachmentCard({ attachment }: { attachment: SerializedAttachmen
   if (attachment.kind === "form_record") return <FormRecordAttachment attachment={attachment} />;
   if (attachment.kind === "share_link") return <ShareLinkAttachment attachment={attachment} />;
   if (attachment.kind === "patient_file") return <PatientFileAttachment attachment={attachment} />;
+  if (attachment.kind === "shift_report") return <ShiftReportAttachment attachment={attachment} />;
   return <FileAttachment attachment={attachment} />;
 }
 
@@ -231,6 +235,35 @@ function PatientFileAttachment({ attachment }: { attachment: Extract<SerializedA
       <div className="flex items-center gap-1 border-t border-border p-1.5">
         <Button type="button" size="sm" variant="ghost" className="h-7 flex-1 gap-1 text-[11px]" disabled={busy} onClick={handleOpen}>
           <ExternalLink className="h-3 w-3" /> Open file
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ShiftReportAttachment({ attachment }: { attachment: Extract<SerializedAttachment, { kind: "shift_report" }> }) {
+  if (!attachment.available) return <UnavailableCard label="This shift report is no longer available." />;
+  const { shiftId, cashierName, openedAt, issuedKobo, voidCount, varianceKobo } = attachment;
+  const variance = varianceKobo ?? 0;
+  return (
+    <div className="w-64 overflow-hidden rounded-lg border border-border bg-background/60">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <FileText className="h-4 w-4 shrink-0 text-brand-green" />
+        <span className="truncate text-xs font-semibold text-foreground">Cashier Shift Report</span>
+      </div>
+      <div className="px-3 py-2 space-y-1 text-xs">
+        <p className="truncate text-sm font-medium text-foreground">{cashierName}</p>
+        <p className="text-muted-foreground">{openedAt ? new Date(openedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : ""}</p>
+        <p className="font-mono font-bold text-foreground">{formatKobo(issuedKobo)} taken</p>
+        <p className={variance !== 0 || voidCount > SHIFT_VOID_ALERT_THRESHOLD ? "font-semibold text-rose-600" : "text-muted-foreground"}>
+          {voidCount} void{voidCount === 1 ? "" : "s"} · drawer {describeVariance(variance, formatKobo)}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 border-t border-border p-1.5">
+        <Button asChild size="sm" variant="ghost" className="h-7 flex-1 gap-1 text-[11px]">
+          <Link href={`/cashier/reports/${shiftId}`}>
+            <ExternalLink className="h-3 w-3" /> Open report
+          </Link>
         </Button>
       </div>
     </div>

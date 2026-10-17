@@ -5,5 +5,6 @@ import { getRole } from "@/lib/authz";
 export default async function RootPage() {
   const session = await getSession();
   if (!session) redirect("/sign-in");
-  redirect(getRole(session) === "patient" ? "/patient" : "/dashboard");
+  const role = getRole(session);
+  redirect(role === "patient" ? "/patient" : role === "cashier" ? "/cashier" : "/dashboard");
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { db } from "@/db";
-import { patients, formRecords, patientPayments, patientVitals } from "@/db/schema";
+import { patients, formRecords, patientPayments, patientVitals, receipts, user } from "@/db/schema";
 import { and, eq, desc, isNull } from "drizzle-orm";
 import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 import { deletePatientsCascade } from "@/lib/patient-deletion";
@@ -34,6 +34,25 @@ export async function GET(
       .where(and(eq(formRecords.patientId, id), isNull(formRecords.deletedAt)))
       .orderBy(desc(formRecords.updatedAt));
 
+    // Payment history is the cashier's receipts. patient_payments holds the
+    // pre-receipt "Confirm Payment" clearances, kept read-only as history.
+    const patientReceipts = await db
+      .select({
+        id: receipts.id,
+        receiptNo: receipts.receiptNo,
+        issuedAt: receipts.issuedAt,
+        payerName: receipts.payerName,
+        totalKobo: receipts.totalKobo,
+        paymentMode: receipts.paymentMode,
+        status: receipts.status,
+        voidReason: receipts.voidReason,
+        issuedByName: user.name,
+      })
+      .from(receipts)
+      .innerJoin(user, eq(receipts.issuedBy, user.id))
+      .where(eq(receipts.patientId, id))
+      .orderBy(desc(receipts.issuedAt));
+
     const payments = await db
       .select()
       .from(patientPayments)
@@ -49,6 +68,7 @@ export async function GET(
     return NextResponse.json({
       patient,
       records,
+      receipts: patientReceipts,
       payments,
       vitals,
     });
