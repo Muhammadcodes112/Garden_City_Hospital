@@ -50,12 +50,20 @@ export async function POST(
     return NextResponse.json({ error: "User already has this role." }, { status: 400 });
   }
 
-  // Rule 4: promoting to super_admin requires 2FA already enabled.
-  if (newRole === "super_admin" && !targetUser.twoFactorEnabled) {
-    return NextResponse.json(
-      { error: "This account must enable two-factor authentication before it can be promoted to Super Admin." },
-      { status: 400 },
-    );
+  // Rule 4: the cash desk runs on ONE shared cashier account; each cashier
+  // types their name when they start a shift.
+  if (newRole === "cashier") {
+    const [existing] = await db
+      .select({ email: user.email })
+      .from(user)
+      .where(and(eq(user.role, "cashier"), isNull(user.deletedAt)))
+      .limit(1);
+    if (existing) {
+      return NextResponse.json(
+        { error: `There is already a cashier account (${existing.email}). All cashiers share it and type their name when they start a shift.` },
+        { status: 400 },
+      );
+    }
   }
 
   const isDemotion = ROLE_RANK[newRole as Role] < ROLE_RANK[oldRole];

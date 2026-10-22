@@ -29,6 +29,11 @@ function connectionString(): string {
   return process.env.DATABASE_URL;
 }
 
+/** False in production until CASHIER_DATABASE_URL is set (cashier pages then show a setup notice). */
+export function isCashierDbConfigured(): boolean {
+  return Boolean(process.env.CASHIER_DATABASE_URL) || process.env.NODE_ENV !== "production";
+}
+
 let cached: ReturnType<typeof drizzle<typeof schema>> | undefined;
 
 export function getCashierDb() {

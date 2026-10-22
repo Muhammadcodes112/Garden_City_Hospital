@@ -35,11 +35,11 @@ export default async function DashboardPage() {
     <>
     {staleShifts > 0 ? (
       <Link
-        href="/metrics"
+        href="/settings?tab=metrics"
         className="mb-4 flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-500/15 dark:text-amber-300"
       >
         <AlertTriangle className="h-4 w-4 shrink-0" />
-        {staleShifts} cashier shift{staleShifts === 1 ? " has" : "s have"} been open over {STALE_SHIFT_HOURS} hours. Someone may have forgotten to close it. See Metrics.
+        {staleShifts} cashier shift{staleShifts === 1 ? " has" : "s have"} been open over {STALE_SHIFT_HOURS} hours. Someone may have forgotten to close it. See Settings → Metrics.
       </Link>
     ) : null}
     <DashboardView

@@ -1,8 +1,43 @@
 import Image from "next/image";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { requireCashierArea } from "@/lib/authz";
 import { UserMenu } from "@/components/layout/user-menu";
 import { HOSPITAL_NAME } from "@/lib/brand";
+import { isCashierDbConfigured } from "@/db/cashier";
+
+/**
+ * In production the cashier area must run on the restricted cashier_app login
+ * (src/db/cashier.ts refuses to fall back). Show what's missing instead of an
+ * error page when it hasn't been set up yet.
+ */
+function SetupNotice({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+  return (
+    <div className="mx-auto max-w-xl rounded-xl border border-amber-500/50 bg-amber-500/10 p-5 text-sm">
+      <p className="flex items-center gap-2 text-base font-bold text-amber-800 dark:text-amber-300">
+        <AlertTriangle className="h-5 w-5" /> The cashier desk isn&apos;t set up yet
+      </p>
+      {isSuperAdmin ? (
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-foreground">
+          <li>
+            In the project folder, run <code className="rounded bg-muted px-1 font-mono text-xs">npx tsx scripts/setup-cashier-role.ts</code> and copy the
+            connection string it prints (shown only once).
+          </li>
+          <li>
+            Add it as <code className="rounded bg-muted px-1 font-mono text-xs">CASHIER_DATABASE_URL</code> in Vercel → Settings → Environment
+            Variables (and in your local <code className="rounded bg-muted px-1 font-mono text-xs">.env</code>).
+          </li>
+          <li>Redeploy from Vercel → Deployments.</li>
+        </ol>
+      ) : (
+        <p className="mt-2 text-foreground">Please ask a Super Admin to finish setting up the cashier desk.</p>
+      )}
+      <p className="mt-3 text-xs text-muted-foreground">
+        This keeps cashier screens on a separate, restricted database login that can&apos;t read clinical records.
+      </p>
+    </div>
+  );
+}
 
 /**
  * The cashier area deliberately does NOT use the staff AppShell: no clinical
@@ -11,6 +46,7 @@ import { HOSPITAL_NAME } from "@/lib/brand";
  */
 export default async function CashierLayout({ children }: { children: React.ReactNode }) {
   const { session, role } = await requireCashierArea();
+  const notConfigured = !isCashierDbConfigured();
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,7 +74,7 @@ export default async function CashierLayout({ children }: { children: React.Reac
           </div>
         </div>
       </header>
-      <main className="p-3 sm:p-4">{children}</main>
+      <main className="p-3 sm:p-4">{notConfigured ? <SetupNotice isSuperAdmin={role === "super_admin"} /> : children}</main>
     </div>
   );
 }

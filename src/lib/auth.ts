@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, twoFactor } from "better-auth/plugins";
+import { admin } from "better-auth/plugins";
 import { createAuthMiddleware } from "better-auth/api";
 import { db } from "@/db";
 import { logEvent, clientIpFrom, type ActorRole } from "@/lib/activity";
@@ -71,10 +71,6 @@ const activityAuthHook = createAuthMiddleware(async (ctx) => {
     await log("password_reset_requested", `Password reset requested for ${requestedEmail}`, {
       metadata: { requestedEmail },
     });
-  } else if (path.startsWith("/two-factor/enable") && !isError) {
-    await log("2fa_enabled", `${sessionUser?.name ?? "Account"} enabled two-factor authentication`, { actorFromSession: true });
-  } else if (path.startsWith("/two-factor/disable") && !isError) {
-    await log("2fa_disabled", `${sessionUser?.name ?? "Account"} disabled two-factor authentication`, { actorFromSession: true });
   } else if ((path.startsWith("/revoke-session") || path.startsWith("/revoke-sessions")) && !isError) {
     await log("session_revoked", `${sessionUser?.name ?? "Account"} revoked a session`, { actorFromSession: true });
   }
@@ -127,8 +123,6 @@ export const auth = betterAuth({
       defaultRole: "patient",
       adminRole: "super_admin",
     }),
-    // issuer = the account label shown in authenticator apps.
-    twoFactor({ issuer: "Garden City Hospital" }),
   ],
   trustedOrigins: [
     "https://gardencityhospital.vercel.app",

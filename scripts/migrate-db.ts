@@ -963,6 +963,7 @@ async function migrate() {
       ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "variance_kobo" bigint;
       ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "closing_note" text;
       ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "report_sent_at" timestamp with time zone;
+      ALTER TABLE "cashier_shifts" ADD COLUMN IF NOT EXISTS "cashier_name" text;
       UPDATE "cashier_shifts" SET "status" = 'closed' WHERE "closed_at" IS NOT NULL AND "status" = 'open';
 
       DO $$ BEGIN

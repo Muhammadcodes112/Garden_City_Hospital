@@ -117,7 +117,7 @@ async function loadShifts(where: ReturnType<typeof and>, limit = 200): Promise<S
     .select({
       id: cashierShifts.id,
       cashierId: cashierShifts.cashierId,
-      cashierName: user.name,
+      cashierName: sql<string>`coalesce(${cashierShifts.cashierName}, ${user.name})`,
       openedAt: cashierShifts.openedAt,
       closedAt: cashierShifts.closedAt,
       status: cashierShifts.status,
@@ -165,9 +165,11 @@ export async function getMyOpenShift(): Promise<ShiftSummary | null> {
 }
 
 /** Opens a shift, stamped by the server clock. A second Start while one is open is refused. */
-export async function startShift(openingFloat: string): Promise<{ success: true; shift: ShiftSummary } | Fail> {
+export async function startShift(name: string, openingFloat: string): Promise<{ success: true; shift: ShiftSummary } | Fail> {
   const { session, role } = await requireCashierArea();
   if (role !== "cashier") return { success: false, error: "Only cashier accounts open shifts" };
+  const cashierName = name.trim().replace(/\s+/g, " ");
+  if (cashierName.length < 2 || cashierName.length > 80) return { success: false, error: "Type your name to start the shift" };
   const floatKobo = parseNairaToKobo(openingFloat || "0");
   if (floatKobo === null || floatKobo > MAX_PRICE_KOBO) return { success: false, error: "Enter the cash in the drawer, e.g. 5000 (or 0)" };
   if (await openShiftOf(session.user.id)) return { success: false, error: "You already have an open shift. Close it before starting another." };
@@ -176,13 +178,13 @@ export async function startShift(openingFloat: string): Promise<{ success: true;
     await getCashierDb().transaction(async (tx) => {
       const [shift] = await tx
         .insert(cashierShifts)
-        .values({ cashierId: session.user.id, openingFloatKobo: floatKobo })
+        .values({ cashierId: session.user.id, cashierName, openingFloatKobo: floatKobo })
         .returning({ id: cashierShifts.id });
       await logEvent({
         tx,
         category: "billing",
         action: "shift.opened",
-        summary: `${session.user.name} opened a cashier shift with an opening float of ${formatKobo(floatKobo)}`,
+        summary: `${cashierName} opened a cashier shift with an opening float of ${formatKobo(floatKobo)}`,
         ...actor(session, role),
         targetType: "cashier_shift",
         targetId: shift!.id,
@@ -419,13 +421,14 @@ export async function listShiftReceipts(shiftId: string): Promise<ReceiptSummary
       paymentMode: receipts.paymentMode,
       issuedAt: receipts.issuedAt,
       issuedBy: receipts.issuedBy,
-      issuedByName: user.name,
+      issuedByName: sql<string>`coalesce(${cashierShifts.cashierName}, ${user.name})`,
       status: receipts.status,
       voidReason: receipts.voidReason,
       printCount: sql<number>`(select count(*)::int from ${receiptPrints} where ${receiptPrints.receiptId} = ${receipts.id})`,
     })
     .from(receipts)
     .innerJoin(user, eq(receipts.issuedBy, user.id))
+    .innerJoin(cashierShifts, eq(receipts.shiftId, cashierShifts.id))
     .where(eq(receipts.shiftId, shiftId))
     .orderBy(desc(receipts.issuedAt));
   return rows.map(({ issuedBy, ...r }) => ({
@@ -521,12 +524,13 @@ export async function getPatientReceiptHistory(patientId: string): Promise<Recei
       totalKobo: receipts.totalKobo,
       paymentMode: receipts.paymentMode,
       issuedAt: receipts.issuedAt,
-      issuedByName: user.name,
+      issuedByName: sql<string>`coalesce(${cashierShifts.cashierName}, ${user.name})`,
       status: receipts.status,
       voidReason: receipts.voidReason,
     })
     .from(receipts)
     .innerJoin(user, eq(receipts.issuedBy, user.id))
+    .innerJoin(cashierShifts, eq(receipts.shiftId, cashierShifts.id))
     .where(eq(receipts.patientId, patientId))
     .orderBy(desc(receipts.issuedAt))
     .limit(20);

@@ -721,6 +721,9 @@ export const cashierShifts = pgTable(
     cashierId: text("cashier_id")
       .notNull()
       .references(() => user.id),
+    // The desk shares one cashier account; whoever is on shift types their name at Start.
+    // Null on shifts opened before that, which fall back to the account name.
+    cashierName: text("cashier_name"),
     openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     status: shiftStatus("status").notNull().default("open"),

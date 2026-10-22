@@ -20,7 +20,6 @@ export async function GET() {
         banned: user.banned,
         deletedAt: user.deletedAt,
         createdAt: user.createdAt,
-        twoFactorEnabled: user.twoFactorEnabled,
       })
       .from(user)
       .orderBy(desc(user.createdAt));
@@ -86,7 +85,6 @@ export async function GET() {
         formsCount: formCountMap.get(u.id) || 0,
         lastActiveAt: lastActiveMap.get(u.id) || null,
         lastSignInAt: lastSignInMap.get(u.id) || null,
-        twoFactorEnabled: Boolean(u.twoFactorEnabled),
         isSuperAdmin: u.role === "super_admin",
       };
     });

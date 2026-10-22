@@ -3,6 +3,7 @@ import { requireCashierArea } from "@/lib/authz";
 import { getMyOpenShift, getSaleCatalogue, listShiftReceipts, listShifts } from "@/lib/actions/cashier";
 import { CashierDesk } from "@/components/cashier/cashier-desk";
 import { CashierOverview } from "@/components/cashier/cashier-overview";
+import { isCashierDbConfigured } from "@/db/cashier";
 
 export const metadata: Metadata = {
   title: "Cashier Desk | Garden City Specialist Hospital",
@@ -16,7 +17,8 @@ function lagosToday(): string {
 }
 
 export default async function CashierPage() {
-  const { session, role } = await requireCashierArea();
+  const { role } = await requireCashierArea();
+  if (!isCashierDbConfigured()) return null; // the layout shows the setup notice
 
   if (role === "super_admin") {
     const today = lagosToday();
@@ -27,7 +29,6 @@ export default async function CashierPage() {
   const receipts = shift ? await listShiftReceipts(shift.id) : [];
   return (
     <CashierDesk
-      cashierName={session.user.name ?? session.user.email}
       initialShift={shift}
       initialReceipts={receipts}
       catalogue={catalogue}

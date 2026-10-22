@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getCashierDb } from "@/db/cashier";
-import { receiptLines, receiptPrints, receipts, user } from "@/db/schema";
+import { cashierShifts, receiptLines, receiptPrints, receipts, user } from "@/db/schema";
 import { requireCashierArea } from "@/lib/authz";
 import { renderPdf } from "@/lib/pdf";
 import { receiptPdfFilename, receiptPdfHtml } from "@/lib/pdf-templates/receipt";
@@ -38,7 +38,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       tellerOrTransferRef: receipts.tellerOrTransferRef,
       chequeNo: receipts.chequeNo,
       issuedBy: receipts.issuedBy,
-      issuedByName: issuer.name,
+      issuedByName: sql<string>`coalesce(${cashierShifts.cashierName}, ${issuer.name})`,
       status: receipts.status,
       voidReason: receipts.voidReason,
       voidedAt: receipts.voidedAt,
@@ -46,6 +46,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     })
     .from(receipts)
     .innerJoin(issuer, eq(receipts.issuedBy, issuer.id))
+    .innerJoin(cashierShifts, eq(receipts.shiftId, cashierShifts.id))
     .leftJoin(voider, eq(receipts.voidedBy, voider.id))
     .where(eq(receipts.id, id));
 

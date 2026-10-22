@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getCashierDb } from "@/db/cashier";
 import {
@@ -248,7 +248,7 @@ export async function buildShiftReport(
     .select({
       id: cashierShifts.id,
       cashierId: cashierShifts.cashierId,
-      cashierName: user.name,
+      cashierName: sql<string>`coalesce(${cashierShifts.cashierName}, ${user.name})`,
       openedAt: cashierShifts.openedAt,
       closedAt: cashierShifts.closedAt,
       openingFloatKobo: cashierShifts.openingFloatKobo,

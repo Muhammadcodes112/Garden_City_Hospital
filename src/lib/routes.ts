@@ -33,6 +33,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/admins": "Admin Management",
   "/price-list": "Price List",
   "/metrics": "Metrics",
+  "/settings": "Settings",
 };
 
 export function pageTitleForPath(pathname: string): string {

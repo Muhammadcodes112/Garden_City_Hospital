@@ -18,6 +18,7 @@ const STAFF_PAGES = [
   "/activity",
   "/price-list",
   "/metrics",
+  "/settings",
   "/cashier",
 ];
 const PATIENT_PAGES = ["/patient"];

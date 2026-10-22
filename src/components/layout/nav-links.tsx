@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "./nav-items";
 import { useSession } from "@/lib/auth-client";
 import { useMessagesPoll } from "@/hooks/use-messages-poll";
-import { ShieldCheck, Activity, Tags, Banknote, BarChart3 } from "lucide-react";
+import { Settings, Tags, Banknote } from "lucide-react";
 
 export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
   const pathname = usePathname();
@@ -18,9 +18,7 @@ export function NavLinks({ onNavigate, className }: { onNavigate?: () => void; c
     ...NAV_ITEMS,
     ...(isSuperAdmin
       ? [
-          { href: "/users", label: "Users & roles", icon: ShieldCheck },
-          { href: "/activity", label: "Activity log", icon: Activity },
-          { href: "/metrics", label: "Metrics", icon: BarChart3 },
+          { href: "/settings", label: "Settings", icon: Settings },
           { href: "/price-list", label: "Price list", icon: Tags },
           { href: "/cashier", label: "Cashier desk", icon: Banknote },
         ]

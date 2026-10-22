@@ -60,12 +60,10 @@ function time(iso: string): string {
 }
 
 export function CashierDesk({
-  cashierName,
   initialShift,
   initialReceipts,
   catalogue,
 }: {
-  cashierName: string;
   initialShift: ShiftSummary | null;
   initialReceipts: ReceiptSummary[];
   catalogue: SaleCategory[];
@@ -92,6 +90,7 @@ export function CashierDesk({
   const [lastIssued, setLastIssued] = useState<{ id: string; receiptNo: string; payer: string; totalKobo: number } | null>(null);
 
   // Shift start / close
+  const [cashierName, setCashierName] = useState("");
   const [openingFloat, setOpeningFloat] = useState("");
   const [closing, setClosing] = useState(false);
   const [closeSummary, setCloseSummary] = useState<ShiftReportSnapshot | null>(null);
@@ -220,13 +219,14 @@ export function CashierDesk({
   async function handleStart() {
     setBusy(true);
     try {
-      const res = await startShift(openingFloat.trim() || "0");
+      const res = await startShift(cashierName, openingFloat.trim() || "0");
       if (!res.success) {
         toast.error(res.error);
         return;
       }
       setShift(res.shift);
       setReceipts(await listShiftReceipts(res.shift.id));
+      setCashierName("");
       setOpeningFloat("");
     } finally {
       setBusy(false);
@@ -277,8 +277,12 @@ export function CashierDesk({
     return (
       <div className="mx-auto flex max-w-sm flex-col items-center gap-5 py-10 text-center">
         <div>
-          <p className="text-lg font-bold text-foreground">Hello, {cashierName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Start a shift to begin issuing receipts. The time is recorded automatically.</p>
+          <p className="text-lg font-bold text-foreground">Who&apos;s on shift?</p>
+          <p className="mt-1 text-sm text-muted-foreground">Type your name and start a shift to begin issuing receipts. The time is recorded automatically.</p>
+        </div>
+        <div className="w-full space-y-1 text-left">
+          <Label htmlFor="cashier-name">Your name</Label>
+          <Input id="cashier-name" className="h-14 text-lg" autoComplete="off" placeholder="e.g. Amaka Obi" value={cashierName} onChange={(e) => setCashierName(e.target.value)} />
         </div>
         <div className="w-full space-y-1 text-left">
           <Label htmlFor="float">Opening float: cash already in the drawer</Label>
@@ -287,11 +291,11 @@ export function CashierDesk({
             <Input id="float" className="h-14 pl-7 text-lg" inputMode="decimal" placeholder="0" value={openingFloat} onChange={(e) => setOpeningFloat(e.target.value)} />
           </div>
         </div>
-        <Button type="button" onClick={handleStart} disabled={busy || (openingFloat.trim() !== "" && parseNairaToKobo(openingFloat) === null)} className="h-16 w-full gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700">
+        <Button type="button" onClick={handleStart} disabled={busy || cashierName.trim().length < 2 || (openingFloat.trim() !== "" && parseNairaToKobo(openingFloat) === null)} className="h-16 w-full gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700">
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clock className="h-5 w-5" />} Start shift
         </Button>
         <Link href="/cashier/reports" className="flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
-          <History className="h-4 w-4" /> My past shift reports
+          <History className="h-4 w-4" /> Past shift reports
         </Link>
       </div>
     );
@@ -303,7 +307,7 @@ export function CashierDesk({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">On shift</p>
-          <p className="text-sm font-bold text-foreground">{cashierName}</p>
+          <p className="text-sm font-bold text-foreground">{shift.cashierName}</p>
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opened</p>

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, requireSuperAdmin } from "@/lib/authz";
 import { db } from "@/db";
-import { patients, formRecords, patientPayments, patientVitals, receipts, user } from "@/db/schema";
-import { and, eq, desc, isNull } from "drizzle-orm";
+import { patients, formRecords, patientPayments, patientVitals, receipts, user, cashierShifts } from "@/db/schema";
+import { and, eq, desc, isNull, sql } from "drizzle-orm";
 import { NIGERIAN_PHONE_MESSAGE, isValidNigerianPhone } from "@/lib/validators/phone";
 import { deletePatientsCascade } from "@/lib/patient-deletion";
 
@@ -46,10 +46,11 @@ export async function GET(
         paymentMode: receipts.paymentMode,
         status: receipts.status,
         voidReason: receipts.voidReason,
-        issuedByName: user.name,
+        issuedByName: sql<string>`coalesce(${cashierShifts.cashierName}, ${user.name})`,
       })
       .from(receipts)
       .innerJoin(user, eq(receipts.issuedBy, user.id))
+      .innerJoin(cashierShifts, eq(receipts.shiftId, cashierShifts.id))
       .where(eq(receipts.patientId, id))
       .orderBy(desc(receipts.issuedAt));
 
