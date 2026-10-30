@@ -12,11 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2, Image as ImageIcon } from "lucide-react";
+import { Printer, Save, FileText, AlertTriangle, Plus, Trash2, Download, ShieldCheck, FileCheck, Loader2, Image as ImageIcon, ClipboardList } from "lucide-react";
 import { CaseFileHistory } from "@/components/patients/patient-history";
 import { PATIENT_STATUSES } from "@/lib/validators/patient";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { DiagnosisListModal } from "@/components/forms/diagnosis-list-modal";
+import { saveToClinicalHistory } from "@/lib/clinical-history-storage";
 
 export type PatientRecord = {
   id: string;
@@ -71,6 +73,7 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"history" | "cover" | "inside" | "operations">("history");
 
   const handleDelete = async () => {
@@ -185,6 +188,12 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
       });
 
       if (res.ok) {
+        for (const d of formData.diagnoses) {
+          if (d.diagnosis?.trim()) saveToClinicalHistory(d.diagnosis);
+        }
+        for (const n of formData.clinicalNotes) {
+          if (n.note?.trim()) saveToClinicalHistory(n.note);
+        }
         toast.success("Patient case file updated successfully");
         setEditing(false);
         if (onUpdated) onUpdated();
@@ -257,6 +266,17 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
     setFormData((prev) => ({
       ...prev,
       diagnoses: [...prev.diagnoses, { date: "", diagnosis: "", code: "" }],
+    }));
+  };
+
+  const handleDiagnosesSelected = (selected: string[]) => {
+    const today = new Date().toISOString().split("T")[0];
+    setFormData((prev) => ({
+      ...prev,
+      diagnoses: [
+        ...prev.diagnoses,
+        ...selected.map((diag) => ({ date: today, diagnosis: diag, code: "" })),
+      ],
     }));
   };
 
@@ -799,9 +819,20 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
                     DIAGNOSIS RECORD
                   </h3>
                   {editing && (
-                    <Button size="sm" variant="ghost" onClick={addDiagnosisRow} className="h-6 text-[11px] text-pink-800">
-                      <Plus className="h-3 w-3 mr-1" /> Add Diagnosis
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={() => setDiagnosisModalOpen(true)}
+                        className="h-6 text-[11px] text-pink-800 border-pink-300 gap-1 bg-white hover:bg-pink-50"
+                      >
+                        <ClipboardList className="h-3 w-3" /> Filter Diagnosis List
+                      </Button>
+                      <Button size="sm" variant="ghost" type="button" onClick={addDiagnosisRow} className="h-6 text-[11px] text-pink-800">
+                        <Plus className="h-3 w-3 mr-1" /> Add Diagnosis
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <div className="overflow-x-auto border border-pink-300 rounded bg-white">
@@ -1104,7 +1135,13 @@ export function PatientCaseFileModal({ open, onOpenChange, patient, onUpdated }:
 
         </div>
       </DialogContent>
-
+      <DiagnosisListModal
+        open={diagnosisModalOpen}
+        onOpenChange={setDiagnosisModalOpen}
+        onSelect={handleDiagnosesSelected}
+        mode="diagnosis"
+        title="Filter diagnosis List"
+      />
     </Dialog>
   );
 }

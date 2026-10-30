@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { FindingsSuggestField } from "@/components/forms/findings-suggest";
+import { saveToClinicalHistory } from "@/lib/clinical-history-storage";
 import { SaveStatus } from "@/components/forms/save-status";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -156,6 +157,9 @@ export function PrescriptionFormEditor({ initial }: Props) {
         toast.error(res.error);
         return;
       }
+      if (data.clinicalNotes?.trim()) {
+        saveToClinicalHistory(data.clinicalNotes);
+      }
       toast.success("Prescription marked as completed!");
       router.refresh();
     } catch (err) {
@@ -278,16 +282,17 @@ export function PrescriptionFormEditor({ initial }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-            <StickyNote className="h-5 w-5 text-brand-green" /> Clinical Notes / Examination Findings
+            <StickyNote className="h-5 w-5 text-brand-green" /> Clinical Notes / Diagnosis / Findings
           </CardTitle>
         </CardHeader>
         <CardContent>
           <FindingsSuggestField
             value={data.clinicalNotes}
             onChange={(val) => setData((d) => ({ ...d, clinicalNotes: val }))}
-            placeholder="e.g. Headache, fever x2 days, mild body pain. BP 120/80, temp 37.2°C."
+            placeholder="e.g. Hypertension, Headache x2 days. BP 130/85, Temp 37.2°C."
             disabled={readOnly}
             rows={3}
+            mode="all"
           />
         </CardContent>
       </Card>

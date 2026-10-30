@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PatientPicker, type PatientFields } from "@/components/lab/patient-picker";
 import { SignaturePad } from "@/components/forms/signature-pad";
+import { FindingsSuggestField } from "@/components/forms/findings-suggest";
+import { saveToClinicalHistory } from "@/lib/clinical-history-storage";
 import { SaveStatus } from "@/components/forms/save-status";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -153,6 +155,9 @@ export function LabFormEditor({ initial }: Props) {
         toast.error(res.error);
         return;
       }
+      if (data.provisionalDiagnosis?.trim()) {
+        saveToClinicalHistory(data.provisionalDiagnosis);
+      }
       toast.success("Lab request marked as completed!");
       router.refresh();
     } catch (err) {
@@ -282,14 +287,15 @@ export function LabFormEditor({ initial }: Props) {
               <CardTitle>Clinical information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
+              <div className="space-y-1.5">
                 <Label htmlFor="diagnosis">Provisional diagnosis / clinical information</Label>
-                <Textarea
-                  id="diagnosis"
+                <FindingsSuggestField
                   value={data.provisionalDiagnosis}
-                  onChange={(e) => setData((d) => ({ ...d, provisionalDiagnosis: e.target.value }))}
+                  onChange={(val) => setData((d) => ({ ...d, provisionalDiagnosis: val }))}
                   disabled={readOnly}
-                  className="mt-1 min-h-[88px]"
+                  placeholder="e.g. Acute Malaria, Enteric Fever, Anaemia, Peptic Ulcer, Hypertension..."
+                  rows={3}
+                  mode="diagnosis"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">

@@ -12,6 +12,7 @@ import { PatientPicker, type PatientFields } from "@/components/lab/patient-pick
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { SaveStatus } from "@/components/forms/save-status";
 import { FindingsSuggestField } from "@/components/forms/findings-suggest";
+import { saveToClinicalHistory } from "@/lib/clinical-history-storage";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import { MedicalReportLetterheadPreview } from "./medical-report-letterhead-preview";
 import {
@@ -139,6 +140,12 @@ export function MedicalReportEditor({ initial }: Props) {
         setCompleteError(res.error);
         toast.error(res.error);
         return;
+      }
+      if (data.sections.diagnosis?.content?.trim()) {
+        saveToClinicalHistory(data.sections.diagnosis.content);
+      }
+      if (data.sections.examinationFindings?.content?.trim()) {
+        saveToClinicalHistory(data.sections.examinationFindings.content);
       }
       toast.success("Medical report marked as completed!");
       router.refresh();
@@ -424,6 +431,27 @@ export function MedicalReportEditor({ initial }: Props) {
                             placeholder={`Enter ${label.toLowerCase()} details...`}
                             disabled={readOnly}
                             rows={4}
+                            mode="findings"
+                            className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        ) : key === "diagnosis" ? (
+                          <FindingsSuggestField
+                            value={sec.content}
+                            onChange={(val) => updateSection(key, "content", val)}
+                            placeholder={`Enter ${label.toLowerCase()} details (e.g. Hypertension, Diabetes Mellitus)...`}
+                            disabled={readOnly}
+                            rows={4}
+                            mode="diagnosis"
+                            className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        ) : key === "presentingComplaint" ? (
+                          <FindingsSuggestField
+                            value={sec.content}
+                            onChange={(val) => updateSection(key, "content", val)}
+                            placeholder={`Enter ${label.toLowerCase()} details...`}
+                            disabled={readOnly}
+                            rows={4}
+                            mode="all"
                             className="w-full rounded-md border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                           />
                         ) : (
