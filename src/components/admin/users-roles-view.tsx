@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   UserCog,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,9 +131,32 @@ export function UsersRolesView() {
     setReason("");
   }
 
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  async function handleRestore(u: AdminUser) {
+    setRestoringId(u.id);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}/restore`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        toast.success(`Account for ${u.email} restored and unbanned successfully.`);
+        fetchUsers();
+      } else {
+        const json = await res.json().catch(() => null);
+        toast.error(json?.error || "Failed to restore account");
+      }
+    } catch {
+      toast.error("Failed to restore account");
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
   async function handleRoleConfirm() {
     if (!roleTarget) return;
-    if (newRole === roleTarget.role) {
+    const isRestoring = roleTarget.status === "deleted" || roleTarget.status === "banned";
+    if (!isRestoring && newRole === roleTarget.role) {
       toast.error("Pick a different role, or close this dialog");
       return;
     }
@@ -151,7 +175,7 @@ export function UsersRolesView() {
 
       if (res.ok) {
         const json = await res.json();
-        toast.success(`${json.user.email} is now ${ROLE_LABEL[newRole as Role]}.`);
+        toast.success(`${json.user.email} is now ${ROLE_LABEL[newRole as Role]}${isRestoring ? " and has been restored" : ""}.`);
         setRoleTarget(null);
         fetchUsers();
       } else {
@@ -298,35 +322,44 @@ export function UsersRolesView() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {u.status !== "deleted" ? (
-                      <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1">
+                      {u.status === "deleted" || u.status === "banned" ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-8 text-xs"
-                          onClick={() => openRoleDialog(u)}
+                          className="h-8 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-500/30"
+                          disabled={restoringId === u.id}
+                          onClick={() => handleRestore(u)}
                         >
-                          <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Change role
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                          {restoringId === u.id ? "Restoring..." : "Restore"}
                         </Button>
-                        {u.role !== "super_admin" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
-                              setDeleteTarget(u);
-                              setConfirmEmailInput("");
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground italic">Protected</span>
-                    )}
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => openRoleDialog(u)}
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Change role
+                      </Button>
+                      {u.role !== "super_admin" && u.status !== "deleted" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            setDeleteTarget(u);
+                            setConfirmEmailInput("");
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -354,27 +387,38 @@ export function UsersRolesView() {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Last sign-in: {u.lastSignInAt ? formatDate(u.lastSignInAt) : "Never"}</span>
               </div>
-              {u.status !== "deleted" ? (
-                <div className="pt-2 border-t border-border flex items-center justify-end gap-2">
-                  <Button type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => openRoleDialog(u)}>
-                    <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Change role
+              <div className="pt-2 border-t border-border flex items-center justify-end gap-2 flex-wrap">
+                {u.status === "deleted" || u.status === "banned" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-500/30"
+                    disabled={restoringId === u.id}
+                    onClick={() => handleRestore(u)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                    {restoringId === u.id ? "Restoring..." : "Restore"}
                   </Button>
-                  {u.role !== "super_admin" && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      className="text-xs h-7"
-                      onClick={() => {
-                        setDeleteTarget(u);
-                        setConfirmEmailInput("");
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                    </Button>
-                  )}
-                </div>
-              ) : null}
+                ) : null}
+                <Button type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => openRoleDialog(u)}>
+                  <ShieldCheck className="h-3.5 w-3.5 mr-1" /> Change role
+                </Button>
+                {u.role !== "super_admin" && u.status !== "deleted" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    className="text-xs h-7"
+                    onClick={() => {
+                      setDeleteTarget(u);
+                      setConfirmEmailInput("");
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -391,6 +435,12 @@ export function UsersRolesView() {
                 Change role — {roleTarget?.name}
               </DialogPrimitive.Title>
             </div>
+            {roleTarget && (roleTarget.status === "deleted" || roleTarget.status === "banned") ? (
+              <div className="rounded-md bg-amber-500/10 border border-amber-500/30 p-2.5 mb-4 text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                <strong>Account is currently {roleTarget.status}.</strong> Confirming this role change will also <strong>restore and unban</strong> the account so the user can immediately sign in.
+              </div>
+            ) : null}
+
             <p className="text-xs text-muted-foreground mb-4">
               <span className="font-mono text-foreground">{roleTarget?.email}</span> is currently{" "}
               <strong>{roleTarget ? ROLE_LABEL[roleTarget.role] : ""}</strong>.
@@ -435,10 +485,18 @@ export function UsersRolesView() {
               <Button
                 type="button"
                 size="sm"
-                disabled={updatingRole || newRole === roleTarget?.role || !reason.trim()}
+                disabled={
+                  updatingRole ||
+                  (!(roleTarget?.status === "deleted" || roleTarget?.status === "banned") && newRole === roleTarget?.role) ||
+                  !reason.trim()
+                }
                 onClick={handleRoleConfirm}
               >
-                {updatingRole ? "Updating..." : "Confirm role change"}
+                {updatingRole
+                  ? "Updating..."
+                  : roleTarget?.status === "deleted" || roleTarget?.status === "banned"
+                  ? "Restore & Update Role"
+                  : "Confirm role change"}
               </Button>
             </div>
           </DialogPrimitive.Content>

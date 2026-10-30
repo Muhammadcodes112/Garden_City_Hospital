@@ -34,9 +34,9 @@ import { ReceiptList, printReceipt } from "./receipt-list";
 
 type DeskLine = {
   key: string;
-  serviceId: string;
+  serviceId: string | null;
   name: string;
-  /** Fixed catalogue price; null when the amount is typed ("Others"). */
+  /** Fixed catalogue price; null when the amount is typed ("Others", unpriced services, or custom). */
   unitPriceKobo: number | null;
   qty: number;
   description: string;
@@ -141,7 +141,7 @@ export function CashierDesk({
   }
 
   function addService(s: SaleService) {
-    if (s.allowCustomAmount) {
+    if (s.allowCustomAmount || s.priceKobo === 0) {
       setLines((prev) => [
         ...prev,
         { key: crypto.randomUUID(), serviceId: s.id, name: s.name, unitPriceKobo: null, qty: 1, description: "", amount: "" },
@@ -153,6 +153,21 @@ export function CashierDesk({
       if (existing) return prev.map((l) => (l.key === existing.key ? { ...l, qty: Math.min(999, l.qty + 1) } : l));
       return [...prev, { key: crypto.randomUUID(), serviceId: s.id, name: s.name, unitPriceKobo: s.priceKobo, qty: 1, description: "", amount: "" }];
     });
+  }
+
+  function addCustomItem(initialName = "Other Payment") {
+    setLines((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        serviceId: null,
+        name: initialName,
+        unitPriceKobo: null,
+        qty: 1,
+        description: "",
+        amount: "",
+      },
+    ]);
   }
 
   function updateLine(key: string, patch: Partial<DeskLine>) {
@@ -192,10 +207,13 @@ export function CashierDesk({
         tellerOrTransferRef: ref.trim() || undefined,
         chequeNo: chequeNo.trim() || undefined,
         lines: lines.map((l) => ({
-          serviceId: l.serviceId,
+          serviceId: l.serviceId || null,
           qty: l.qty,
           amount: l.unitPriceKobo === null ? l.amount : undefined,
-          description: l.unitPriceKobo === null ? l.description.trim() || undefined : undefined,
+          description:
+            l.serviceId === null && l.description.trim()
+              ? `${l.name}: ${l.description.trim()}`
+              : l.description.trim() || (l.serviceId === null ? l.name : undefined),
         })),
         }),
       });
@@ -470,19 +488,30 @@ export function CashierDesk({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {/* Service tiles */}
             <div className="rounded-xl border border-border bg-card p-3 md:max-h-[calc(100vh-15rem)] md:overflow-y-auto">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Service / Item</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addCustomItem("Custom Payment")}
+                  className="h-8 gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400"
+                >
+                  <Plus className="h-3.5 w-3.5" /> + Custom Payment
+                </Button>
+              </div>
               {catalogue.map((cat) => (
                 <div key={cat.id} className="mb-3 last:mb-0">
                   <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {cat.services.map((s) => {
-                      const needsPrice = s.priceKobo === 0 && !s.allowCustomAmount;
+                      const isCustom = s.allowCustomAmount || s.priceKobo === 0;
                       return (
                         <button
                           key={s.id}
                           type="button"
-                          disabled={needsPrice}
                           onClick={() => addService(s)}
-                          className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
                         >
                           {s.folderColour ? (
                             <span className={`h-8 w-6 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
@@ -490,7 +519,7 @@ export function CashierDesk({
                           <span className="min-w-0 flex-1">
                             <span className="block text-xs font-semibold leading-tight text-foreground">{s.name}</span>
                             <span className="block font-mono text-[11px] text-muted-foreground">
-                              {s.allowCustomAmount ? "Type amount" : needsPrice ? "Needs price" : formatKobo(s.priceKobo)}
+                              {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
                             </span>
                           </span>
                         </button>
@@ -503,37 +532,125 @@ export function CashierDesk({
 
             {/* Basket, total, payment, issue */}
             <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
-              <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                <FileText className="h-4 w-4" /> Items
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <FileText className="h-4 w-4" /> Items ({lines.length})
+                </h2>
+                {lines.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-rose-600"
+                    onClick={() => setLines([])}
+                  >
+                    Clear all
+                  </Button>
+                )}
+              </div>
               {lines.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">Tap a service to add it.</p>
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  <p>Tap a service to add it, or add a custom payment.</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addCustomItem("Other Payment")}
+                    className="mt-2 text-xs"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add custom payment
+                  </Button>
+                </div>
               ) : (
                 <ul className="space-y-2">
                   {lines.map((l) => (
-                    <li key={l.key} className="rounded-lg border border-border p-2">
+                    <li key={l.key} className="rounded-lg border border-border bg-background/50 p-2.5">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-foreground">{l.name}</p>
-                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-rose-600" onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))} aria-label={`Remove ${l.name}`}>
+                        <div className="flex-1 min-w-0">
+                          {l.serviceId === null ? (
+                            <Input
+                              className="h-8 font-semibold text-sm px-2 mb-1"
+                              value={l.name}
+                              placeholder="Item name (e.g. Medical Report, Drugs)"
+                              onChange={(e) => updateLine(l.key, { name: e.target.value })}
+                            />
+                          ) : (
+                            <p className="text-sm font-semibold text-foreground">{l.name}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))}
+                          aria-label={`Remove ${l.name}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
+
                       {l.unitPriceKobo === null ? (
-                        <div className="mt-1 grid grid-cols-5 gap-2">
-                          <Input className="col-span-3 h-11" placeholder="What for (e.g. wound dressing)" value={l.description} onChange={(e) => updateLine(l.key, { description: e.target.value })} />
+                        <div className="mt-1.5 grid grid-cols-5 gap-2">
+                          <Input
+                            className="col-span-3 h-11 text-sm"
+                            placeholder={
+                              l.name.toLowerCase().includes("drug")
+                                ? "Specify drugs (e.g. Paracetamol, Amartem)"
+                                : l.name.toLowerCase().includes("lab")
+                                  ? "Specify test (e.g. PCV, Malaria, MP)"
+                                  : l.name.toLowerCase().includes("report")
+                                    ? "Specify report (e.g. Police Medical Report)"
+                                    : "What is this payment for? (optional)"
+                            }
+                            value={l.description}
+                            onChange={(e) => updateLine(l.key, { description: e.target.value })}
+                          />
                           <div className="relative col-span-2">
-                            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">₦</span>
-                            <Input className="h-11 pl-6" inputMode="decimal" placeholder="Amount" value={l.amount} onChange={(e) => updateLine(l.key, { amount: e.target.value })} />
+                            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₦</span>
+                            <Input
+                              className="h-11 pl-7 text-sm font-semibold"
+                              inputMode="decimal"
+                              placeholder="Amount"
+                              value={l.amount}
+                              onChange={(e) => updateLine(l.key, { amount: e.target.value })}
+                            />
                           </div>
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="mt-1.5">
+                          <Input
+                            className="h-9 text-xs text-foreground placeholder:text-muted-foreground/70"
+                            placeholder="Add note / specify what for (optional)"
+                            value={l.description}
+                            onChange={(e) => updateLine(l.key, { description: e.target.value })}
+                          />
+                        </div>
+                      )}
+
                       <div className="mt-1.5 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1">
-                          <Button type="button" variant="outline" size="icon" className="h-10 w-10" disabled={l.qty <= 1} onClick={() => updateLine(l.key, { qty: l.qty - 1 })} aria-label="Decrease quantity">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9"
+                            disabled={l.qty <= 1}
+                            onClick={() => updateLine(l.key, { qty: l.qty - 1 })}
+                            aria-label="Decrease quantity"
+                          >
                             <Minus className="h-4 w-4" />
                           </Button>
-                          <span className="w-8 text-center font-mono font-bold">{l.qty}</span>
-                          <Button type="button" variant="outline" size="icon" className="h-10 w-10" disabled={l.qty >= 999} onClick={() => updateLine(l.key, { qty: l.qty + 1 })} aria-label="Increase quantity">
+                          <span className="w-8 text-center font-mono font-bold text-sm">{l.qty}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9"
+                            disabled={l.qty >= 999}
+                            onClick={() => updateLine(l.key, { qty: l.qty + 1 })}
+                            aria-label="Increase quantity"
+                          >
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>

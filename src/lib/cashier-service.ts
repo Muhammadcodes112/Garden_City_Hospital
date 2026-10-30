@@ -78,16 +78,30 @@ export async function issueReceiptAs(actor: Actor, input: unknown): Promise<Serv
     if (l.serviceId && (!svc || !svc.active)) return fail(400, "An item on this receipt is no longer on the price list");
     let unitPriceKobo: number;
     let description: string;
-    if (!svc || svc.allowCustomAmount) {
-      const amount = l.amount ? parseNairaToKobo(l.amount) : null;
-      if (!amount) return fail(400, `Enter an amount for ${svc?.name ?? "the free item"}`);
+    // Allow custom amount if the item has no catalogue entry, if the service allows custom amount,
+    // if the service has no price set (priceKobo <= 0), or if the cashier provided a custom amount.
+    const isCustomOrUnpriced = !svc || svc.allowCustomAmount || svc.priceKobo <= 0 || Boolean(l.amount);
+    if (isCustomOrUnpriced) {
+      const amount = l.amount ? parseNairaToKobo(l.amount) : (svc && svc.priceKobo > 0 ? svc.priceKobo : null);
+      if (!amount || amount <= 0) return fail(400, `Enter an amount for ${svc?.name ?? "the item"}`);
       unitPriceKobo = amount;
-      description = l.description ? (svc ? `${svc.name}: ${l.description}` : l.description) : svc?.name ?? "";
-      if (!description) return fail(400, "Describe the free item");
+      const trimmedDesc = l.description?.trim();
+      if (trimmedDesc) {
+        if (svc && svc.name.toLowerCase() !== "others" && !trimmedDesc.toLowerCase().startsWith(svc.name.toLowerCase())) {
+          description = `${svc.name}: ${trimmedDesc}`;
+        } else {
+          description = trimmedDesc;
+        }
+      } else {
+        description = svc?.name || "Payment";
+      }
+      if (!description) return fail(400, "Describe what the payment is for");
     } else {
-      if (svc.priceKobo <= 0) return fail(400, `${svc.name} has no price yet. Ask a Super Admin to set it.`);
       unitPriceKobo = svc.priceKobo;
-      description = svc.name;
+      const trimmedDesc = l.description?.trim();
+      description = trimmedDesc
+        ? (trimmedDesc.toLowerCase().startsWith(svc.name.toLowerCase()) ? trimmedDesc : `${svc.name}: ${trimmedDesc}`)
+        : svc.name;
     }
     lines.push({ serviceId: svc?.id ?? null, description, qty: l.qty, unitPriceKobo, lineTotalKobo: unitPriceKobo * l.qty });
   }

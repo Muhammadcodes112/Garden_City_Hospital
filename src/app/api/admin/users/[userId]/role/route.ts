@@ -41,12 +41,10 @@ export async function POST(
   if (!targetUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-  if (targetUser.deletedAt) {
-    return NextResponse.json({ error: "Cannot modify role of a deleted user" }, { status: 400 });
-  }
-
   const oldRole = targetUser.role as Role;
-  if (oldRole === newRole) {
+  const wasDeletedOrBanned = Boolean(targetUser.deletedAt || targetUser.banned);
+
+  if (oldRole === newRole && !wasDeletedOrBanned) {
     return NextResponse.json({ error: "User already has this role." }, { status: 400 });
   }
 
@@ -78,6 +76,10 @@ export async function POST(
           promotedBy: currentSession.user.id,
           promotedAt: new Date(),
           roleChangedReason: reason,
+          deletedAt: null,
+          banned: false,
+          banReason: null,
+          banExpires: null,
           updatedAt: new Date(),
         })
         .where(eq(user.id, userId));
