@@ -121,7 +121,6 @@ export const auth = betterAuth({
   plugins: [
     admin({
       defaultRole: "patient",
-      adminRoles: ["admin", "super_admin"],
     }),
   ],
   trustedOrigins: [
