@@ -330,7 +330,9 @@ export async function getShiftReportView(shiftId: string): Promise<ShiftReportVi
  * "Send to management": an in-app message with the report attached to every
  * Super Admin, plus an email. Sent once; the stored snapshot is what's sent.
  */
-export async function sendShiftReport(shiftId: string): Promise<{ success: true; recipients: number; emailed: number; emailConfigured: boolean } | Fail> {
+export async function sendShiftReport(
+  shiftId: string,
+): Promise<{ success: true; recipients: number; emailed: number; emailConfigured: boolean; emailError?: string } | Fail> {
   const { session, role } = await requireCashierArea();
   const shift = await assertShiftAccess(shiftId);
   if (!shift || shift.cashierId !== session.user.id) return { success: false, error: "Report not found" };
@@ -376,6 +378,7 @@ export async function sendShiftReport(shiftId: string): Promise<{ success: true;
   // and log honestly rather than claiming emails went out.
   const emailConfigured = Boolean(process.env.RESEND_API_KEY);
   let emailed = 0;
+  let emailError: string | undefined;
   if (emailConfigured) {
     const base = process.env.BETTER_AUTH_URL || "https://gardencityhospital.vercel.app";
     const link = `${base}/cashier/reports/${shiftId}`;
@@ -383,7 +386,12 @@ export async function sendShiftReport(shiftId: string): Promise<{ success: true;
     for (const admin of admins) {
       if (!admin.email) continue;
       const res = await emailProvider.sendEmail(admin.email, `Cashier shift report: ${snap.shift.cashierName}`, text);
-      if (res.success) emailed++;
+      if (res.success) {
+        emailed++;
+      } else {
+        console.error(`[Shift Report Email Failed] To: ${admin.email} | Error:`, res.error);
+        emailError = res.error;
+      }
     }
   }
 
@@ -397,11 +405,11 @@ export async function sendShiftReport(shiftId: string): Promise<{ success: true;
       ...actor(session, role),
       targetType: "cashier_shift",
       targetId: shiftId,
-      metadata: { recipients: admins.length, emailed, emailConfigured, shiftReportId: report.id },
+      metadata: { recipients: admins.length, emailed, emailConfigured, emailError, shiftReportId: report.id },
     });
   });
 
-  return { success: true, recipients: admins.length, emailed, emailConfigured };
+  return { success: true, recipients: admins.length, emailed, emailConfigured, emailError };
 }
 
 // ---------------------------------------------------------------------------

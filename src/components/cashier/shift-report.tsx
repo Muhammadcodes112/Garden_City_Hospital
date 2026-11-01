@@ -52,11 +52,17 @@ export function ShiftReportDocument({ view, onSent }: { view: ShiftReportView; o
         return;
       }
       setSentAt(new Date().toISOString());
-      toast.success(
-        `Sent to ${res.recipients} super admin${res.recipients === 1 ? "" : "s"}${
-          res.emailConfigured ? `, ${res.emailed} emailed` : ". Email isn't set up yet, so it went as an in-app message only"
-        }`,
-      );
+      if (res.emailConfigured && res.emailed === 0) {
+        toast.warning(
+          `In-app report sent to ${res.recipients} super admin${res.recipients === 1 ? "" : "s"}, but email failed: ${res.emailError || "Check Resend domain/sender settings"}`,
+        );
+      } else {
+        toast.success(
+          `Sent to ${res.recipients} super admin${res.recipients === 1 ? "" : "s"}${
+            res.emailConfigured ? `, ${res.emailed} emailed` : ". Email isn't set up yet, so it went as an in-app message only"
+          }`,
+        );
+      }
       onSent?.();
     } catch (err) {
       console.error("Send failed:", err);
