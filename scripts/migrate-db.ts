@@ -728,6 +728,26 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "service_price_history_service_idx" ON "service_price_history" ("service_id", "changed_at");
     `);
 
+    // Reconcile CACHMA -> KACHMA if previously seeded under CACHMA.
+    await sql.unsafe(`
+      DO $$
+      DECLARE
+        kachma_id uuid;
+        cachma_id uuid;
+      BEGIN
+        SELECT id INTO kachma_id FROM services WHERE name = 'Yellow folder — KACHMA' LIMIT 1;
+        SELECT id INTO cachma_id FROM services WHERE name = 'Yellow folder — CACHMA' LIMIT 1;
+
+        IF cachma_id IS NOT NULL AND kachma_id IS NOT NULL THEN
+          -- Both exist: archive the old CACHMA row so FK references stay valid without violating unique index.
+          UPDATE services SET active = false, name = 'Yellow folder — CACHMA (archived)' WHERE id = cachma_id;
+        ELSIF cachma_id IS NOT NULL THEN
+          -- Only CACHMA exists: rename it to KACHMA.
+          UPDATE services SET name = 'Yellow folder — KACHMA' WHERE id = cachma_id;
+        END IF;
+      END $$;
+    `);
+
     // Seed the catalogue. Insert-if-missing only: re-running never duplicates
     // a service or overwrites a price the hospital has since set.
     // price 0 = not yet known ("needs price" in the UI).
@@ -741,7 +761,7 @@ async function migrate() {
           { name: "White folder — Single", naira: 5000, folderColour: "white" },
           { name: "Pink folder — Family", naira: 10000, folderColour: "pink" },
           { name: "Green folder — Dr. Mrs.", naira: 0, folderColour: "green" },
-          { name: "Yellow folder — CACHMA", naira: 0, folderColour: "yellow" },
+          { name: "Yellow folder — KACHMA", naira: 0, folderColour: "yellow" },
           { name: "Blue folder — NHIS", naira: 0, folderColour: "blue" },
           { name: "Gynaecology (GYU)", naira: 17000 },
           { name: "ANC registration", naira: 65000 },

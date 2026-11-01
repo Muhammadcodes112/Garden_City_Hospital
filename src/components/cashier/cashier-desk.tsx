@@ -321,40 +321,98 @@ export function CashierDesk({
 
   return (
     <div className="space-y-3">
-      {/* 1. SHIFT STRIP */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">On shift</p>
-          <p className="text-sm font-bold text-foreground">{shift.cashierName}</p>
+      {/* 1. SHIFT STATS & ACTIONS */}
+      <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-foreground">Active Shift</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium">
+              <Link href="/cashier/reports">
+                <History className="h-3.5 w-3.5" /> Past shifts
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-9 text-xs font-semibold hover:border-destructive hover:text-destructive" onClick={openCloseDialog}>
+              Close shift
+            </Button>
+          </div>
         </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opened</p>
-          <p className="text-sm font-semibold text-foreground">{time(shift.openedAt)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Receipts</p>
-          <p className="text-sm font-semibold text-foreground">
-            {shift.receiptCount}
-            {shift.voidedCount ? <span className="text-muted-foreground"> ({shift.voidedCount} voided)</span> : null}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total taken</p>
-          <p className="font-mono text-lg font-black text-emerald-700 dark:text-emerald-400">{formatKobo(shift.totalKobo)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening float</p>
-          <p className="font-mono text-sm font-semibold text-foreground">{formatKobo(shift.openingFloatKobo)}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button asChild variant="ghost" className="h-11 gap-1.5">
-            <Link href="/cashier/reports">
-              <History className="h-4 w-4" /> Past shifts
-            </Link>
-          </Button>
-          <Button type="button" variant="outline" className="h-11" onClick={openCloseDialog}>
-            Close shift
-          </Button>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {/* On shift */}
+          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">On shift</p>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <UserRound className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <p className="mt-1.5 truncate text-base font-bold capitalize text-foreground" title={shift.cashierName}>
+              {shift.cashierName}
+            </p>
+          </div>
+
+          {/* Opened */}
+          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opened</p>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Clock className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <p className="mt-1.5 text-base font-bold text-foreground">
+              {time(shift.openedAt)}
+            </p>
+          </div>
+
+          {/* Receipts */}
+          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Receipts</p>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <FileText className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
+              <span className="text-base font-bold text-foreground">{shift.receiptCount}</span>
+              {shift.voidedCount ? (
+                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  ({shift.voidedCount} voided)
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Total taken */}
+          <div className="col-span-2 sm:col-span-1 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 shadow-xs transition-shadow hover:shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total taken</p>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                <Banknote className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <p className="mt-1.5 font-mono text-xl font-black text-emerald-700 dark:text-emerald-400">
+              {formatKobo(shift.totalKobo)}
+            </p>
+          </div>
+
+          {/* Opening float */}
+          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening float</p>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400">
+                <Landmark className="h-3.5 w-3.5" />
+              </div>
+            </div>
+            <p className="mt-1.5 font-mono text-base font-bold text-foreground">
+              {formatKobo(shift.openingFloatKobo)}
+            </p>
+          </div>
         </div>
       </div>
       {shift.stale ? (
