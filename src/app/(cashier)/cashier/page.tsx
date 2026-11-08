@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireCashierArea } from "@/lib/authz";
-import { getMyOpenShift, getSaleCatalogue, listShiftReceipts, listShifts } from "@/lib/actions/cashier";
+import { getCashierDrugs, getMyOpenShift, getSaleCatalogue, listShiftReceipts, listShifts } from "@/lib/actions/cashier";
 import { CashierDesk } from "@/components/cashier/cashier-desk";
 import { CashierOverview } from "@/components/cashier/cashier-overview";
 import { isCashierDbConfigured } from "@/db/cashier";
@@ -25,13 +25,18 @@ export default async function CashierPage() {
     return <CashierOverview initialDate={today} initialShifts={await listShifts(today)} />;
   }
 
-  const [shift, catalogue] = await Promise.all([getMyOpenShift(), getSaleCatalogue()]);
+  const [shift, catalogue, drugs] = await Promise.all([
+    getMyOpenShift(),
+    getSaleCatalogue(),
+    getCashierDrugs(),
+  ]);
   const receipts = shift ? await listShiftReceipts(shift.id) : [];
   return (
     <CashierDesk
       initialShift={shift}
       initialReceipts={receipts}
       catalogue={catalogue}
+      drugs={drugs}
     />
   );
 }

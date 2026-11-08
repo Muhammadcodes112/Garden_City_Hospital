@@ -1052,6 +1052,11 @@ async function migrate() {
           ALTER TABLE "message_attachments" ADD CONSTRAINT "message_attachments_shift_report_id_shift_reports_id_fk"
             FOREIGN KEY ("shift_report_id") REFERENCES "public"."shift_reports"("id") ON DELETE no action ON UPDATE no action;
         END IF;
+
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cashier_app') THEN
+          GRANT SELECT ("dob") ON "patients" TO "cashier_app";
+          GRANT SELECT ON "inventory_items" TO "cashier_app";
+        END IF;
       END $$;
     `);
 

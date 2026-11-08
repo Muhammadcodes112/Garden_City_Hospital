@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, CheckCircle2, Clock, CreditCard, FileText, History, Landmark, Loader2, Minus, Plus, Printer, Search, Smartphone, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Banknote, CheckCircle2, Clock, CreditCard, FileText, History, Landmark, Loader2, Minus, Pill, Plus, Printer, Search, Smartphone, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,6 +20,7 @@ import {
   listShiftReceipts,
   searchPatientsForCashier,
   startShift,
+  type CashierDrugItem,
   type CashierPatient,
   type ReceiptSummary,
   type SaleCategory,
@@ -63,15 +65,21 @@ export function CashierDesk({
   initialShift,
   initialReceipts,
   catalogue,
+  drugs = [],
 }: {
   initialShift: ShiftSummary | null;
   initialReceipts: ReceiptSummary[];
   catalogue: SaleCategory[];
+  drugs?: CashierDrugItem[];
 }) {
   const router = useRouter();
   const [shift, setShift] = useState(initialShift);
   const [receipts, setReceipts] = useState(initialReceipts);
   const [busy, setBusy] = useState(false);
+
+  // Catalog tabs & item search
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [itemSearch, setItemSearch] = useState<string>("");
 
   // Patient / payer
   const [query, setQuery] = useState("");
@@ -170,9 +178,52 @@ export function CashierDesk({
     ]);
   }
 
+  function addDrug(d: CashierDrugItem) {
+    const kobo = Math.round(d.unitPrice * 100);
+    const amountStr = String(d.unitPrice);
+    setLines((prev) => {
+      const existing = prev.find((l) => l.serviceId === null && l.name === d.name && l.unitPriceKobo === kobo);
+      if (existing) return prev.map((l) => (l.key === existing.key ? { ...l, qty: Math.min(999, l.qty + 1) } : l));
+      return [
+        ...prev,
+        {
+          key: crypto.randomUUID(),
+          serviceId: null,
+          name: d.name,
+          unitPriceKobo: kobo,
+          qty: 1,
+          description: [d.strength, d.unit].filter(Boolean).join(" "),
+          amount: amountStr,
+        },
+      ];
+    });
+  }
+
   function updateLine(key: string, patch: Partial<DeskLine>) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
+
+  const normalizedSearch = itemSearch.trim().toLowerCase();
+
+  const matchingDrugs = useMemo(() => {
+    if (!normalizedSearch) return [];
+    return drugs.filter((d) => {
+      const n = d.name.toLowerCase();
+      const s = (d.strength || "").toLowerCase();
+      const u = (d.unit || "").toLowerCase();
+      return n.includes(normalizedSearch) || s.includes(normalizedSearch) || u.includes(normalizedSearch);
+    });
+  }, [drugs, normalizedSearch]);
+
+  const matchingCatalogue = useMemo(() => {
+    if (!normalizedSearch) return [];
+    return catalogue
+      .map((cat) => ({
+        ...cat,
+        services: cat.services.filter((s) => s.name.toLowerCase().includes(normalizedSearch)),
+      }))
+      .filter((cat) => cat.services.length > 0);
+  }, [catalogue, normalizedSearch]);
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + lineTotal(l), 0), [lines]);
   const linesValid = lines.length > 0 && lines.every((l) => lineTotal(l) > 0);
@@ -209,10 +260,10 @@ export function CashierDesk({
         lines: lines.map((l) => ({
           serviceId: l.serviceId || null,
           qty: l.qty,
-          amount: l.unitPriceKobo === null ? l.amount : undefined,
+          amount: l.amount ? l.amount : (l.unitPriceKobo !== null ? (l.unitPriceKobo / 100).toFixed(2) : undefined),
           description:
             l.serviceId === null && l.description.trim()
-              ? `${l.name}: ${l.description.trim()}`
+              ? `${l.name} (${l.description.trim()})`
               : l.description.trim() || (l.serviceId === null ? l.name : undefined),
         })),
         }),
@@ -471,7 +522,7 @@ export function CashierDesk({
                       {patient.firstNames} {patient.surname}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      <span className="font-mono">{patient.hospitalNumber}</span> · {patient.age || "Age —"} · {patient.sex || "Sex —"} · {patient.phone || "No phone"}
+                      <span className="font-mono">{patient.hospitalNumber}</span> · DOB: {patient.dob || "—"} · {patient.sex || "Sex —"} · {patient.phone || "No phone"}
                     </p>
                   </div>
                   <Button type="button" variant="ghost" className="h-11" onClick={clearPatient}>
@@ -531,7 +582,7 @@ export function CashierDesk({
                               {p.firstNames} {p.surname}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              <span className="font-mono">{p.hospitalNumber}</span> · {p.age || "—"} · {p.sex || "—"}
+                              <span className="font-mono">{p.hospitalNumber}</span> · DOB: {p.dob || "—"} · {p.sex || "—"}
                             </span>
                           </button>
                         </li>
@@ -544,10 +595,10 @@ export function CashierDesk({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {/* Service tiles */}
-            <div className="rounded-xl border border-border bg-card p-3 md:max-h-[calc(100vh-15rem)] md:overflow-y-auto">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Service / Item</h3>
+            {/* Service & Drug selection */}
+            <div className="flex flex-col rounded-xl border border-border bg-card p-3 md:max-h-[calc(100vh-15rem)] md:overflow-hidden">
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pay for Services &amp; Drugs</h3>
                 <Button
                   type="button"
                   variant="outline"
@@ -558,34 +609,316 @@ export function CashierDesk({
                   <Plus className="h-3.5 w-3.5" /> + Custom Payment
                 </Button>
               </div>
-              {catalogue.map((cat) => (
-                <div key={cat.id} className="mb-3 last:mb-0">
-                  <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {cat.services.map((s) => {
-                      const isCustom = s.allowCustomAmount || s.priceKobo === 0;
-                      return (
-                        <button
-                          key={s.id}
+
+              {/* Universal Search across drugs and services */}
+              <div className="relative mb-2.5">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-9 bg-background pl-9 pr-8 text-xs placeholder:text-muted-foreground"
+                  placeholder="Search drugs, folders, scans, consultation, anything..."
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  aria-label="Search items and drugs"
+                />
+                {itemSearch ? (
+                  <button
+                    type="button"
+                    onClick={() => setItemSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Category & Drugs Tabs */}
+              <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("all")}
+                  className={cn(
+                    "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                    selectedCategory === "all"
+                      ? "bg-brand-green text-white shadow-xs"
+                      : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  All Items
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory("drugs")}
+                  className={cn(
+                    "flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                    selectedCategory === "drugs"
+                      ? "bg-brand-green text-white shadow-xs"
+                      : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Pill className="h-3 w-3" />
+                  Drugs
+                  <span
+                    className={cn(
+                      "ml-1 rounded-full px-1.5 py-0.2 font-mono text-[10px]",
+                      selectedCategory === "drugs" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {drugs.length}
+                  </span>
+                </button>
+                {catalogue.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={cn(
+                      "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
+                      selectedCategory === cat.id
+                        ? "bg-brand-green text-white shadow-xs"
+                        : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Scrollable Items List */}
+              <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+                {/* 1. When Search query is typed */}
+                {normalizedSearch ? (
+                  <>
+                    {matchingDrugs.length === 0 && matchingCatalogue.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-muted-foreground">
+                        <p>No drugs or services found matching &quot;{itemSearch}&quot;.</p>
+                        <Button
                           type="button"
-                          onClick={() => addService(s)}
-                          className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            addCustomItem(itemSearch);
+                            setItemSearch("");
+                          }}
+                          className="mt-2 text-xs"
                         >
-                          {s.folderColour ? (
-                            <span className={`h-8 w-6 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
-                          ) : null}
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-xs font-semibold leading-tight text-foreground">{s.name}</span>
-                            <span className="block font-mono text-[11px] text-muted-foreground">
-                              {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Pay for &quot;{itemSearch}&quot; as custom item
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    {/* Matching Drugs */}
+                    {matchingDrugs.length > 0 ? (
+                      <div>
+                        <h4 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          <Pill className="h-3.5 w-3.5 text-brand-green" /> Drugs ({matchingDrugs.length})
+                        </h4>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {matchingDrugs.map((d) => (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() => addDrug(d)}
+                              className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
+                                  {d.name}
+                                </span>
+                                {d.strength || d.unit ? (
+                                  <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                                    {[d.strength, d.unit].filter(Boolean).join(" · ")}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                {formatKobo(d.unitPrice * 100)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Matching Services */}
+                    {matchingCatalogue.map((cat) => (
+                      <div key={cat.id}>
+                        <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {cat.services.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => addService(s)}
+                              className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
+                            >
+                              {s.folderColour ? (
+                                <span className={`h-7 w-5 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
+                              ) : null}
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-semibold leading-tight text-foreground">{s.name}</span>
+                                <span className="block font-mono text-[10px] text-muted-foreground">
+                                  {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {/* 2. DRUGS TAB IS SELECTED */}
+                    {selectedCategory === "drugs" ? (
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <Pill className="h-3.5 w-3.5 text-brand-green" /> Hospital Drugs &amp; Medications ({drugs.length})
+                          </h4>
+                          <span className="text-[11px] text-muted-foreground">Tap drug to add</span>
+                        </div>
+                        {drugs.length === 0 ? (
+                          <p className="py-6 text-center text-xs text-muted-foreground">No drugs listed in pharmacy.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {drugs.map((d) => (
+                              <button
+                                key={d.id}
+                                type="button"
+                                onClick={() => addDrug(d)}
+                                className="flex min-h-14 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2.5 text-left transition-all hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <Pill className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
+                                      {d.name}
+                                    </span>
+                                  </div>
+                                  {d.strength || d.unit ? (
+                                    <span className="block truncate pl-5 text-[11px] text-muted-foreground">
+                                      {[d.strength, d.unit].filter(Boolean).join(" · ")}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                  {formatKobo(d.unitPrice * 100)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {/* 3. ALL ITEMS TAB */}
+                    {selectedCategory === "all" ? (
+                      <>
+                        {/* Quick Drugs preview under All */}
+                        {drugs.length > 0 ? (
+                          <div>
+                            <div className="mb-1.5 flex items-center justify-between">
+                              <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                <Pill className="h-3.5 w-3.5 text-brand-green" /> Drugs ({drugs.length})
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCategory("drugs")}
+                                className="text-[11px] font-semibold text-brand-green hover:underline"
+                              >
+                                View all {drugs.length} drugs &rarr;
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                              {drugs.slice(0, 8).map((d) => (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={() => addDrug(d)}
+                                  className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
+                                      {d.name}
+                                    </span>
+                                    {d.strength || d.unit ? (
+                                      <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                                        {[d.strength, d.unit].filter(Boolean).join(" · ")}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                    {formatKobo(d.unitPrice * 100)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {/* All Catalogue Categories */}
+                        {catalogue.map((cat) => (
+                          <div key={cat.id}>
+                            <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                              {cat.services.map((s) => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => addService(s)}
+                                  className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
+                                >
+                                  {s.folderColour ? (
+                                    <span className={`h-7 w-5 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
+                                  ) : null}
+                                  <div className="min-w-0 flex-1">
+                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground">{s.name}</span>
+                                    <span className="block font-mono text-[10px] text-muted-foreground">
+                                      {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    ) : null}
+
+                    {/* 4. SPECIFIC CATALOGUE CATEGORY TAB IS SELECTED */}
+                    {selectedCategory !== "all" && selectedCategory !== "drugs" ? (
+                      catalogue
+                        .filter((cat) => cat.id === selectedCategory)
+                        .map((cat) => (
+                          <div key={cat.id}>
+                            <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {cat.services.map((s) => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => addService(s)}
+                                  className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-background p-2.5 text-left transition-colors hover:bg-muted active:scale-[0.98]"
+                                >
+                                  {s.folderColour ? (
+                                    <span className={`h-8 w-6 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
+                                  ) : null}
+                                  <div className="min-w-0 flex-1">
+                                    <span className="block text-xs font-semibold leading-tight text-foreground">{s.name}</span>
+                                    <span className="block font-mono text-[11px] text-muted-foreground">
+                                      {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                    ) : null}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Basket, total, payment, issue */}

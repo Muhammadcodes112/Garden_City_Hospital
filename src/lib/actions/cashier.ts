@@ -5,6 +5,7 @@ import { db as mainDb } from "@/db";
 import { getCashierDb } from "@/db/cashier";
 import {
   cashierShifts,
+  inventoryItems,
   patients,
   receiptPrints,
   receipts,
@@ -14,6 +15,7 @@ import {
   user,
 } from "@/db/schema";
 import { requireCashierArea } from "@/lib/authz";
+import { seedInventoryIfNeeded, DEFAULT_NIGERIAN_INVENTORY } from "@/lib/inventory";
 import { logEvent } from "@/lib/activity";
 import { formatKobo, parseNairaToKobo, MAX_PRICE_KOBO } from "@/lib/money";
 import { STALE_SHIFT_HOURS, describeVariance, isWithinCashierVoidWindow } from "@/lib/cashier-policy";
@@ -68,8 +70,20 @@ export type CashierPatient = {
   firstNames: string;
   hospitalNumber: string;
   age: string;
+  dob: string;
   sex: string;
   phone: string;
+};
+
+export type CashierDrugItem = {
+  id: string;
+  name: string;
+  category: string;
+  unit: string | null;
+  strength: string | null;
+  dosageForm: string | null;
+  unitPrice: number; // in NGN
+  isAvailable: boolean;
 };
 
 export type SaleService = {
@@ -353,23 +367,26 @@ export async function sendShiftReport(
   if (admins.length === 0) return { success: false, error: "No Super Admin accounts to send to" };
 
   const variance = snap.cash.varianceKobo ?? 0;
+  const cashierName = snap.shift.cashierName || session.user.name;
   const opened = new Date(snap.shift.openedAt).toLocaleString("en-GB", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" });
-  const headline = `Shift report: ${snap.shift.cashierName}, ${opened}. ${snap.totals.issuedCount} receipt(s), ${formatKobo(snap.totals.issuedKobo)} taken, ${snap.totals.voidCount} void(s), drawer ${describeVariance(variance, formatKobo)}.`;
+  const headline = `Shift Report — Cashier: ${cashierName} (${opened}): ${snap.totals.issuedCount} receipt(s), ${formatKobo(snap.totals.issuedKobo)} taken, ${snap.totals.voidCount} void(s), drawer ${describeVariance(variance, formatKobo)}.`;
+
+  const messageBody = `Cashier: ${cashierName}\nShift Opened: ${opened}\nTotal Taken: ${formatKobo(snap.totals.issuedKobo)}\nReceipts Issued: ${snap.totals.issuedCount} (${snap.totals.voidCount} voided)\nDrawer Variance: ${describeVariance(variance, formatKobo)}\n\nShift report closed and submitted by Cashier ${cashierName}.`;
 
   for (const admin of admins) {
     const conversationId = await getOrCreateDmConversation(session.user.id, admin.id);
     await insertMessageWithAttachment({
       conversationId,
       senderId: session.user.id,
-      body: headline,
+      body: messageBody,
       attachment: { kind: "shift_report", shiftReportId: report.id },
       activityLog: {
         category: "messages",
         action: "message.sent",
-        summary: `${session.user.name} sent a shift report to a Super Admin`,
+        summary: `Shift report submitted by Cashier ${cashierName} to Super Admin`,
         actorRoleAtTime: role,
-        actorLabel: session.user.name,
-        metadata: { shiftId },
+        actorLabel: `Cashier ${cashierName}`,
+        metadata: { shiftId, cashierName },
       },
     });
   }
@@ -382,10 +399,11 @@ export async function sendShiftReport(
   if (emailConfigured) {
     const base = process.env.BETTER_AUTH_URL || "https://gardencityhospital.vercel.app";
     const link = `${base}/cashier/reports/${shiftId}`;
-    const text = `${headline}\n\nOpen the full report: ${link}`;
+    const emailSubject = `Cashier Shift Report: ${cashierName} (${opened})`;
+    const text = `CASHIER ON SHIFT: ${cashierName}\n\n${headline}\n\nOpen the full report: ${link}`;
     for (const admin of admins) {
       if (!admin.email) continue;
-      const res = await emailProvider.sendEmail(admin.email, `Cashier shift report: ${snap.shift.cashierName}`, text);
+      const res = await emailProvider.sendEmail(admin.email, emailSubject, text);
       if (res.success) {
         emailed++;
       } else {
@@ -494,12 +512,13 @@ const CASHIER_PATIENT_COLUMNS = {
   firstNames: patients.firstNames,
   hospitalNumber: patients.hospitalNumber,
   age: patients.age,
+  dob: patients.dob,
   sex: patients.sex,
   phone: patients.phone,
 };
 
-function toCashierPatient(p: { id: string; surname: string; firstNames: string; hospitalNumber: string; age: string | null; sex: string | null; phone: string | null }): CashierPatient {
-  return { ...p, age: p.age ?? "", sex: p.sex ?? "", phone: p.phone ?? "" };
+function toCashierPatient(p: { id: string; surname: string; firstNames: string; hospitalNumber: string; age: string | null; dob: string | null; sex: string | null; phone: string | null }): CashierPatient {
+  return { ...p, age: p.age ?? "", dob: p.dob ?? "", sex: p.sex ?? "", phone: p.phone ?? "" };
 }
 
 export async function searchPatientsForCashier(query: string): Promise<CashierPatient[]> {
@@ -582,4 +601,55 @@ export async function getSaleCatalogue(): Promise<SaleCategory[]> {
         })),
     }))
     .filter((c) => c.services.length > 0);
+}
+
+export async function getCashierDrugs(): Promise<CashierDrugItem[]> {
+  await requireCashierArea();
+  try {
+    const rows = await mainDb
+      .select({
+        id: inventoryItems.id,
+        name: inventoryItems.name,
+        category: inventoryItems.category,
+        unit: inventoryItems.unit,
+        strength: inventoryItems.strength,
+        dosageForm: inventoryItems.dosageForm,
+        unitPrice: inventoryItems.unitPrice,
+        isAvailable: inventoryItems.isAvailable,
+      })
+      .from(inventoryItems)
+      .where(eq(inventoryItems.isAvailable, true))
+      .orderBy(asc(inventoryItems.name));
+
+    if (rows.length === 0) {
+      await seedInventoryIfNeeded();
+      return await mainDb
+        .select({
+          id: inventoryItems.id,
+          name: inventoryItems.name,
+          category: inventoryItems.category,
+          unit: inventoryItems.unit,
+          strength: inventoryItems.strength,
+          dosageForm: inventoryItems.dosageForm,
+          unitPrice: inventoryItems.unitPrice,
+          isAvailable: inventoryItems.isAvailable,
+        })
+        .from(inventoryItems)
+        .where(eq(inventoryItems.isAvailable, true))
+        .orderBy(asc(inventoryItems.name));
+    }
+    return rows;
+  } catch (err) {
+    console.error("Failed to load cashier drugs from inventory:", err);
+    return DEFAULT_NIGERIAN_INVENTORY.map((d, index) => ({
+      id: `fallback-drug-${index}`,
+      name: d.name,
+      category: d.category,
+      unit: d.unit ?? null,
+      strength: d.strength ?? null,
+      dosageForm: d.dosageForm ?? null,
+      unitPrice: d.unitPrice,
+      isAvailable: true,
+    }));
+  }
 }

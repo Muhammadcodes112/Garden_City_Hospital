@@ -42,12 +42,12 @@ const GRANTS = `
   GRANT USAGE ON SCHEMA public TO "${ROLE}";
 
   REVOKE ALL ON "patients" FROM "${ROLE}";
-  GRANT SELECT ("id", "surname", "first_names", "hospital_number", "age", "sex", "phone") ON "patients" TO "${ROLE}";
+  GRANT SELECT ("id", "surname", "first_names", "hospital_number", "age", "dob", "sex", "phone") ON "patients" TO "${ROLE}";
 
   REVOKE ALL ON "user" FROM "${ROLE}";
   GRANT SELECT ("id", "name") ON "user" TO "${ROLE}";
 
-  GRANT SELECT ON "service_categories", "services" TO "${ROLE}";
+  GRANT SELECT ON "service_categories", "services", "inventory_items" TO "${ROLE}";
 
   GRANT SELECT, INSERT ON "cashier_shifts" TO "${ROLE}";
   GRANT UPDATE ("closed_at", "status", "expected_cash_kobo", "counted_cash_kobo", "variance_kobo", "closing_note", "report_sent_at") ON "cashier_shifts" TO "${ROLE}";
