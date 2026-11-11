@@ -89,6 +89,7 @@ async function migrate() {
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_evidence_url" text DEFAULT '';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_evidence_name" text DEFAULT '';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "payment_notes" text DEFAULT '';
+      ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "insurance_scheme" text DEFAULT '';
       ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "case_file_data" jsonb DEFAULT '{}'::jsonb;
 
       CREATE INDEX IF NOT EXISTS "patients_payment_status_idx" ON "patients" ("payment_status");
@@ -1054,7 +1055,7 @@ async function migrate() {
         END IF;
 
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cashier_app') THEN
-          GRANT SELECT ("dob") ON "patients" TO "cashier_app";
+          GRANT SELECT ("dob", "insurance_scheme") ON "patients" TO "cashier_app";
           GRANT SELECT ON "inventory_items" TO "cashier_app";
         END IF;
       END $$;

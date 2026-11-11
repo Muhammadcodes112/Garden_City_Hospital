@@ -80,10 +80,10 @@ export async function issueReceiptAs(actor: Actor, input: unknown): Promise<Serv
     let description: string;
     // Allow custom amount if the item has no catalogue entry, if the service allows custom amount,
     // if the service has no price set (priceKobo <= 0), or if the cashier provided a custom amount.
-    const isCustomOrUnpriced = !svc || svc.allowCustomAmount || svc.priceKobo <= 0 || Boolean(l.amount);
+    const isCustomOrUnpriced = !svc || svc.allowCustomAmount || svc.priceKobo <= 0 || Boolean(l.amount !== undefined);
     if (isCustomOrUnpriced) {
-      const amount = l.amount ? parseNairaToKobo(l.amount) : (svc && svc.priceKobo > 0 ? svc.priceKobo : null);
-      if (!amount || amount <= 0) return fail(400, `Enter an amount for ${svc?.name ?? "the item"}`);
+      const amount = l.amount !== undefined ? parseNairaToKobo(l.amount) : (svc && svc.priceKobo > 0 ? svc.priceKobo : null);
+      if (amount === null || amount < 0) return fail(400, `Enter an amount for ${svc?.name ?? "the item"}`);
       unitPriceKobo = amount;
       const trimmedDesc = l.description?.trim();
       if (trimmedDesc) {
@@ -107,7 +107,7 @@ export async function issueReceiptAs(actor: Actor, input: unknown): Promise<Serv
   }
 
   const totalKobo = lines.reduce((sum, l) => sum + l.lineTotalKobo, 0);
-  if (totalKobo <= 0) return fail(400, "The receipt total must be more than ₦0");
+  if (totalKobo < 0) return fail(400, "The receipt total cannot be negative");
   if (totalKobo > MAX_PRICE_KOBO) return fail(400, `A single receipt can't exceed ${formatKobo(MAX_PRICE_KOBO)}`);
 
   const ref = v.paymentMode === "transfer" || v.paymentMode === "pos" ? v.tellerOrTransferRef || null : null;

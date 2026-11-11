@@ -42,7 +42,7 @@ const GRANTS = `
   GRANT USAGE ON SCHEMA public TO "${ROLE}";
 
   REVOKE ALL ON "patients" FROM "${ROLE}";
-  GRANT SELECT ("id", "surname", "first_names", "hospital_number", "age", "dob", "sex", "phone") ON "patients" TO "${ROLE}";
+  GRANT SELECT ("id", "surname", "first_names", "hospital_number", "age", "dob", "sex", "phone", "insurance_scheme") ON "patients" TO "${ROLE}";
 
   REVOKE ALL ON "user" FROM "${ROLE}";
   GRANT SELECT ("id", "name") ON "user" TO "${ROLE}";

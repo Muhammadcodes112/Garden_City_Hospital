@@ -73,6 +73,7 @@ export type CashierPatient = {
   dob: string;
   sex: string;
   phone: string;
+  insuranceScheme: string;
 };
 
 export type CashierDrugItem = {
@@ -515,10 +516,28 @@ const CASHIER_PATIENT_COLUMNS = {
   dob: patients.dob,
   sex: patients.sex,
   phone: patients.phone,
+  insuranceScheme: patients.insuranceScheme,
 };
 
-function toCashierPatient(p: { id: string; surname: string; firstNames: string; hospitalNumber: string; age: string | null; dob: string | null; sex: string | null; phone: string | null }): CashierPatient {
-  return { ...p, age: p.age ?? "", dob: p.dob ?? "", sex: p.sex ?? "", phone: p.phone ?? "" };
+function toCashierPatient(p: {
+  id: string;
+  surname: string;
+  firstNames: string;
+  hospitalNumber: string;
+  age: string | null;
+  dob: string | null;
+  sex: string | null;
+  phone: string | null;
+  insuranceScheme?: string | null;
+}): CashierPatient {
+  return {
+    ...p,
+    age: p.age ?? "",
+    dob: p.dob ?? "",
+    sex: p.sex ?? "",
+    phone: p.phone ?? "",
+    insuranceScheme: p.insuranceScheme ?? "",
+  };
 }
 
 export async function searchPatientsForCashier(query: string): Promise<CashierPatient[]> {

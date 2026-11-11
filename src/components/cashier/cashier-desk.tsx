@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, CheckCircle2, Clock, CreditCard, FileText, History, Landmark, Loader2, Minus, Pill, Plus, Printer, Search, Smartphone, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Banknote, CheckCircle2, Clock, CreditCard, FileText, History, Landmark, Loader2, Minus, Pill, Plus, Printer, Receipt, Search, Shield, ShieldCheck, Smartphone, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,9 @@ export function CashierDesk({
   // Catalog tabs & item search
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [itemSearch, setItemSearch] = useState<string>("");
+  type InsuranceScheme = "none" | "kachma" | "nhis";
+  const [insuranceScheme, setInsuranceScheme] = useState<InsuranceScheme>("none");
+  const [receiptsDialogOpen, setReceiptsDialogOpen] = useState(false);
 
   // Patient / payer
   const [query, setQuery] = useState("");
@@ -128,12 +131,52 @@ export function CashierDesk({
     };
   }, [query]);
 
+  function handleSchemeChange(newScheme: InsuranceScheme) {
+    setInsuranceScheme(newScheme);
+    setLines((prev) =>
+      prev.map((l) => {
+        const matchedDrug = drugs.find((d) => d.name.toLowerCase() === l.name.toLowerCase());
+        const isDrug = Boolean(matchedDrug) || l.description.toLowerCase().includes("covered - free");
+        if (!isDrug) return l;
+
+        if (newScheme === "none") {
+          const originalKobo = matchedDrug ? Math.round(matchedDrug.unitPrice * 100) : (l.unitPriceKobo || 0);
+          const originalAmount = matchedDrug ? String(matchedDrug.unitPrice) : l.amount;
+          const cleanedDesc = l.description.replace(/\s*\[(KACHMA|NHIS) Covered - Free\]/gi, "").trim();
+          return {
+            ...l,
+            unitPriceKobo: originalKobo,
+            amount: originalAmount,
+            description: cleanedDesc,
+          };
+        } else {
+          const tag = `[${newScheme.toUpperCase()} Covered - Free]`;
+          const baseDesc = l.description.replace(/\s*\[(KACHMA|NHIS) Covered - Free\]/gi, "").trim();
+          return {
+            ...l,
+            unitPriceKobo: 0,
+            amount: "0",
+            description: baseDesc ? `${baseDesc} ${tag}` : tag,
+          };
+        }
+      })
+    );
+  }
+
   function pickPatient(p: CashierPatient) {
     setPatient(p);
     setPayerName(`${p.firstNames} ${p.surname}`.trim());
     setQuery("");
     setResults([]);
     setHistory(null);
+    const s = (p.insuranceScheme || "").toLowerCase();
+    if (s.includes("kachma")) {
+      handleSchemeChange("kachma");
+    } else if (s.includes("nhis")) {
+      handleSchemeChange("nhis");
+    } else {
+      handleSchemeChange("none");
+    }
     getPatientReceiptHistory(p.id)
       .then(setHistory)
       .catch((err) => {
@@ -146,6 +189,7 @@ export function CashierDesk({
     setPatient(null);
     setHistory(null);
     setPayerName("");
+    handleSchemeChange("none");
   }
 
   function addService(s: SaleService) {
@@ -179,8 +223,13 @@ export function CashierDesk({
   }
 
   function addDrug(d: CashierDrugItem) {
-    const kobo = Math.round(d.unitPrice * 100);
-    const amountStr = String(d.unitPrice);
+    const isFree = insuranceScheme !== "none";
+    const kobo = isFree ? 0 : Math.round(d.unitPrice * 100);
+    const amountStr = isFree ? "0" : String(d.unitPrice);
+    const baseDesc = [d.strength, d.unit].filter(Boolean).join(" ");
+    const tag = isFree ? `[${insuranceScheme.toUpperCase()} Covered - Free]` : "";
+    const fullDesc = [baseDesc, tag].filter(Boolean).join(" ").trim();
+
     setLines((prev) => {
       const existing = prev.find((l) => l.serviceId === null && l.name === d.name && l.unitPriceKobo === kobo);
       if (existing) return prev.map((l) => (l.key === existing.key ? { ...l, qty: Math.min(999, l.qty + 1) } : l));
@@ -192,7 +241,7 @@ export function CashierDesk({
           name: d.name,
           unitPriceKobo: kobo,
           qty: 1,
-          description: [d.strength, d.unit].filter(Boolean).join(" "),
+          description: fullDesc,
           amount: amountStr,
         },
       ];
@@ -226,12 +275,12 @@ export function CashierDesk({
   }, [catalogue, normalizedSearch]);
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + lineTotal(l), 0), [lines]);
-  const linesValid = lines.length > 0 && lines.every((l) => lineTotal(l) > 0);
+  const linesValid = lines.length > 0 && lines.every((l) => lineTotal(l) >= 0);
   const canIssue =
     Boolean(shift) &&
     payerName.trim().length > 0 &&
     linesValid &&
-    mode !== null &&
+    (total === 0 || mode !== null) &&
     (mode !== "cheque" || chequeNo.trim().length > 0) &&
     (notRegistered || patient !== null);
 
@@ -242,10 +291,13 @@ export function CashierDesk({
     setChequeNo("");
     clearPatient();
     setNotRegistered(false);
+    handleSchemeChange("none");
   }
 
   async function handleIssue() {
-    if (!canIssue || !mode) return;
+    if (!canIssue) return;
+    const finalMode = total === 0 ? (mode ?? "cash") : mode;
+    if (!finalMode) return;
     setBusy(true);
     try {
       const response = await fetch("/api/cashier/receipts", {
@@ -254,7 +306,7 @@ export function CashierDesk({
         body: JSON.stringify({
         patientId: notRegistered ? null : patient?.id ?? null,
         payerName: payerName.trim(),
-        paymentMode: mode,
+        paymentMode: finalMode,
         tellerOrTransferRef: ref.trim() || undefined,
         chequeNo: chequeNo.trim() || undefined,
         lines: lines.map((l) => ({
@@ -383,87 +435,121 @@ export function CashierDesk({
             <span className="text-xs font-bold uppercase tracking-wider text-foreground">Active Shift</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 text-xs font-medium">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs font-semibold hover:border-brand-green/60 hover:text-brand-green"
+              onClick={() => setReceiptsDialogOpen(true)}
+            >
+              <Receipt className="h-3.5 w-3.5 text-brand-green" /> Shift receipts ({receipts.length})
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium">
               <Link href="/cashier/reports">
                 <History className="h-3.5 w-3.5" /> Past shifts
               </Link>
             </Button>
-            <Button type="button" variant="outline" size="sm" className="h-9 text-xs font-semibold hover:border-destructive hover:text-destructive" onClick={openCloseDialog}>
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs font-semibold hover:border-destructive hover:text-destructive" onClick={openCloseDialog}>
               Close shift
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {/* On shift */}
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {/* 1. On shift */}
+          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">On shift</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                <UserRound className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <UserRound className="h-3 w-3" />
               </div>
             </div>
-            <p className="mt-1.5 truncate text-base font-bold capitalize text-foreground" title={shift.cashierName}>
+            <p className="mt-1 truncate text-xs sm:text-sm font-bold capitalize text-foreground" title={shift.cashierName}>
               {shift.cashierName}
             </p>
           </div>
 
-          {/* Opened */}
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+          {/* 2. Opened */}
+          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opened</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Clock className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Clock className="h-3 w-3" />
               </div>
             </div>
-            <p className="mt-1.5 text-base font-bold text-foreground">
+            <p className="mt-1 text-xs sm:text-sm font-bold text-foreground">
               {time(shift.openedAt)}
             </p>
           </div>
 
-          {/* Receipts */}
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+          {/* 3. Receipts */}
+          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Receipts</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                <FileText className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <FileText className="h-3 w-3" />
               </div>
             </div>
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
-              <span className="text-base font-bold text-foreground">{shift.receiptCount}</span>
+            <div className="mt-1 flex flex-wrap items-baseline gap-1">
+              <span className="text-xs sm:text-sm font-bold text-foreground">{shift.receiptCount}</span>
               {shift.voidedCount ? (
-                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                  ({shift.voidedCount} voided)
+                <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                  ({shift.voidedCount} void)
                 </span>
               ) : null}
             </div>
           </div>
 
-          {/* Total taken */}
-          <div className="col-span-2 sm:col-span-1 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 shadow-xs transition-shadow hover:shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
+          {/* 4. Total taken */}
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2.5 shadow-2xs dark:bg-emerald-500/10">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total taken</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                <Banknote className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                <Banknote className="h-3 w-3" />
               </div>
             </div>
-            <p className="mt-1.5 font-mono text-xl font-black text-emerald-700 dark:text-emerald-400">
+            <p className="mt-1 font-mono text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400">
               {formatKobo(shift.totalKobo)}
             </p>
           </div>
 
-          {/* Opening float */}
-          <div className="rounded-xl border border-border bg-card p-3.5 shadow-xs transition-shadow hover:shadow-sm">
+          {/* 5. Opening float */}
+          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening float</p>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400">
-                <Landmark className="h-3.5 w-3.5" />
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
+                <Landmark className="h-3 w-3" />
               </div>
             </div>
-            <p className="mt-1.5 font-mono text-base font-bold text-foreground">
+            <p className="mt-1 font-mono text-xs sm:text-sm font-bold text-foreground">
               {formatKobo(shift.openingFloatKobo)}
             </p>
           </div>
+
+          {/* 6. Shift receipts (Right end tab) */}
+          <button
+            type="button"
+            onClick={() => setReceiptsDialogOpen(true)}
+            className="group rounded-lg border border-border/90 bg-card p-2.5 shadow-2xs text-left transition-all hover:border-brand-green/70 hover:bg-muted/40 hover:shadow-xs active:scale-[0.98]"
+            title="Click to view all receipts issued this shift"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-brand-green">
+                Shift Receipts
+              </p>
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/10 text-brand-green">
+                <Receipt className="h-3 w-3" />
+              </div>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-1">
+              <span className="text-xs sm:text-sm font-bold text-foreground">
+                {receipts.length} {receipts.length === 1 ? "receipt" : "receipts"}
+              </span>
+              <span className="text-[10px] font-semibold text-brand-green group-hover:underline">
+                View &rarr;
+              </span>
+            </div>
+          </button>
         </div>
       </div>
       {shift.stale ? (
@@ -488,115 +574,211 @@ export function CashierDesk({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* 2. NEW RECEIPT (left) */}
-        <section className="space-y-3 lg:col-span-8">
-          {/* Patient */}
-          <div className="rounded-xl border border-border bg-card p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                <UserRound className="h-4 w-4" /> Patient
-              </h2>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium">
-                <Checkbox
-                  checked={notRegistered}
-                  onCheckedChange={(c) => {
-                    setNotRegistered(c === true);
-                    clearPatient();
-                  }}
-                />
-                Not registered (walk-in)
-              </label>
-            </div>
+      {/* 2. PATIENT & SCHEME CARD (Full width) */}
+      <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
+          <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
+            <UserRound className="h-4 w-4 text-brand-green" /> Patient &amp; Insurance Scheme
+          </h2>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-0.5">Scheme:</span>
+            <button
+              type="button"
+              onClick={() => handleSchemeChange("none")}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                insuranceScheme === "none"
+                  ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow-2xs"
+                  : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSchemeChange("kachma")}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                insuranceScheme === "kachma"
+                  ? "bg-amber-500 text-white shadow-2xs font-bold"
+                  : "border border-amber-300/80 bg-amber-50/50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300"
+              )}
+            >
+              <Shield className="h-3 w-3" />
+              KACHMA (Free Drugs)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSchemeChange("nhis")}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                insuranceScheme === "nhis"
+                  ? "bg-blue-600 text-white shadow-2xs font-bold"
+                  : "border border-blue-300/80 bg-blue-50/50 text-blue-800 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
+              )}
+            >
+              <Shield className="h-3 w-3" />
+              NHIS (Free Drugs)
+            </button>
 
-            {notRegistered ? (
-              <div className="mt-2 space-y-1">
-                <Label htmlFor="payer">Received from</Label>
-                <Input id="payer" className="h-12 text-base" value={payerName} onChange={(e) => setPayerName(e.target.value)} placeholder="Full name of the person paying" />
-              </div>
-            ) : patient ? (
-              <div className="mt-2 space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-muted/50 p-2.5">
-                  <div className="text-sm">
-                    <p className="font-bold text-foreground">
-                      {patient.firstNames} {patient.surname}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-mono">{patient.hospitalNumber}</span> · DOB: {patient.dob || "—"} · {patient.sex || "Sex —"} · {patient.phone || "No phone"}
-                    </p>
-                  </div>
-                  <Button type="button" variant="ghost" className="h-11" onClick={clearPatient}>
-                    Change
-                  </Button>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="payer">Received from</Label>
-                  <Input id="payer" className="h-12 text-base" value={payerName} onChange={(e) => setPayerName(e.target.value)} />
-                </div>
-                <details className="text-xs">
-                  <summary className="cursor-pointer py-1 font-semibold text-muted-foreground">
-                    Payment history {history ? `(${history.length})` : ""}
-                  </summary>
-                  {history === null ? (
-                    <p className="py-1 text-muted-foreground">Loading…</p>
-                  ) : history.length === 0 ? (
-                    <p className="py-1 text-muted-foreground">No earlier receipts.</p>
-                  ) : (
-                    <ul className="mt-1 divide-y divide-border rounded-lg border border-border">
-                      {history.map((h) => (
-                        <li key={h.id} className="flex justify-between gap-2 px-2 py-1.5">
-                          <span className="font-mono">Nº {h.receiptNo}</span>
-                          <span>{new Date(h.issuedAt).toLocaleDateString("en-GB")}</span>
-                          <span className={h.status === "voided" ? "line-through text-muted-foreground" : "font-bold"}>{formatKobo(h.totalKobo)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </details>
-              </div>
-            ) : (
-              <div className="relative mt-2">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="h-12 pl-9 text-base"
-                  placeholder="Search by name or hospital number"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    if (e.target.value.trim().length >= 2) setSearching(true);
-                    else setResults([]);
-                  }}
-                  aria-label="Search patients"
-                />
-                {query.trim().length >= 2 ? (
-                  <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
-                    {searching && results.length === 0 ? (
-                      <li className="px-3 py-3 text-sm text-muted-foreground">Searching…</li>
-                    ) : results.length === 0 ? (
-                      <li className="px-3 py-3 text-sm text-muted-foreground">No patient found. Tick &quot;Not registered&quot; for a walk-in.</li>
-                    ) : (
-                      results.map((p) => (
-                        <li key={p.id}>
-                          <button type="button" className="flex min-h-14 w-full flex-col justify-center px-3 py-2 text-left hover:bg-muted" onClick={() => pickPatient(p)}>
-                            <span className="text-sm font-semibold text-foreground">
-                              {p.firstNames} {p.surname}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              <span className="font-mono">{p.hospitalNumber}</span> · DOB: {p.dob || "—"} · {p.sex || "—"}
-                            </span>
-                          </button>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                ) : null}
-              </div>
-            )}
+            <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-foreground">
+              <Checkbox
+                checked={notRegistered}
+                onCheckedChange={(c) => {
+                  setNotRegistered(c === true);
+                  clearPatient();
+                }}
+              />
+              Walk-in (Not registered)
+            </label>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {/* Service & Drug selection */}
-            <div className="flex flex-col rounded-xl border border-border bg-card p-3 md:max-h-[calc(100vh-15rem)] md:overflow-hidden">
+        {/* Free Drugs Banner */}
+        {insuranceScheme !== "none" ? (
+          <div className={cn(
+            "mt-2.5 flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-xs font-medium border",
+            insuranceScheme === "kachma"
+              ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
+              : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+          )}>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>
+                <strong>{insuranceScheme.toUpperCase()} Insurance Active:</strong> Prescribed drugs and medications are <strong>100% Free (₦0)</strong> for this patient.
+              </span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/70 dark:bg-black/40 text-emerald-700 dark:text-emerald-300">
+              Drugs Free
+            </span>
+          </div>
+        ) : null}
+
+        {notRegistered ? (
+          <div className="mt-2.5 space-y-1">
+            <Label htmlFor="payer" className="text-xs">Received from (Walk-in payer)</Label>
+            <Input
+              id="payer"
+              className="h-9.5 text-xs sm:text-sm bg-background"
+              value={payerName}
+              onChange={(e) => setPayerName(e.target.value)}
+              placeholder="Full name of the person paying"
+            />
+          </div>
+        ) : patient ? (
+          <div className="mt-2.5 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 p-2.5">
+              <div className="text-xs">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-sm text-foreground">
+                    {patient.firstNames} {patient.surname}
+                  </p>
+                  {insuranceScheme !== "none" ? (
+                    <span className={cn(
+                      "rounded px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider",
+                      insuranceScheme === "kachma" ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                    )}>
+                      {insuranceScheme}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-muted-foreground mt-0.5">
+                  <span className="font-mono">{patient.hospitalNumber}</span> · DOB: {patient.dob || "—"} · {patient.sex || "Sex —"} · {patient.phone || "No phone"}
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" className="h-8 text-xs font-semibold" onClick={clearPatient}>
+                Change patient
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="payer" className="text-xs">Received from</Label>
+              <Input id="payer" className="h-9.5 text-xs sm:text-sm bg-background" value={payerName} onChange={(e) => setPayerName(e.target.value)} />
+            </div>
+            <details className="text-xs">
+              <summary className="cursor-pointer py-0.5 font-semibold text-muted-foreground hover:text-foreground">
+                Payment history {history ? `(${history.length})` : ""}
+              </summary>
+              {history === null ? (
+                <p className="py-1 text-muted-foreground">Loading…</p>
+              ) : history.length === 0 ? (
+                <p className="py-1 text-muted-foreground">No earlier receipts.</p>
+              ) : (
+                <ul className="mt-1 divide-y divide-border rounded-lg border border-border">
+                  {history.map((h) => (
+                    <li key={h.id} className="flex justify-between gap-2 px-2 py-1.5">
+                      <span className="font-mono">Nº {h.receiptNo}</span>
+                      <span>{new Date(h.issuedAt).toLocaleDateString("en-GB")}</span>
+                      <span className={h.status === "voided" ? "line-through text-muted-foreground" : "font-bold"}>{formatKobo(h.totalKobo)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </details>
+          </div>
+        ) : (
+          <div className="relative mt-2.5">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-9.5 pl-8.5 pr-8 text-xs sm:text-sm bg-background placeholder:text-muted-foreground/70"
+              placeholder="Search patient by name or hospital number..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (e.target.value.trim().length >= 2) setSearching(true);
+                else setResults([]);
+              }}
+              aria-label="Search patients"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setResults([]);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Clear patient search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            {query.trim().length >= 2 ? (
+              <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                {searching && results.length === 0 ? (
+                  <li className="px-3 py-3 text-xs text-muted-foreground">Searching…</li>
+                ) : results.length === 0 ? (
+                  <li className="px-3 py-3 text-xs text-muted-foreground">No patient found. Tick &quot;Walk-in&quot; for an unregistered patient.</li>
+                ) : (
+                  results.map((p) => (
+                    <li key={p.id}>
+                      <button type="button" className="flex min-h-12 w-full flex-col justify-center px-3 py-2 text-left hover:bg-muted" onClick={() => pickPatient(p)}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-semibold text-foreground">
+                            {p.firstNames} {p.surname}
+                          </span>
+                          {p.insuranceScheme ? (
+                            <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.2 text-[10px] font-bold uppercase">
+                              {p.insuranceScheme}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          <span className="font-mono">{p.hospitalNumber}</span> · DOB: {p.dob || "—"} · {p.sex || "—"}
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      {/* Two Column Workspace: Left (col-span-7) = Catalogue & Drugs, Right (col-span-5) = Items & Payment */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+        {/* Service & Drug selection */}
+        <div className="flex flex-col rounded-xl border border-border bg-card p-3 lg:col-span-7 md:max-h-[calc(100vh-14rem)] md:overflow-hidden shadow-2xs">
               <div className="mb-2.5 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pay for Services &amp; Drugs</h3>
                 <Button
@@ -731,9 +913,20 @@ export function CashierDesk({
                                   </span>
                                 ) : null}
                               </div>
-                              <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                {formatKobo(d.unitPrice * 100)}
-                              </span>
+                              {insuranceScheme !== "none" ? (
+                                <div className="shrink-0 text-right">
+                                  <span className="block font-mono text-[10px] text-muted-foreground line-through">
+                                    {formatKobo(d.unitPrice * 100)}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                    ₦0 FREE
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                  {formatKobo(d.unitPrice * 100)}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -773,9 +966,16 @@ export function CashierDesk({
                     {selectedCategory === "drugs" ? (
                       <div>
                         <div className="mb-2 flex items-center justify-between">
-                          <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                            <Pill className="h-3.5 w-3.5 text-brand-green" /> Hospital Drugs &amp; Medications ({drugs.length})
-                          </h4>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                              <Pill className="h-3.5 w-3.5 text-brand-green" /> Hospital Drugs &amp; Medications ({drugs.length})
+                            </h4>
+                            {insuranceScheme !== "none" ? (
+                              <span className="rounded bg-amber-500/15 px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                                Free on {insuranceScheme.toUpperCase()}
+                              </span>
+                            ) : null}
+                          </div>
                           <span className="text-[11px] text-muted-foreground">Tap drug to add</span>
                         </div>
                         {drugs.length === 0 ? (
@@ -802,9 +1002,20 @@ export function CashierDesk({
                                     </span>
                                   ) : null}
                                 </div>
-                                <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                  {formatKobo(d.unitPrice * 100)}
-                                </span>
+                                {insuranceScheme !== "none" ? (
+                                  <div className="shrink-0 text-right">
+                                    <span className="block font-mono text-[10px] text-muted-foreground line-through">
+                                      {formatKobo(d.unitPrice * 100)}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                      ₦0 FREE
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                    {formatKobo(d.unitPrice * 100)}
+                                  </span>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -848,9 +1059,20 @@ export function CashierDesk({
                                       </span>
                                     ) : null}
                                   </div>
-                                  <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                    {formatKobo(d.unitPrice * 100)}
-                                  </span>
+                                  {insuranceScheme !== "none" ? (
+                                    <div className="shrink-0 text-right">
+                                      <span className="block font-mono text-[10px] text-muted-foreground line-through">
+                                        {formatKobo(d.unitPrice * 100)}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                        ₦0 FREE
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                      {formatKobo(d.unitPrice * 100)}
+                                    </span>
+                                  )}
                                 </button>
                               ))}
                             </div>
@@ -922,7 +1144,7 @@ export function CashierDesk({
             </div>
 
             {/* Basket, total, payment, issue */}
-            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:col-span-5 shadow-2xs">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
                   <FileText className="h-4 w-4" /> Items ({lines.length})
@@ -1057,38 +1279,58 @@ export function CashierDesk({
                 <p className="font-mono text-3xl font-black text-foreground">{formatKobo(total)}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {PAYMENT_MODES.map((m) => {
-                  const Icon = MODE_ICONS[m];
-                  return (
-                    <Button
-                      key={m}
-                      type="button"
-                      variant={mode === m ? "default" : "outline"}
-                      className="h-14 gap-2 text-base font-bold"
-                      onClick={() => setMode(m)}
-                      aria-pressed={mode === m}
-                    >
-                      <Icon className="h-5 w-5" /> {PAYMENT_MODE_LABELS[m]}
-                    </Button>
-                  );
-                })}
-              </div>
-              {mode === "transfer" || mode === "pos" ? (
-                <div className="space-y-1">
-                  <Label htmlFor="ref">{mode === "pos" ? "POS reference" : "Teller / transfer reference"}</Label>
-                  <Input id="ref" className="h-12" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" />
+              {total === 0 && lines.length > 0 && insuranceScheme !== "none" ? (
+                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+                  <div className="flex items-center justify-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                    <ShieldCheck className="h-4 w-4" />
+                    100% Covered by {insuranceScheme.toUpperCase()} (₦0)
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    All drugs in this basket are fully covered for this insurance patient. No payment is required.
+                  </p>
                 </div>
-              ) : null}
-              {mode === "cheque" ? (
-                <div className="space-y-1">
-                  <Label htmlFor="cheque">Cheque number (required)</Label>
-                  <Input id="cheque" className="h-12" value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
-                </div>
-              ) : null}
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PAYMENT_MODES.map((m) => {
+                      const Icon = MODE_ICONS[m];
+                      return (
+                        <Button
+                          key={m}
+                          type="button"
+                          variant={mode === m ? "default" : "outline"}
+                          className="h-14 gap-2 text-base font-bold"
+                          onClick={() => setMode(m)}
+                          aria-pressed={mode === m}
+                        >
+                          <Icon className="h-5 w-5" /> {PAYMENT_MODE_LABELS[m]}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {mode === "transfer" || mode === "pos" ? (
+                    <div className="space-y-1">
+                      <Label htmlFor="ref">{mode === "pos" ? "POS reference" : "Teller / transfer reference"}</Label>
+                      <Input id="ref" className="h-12" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" />
+                    </div>
+                  ) : null}
+                  {mode === "cheque" ? (
+                    <div className="space-y-1">
+                      <Label htmlFor="cheque">Cheque number (required)</Label>
+                      <Input id="cheque" className="h-12" value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
+                    </div>
+                  ) : null}
+                </>
+              )}
 
-              <Button type="button" disabled={!canIssue || busy} onClick={handleIssue} className="h-14 gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700">
-                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />} Issue receipt
+              <Button
+                type="button"
+                disabled={!canIssue || busy}
+                onClick={handleIssue}
+                className="h-14 gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700"
+              >
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}{" "}
+                {total === 0 && insuranceScheme !== "none" ? "Issue Insurance Receipt (₦0)" : "Issue receipt"}
               </Button>
               {!canIssue && !busy ? (
                 <p className="text-center text-xs text-muted-foreground">
@@ -1100,21 +1342,31 @@ export function CashierDesk({
                         ? lines.length === 0
                           ? "Add at least one item."
                           : "Enter an amount for every typed item."
-                        : !mode
+                        : total > 0 && !mode
                           ? "Choose a payment mode."
                           : "Enter the cheque number."}
                 </p>
               ) : null}
             </div>
-          </div>
-        </section>
-
-        {/* 3. THIS SHIFT'S RECEIPTS (right) */}
-        <aside className="rounded-xl border border-border bg-card p-3 lg:col-span-4 lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:self-start lg:overflow-y-auto">
-          <h2 className="mb-2 text-sm font-bold text-foreground">This shift&apos;s receipts</h2>
-          <ReceiptList receipts={receipts} onChanged={refresh} />
-        </aside>
       </div>
+
+      {/* Shift Receipts Dialog */}
+      <Dialog open={receiptsDialogOpen} onOpenChange={setReceiptsDialogOpen}>
+        <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-brand-green" />
+              This Shift&apos;s Receipts
+            </DialogTitle>
+            <DialogDescription>
+              Receipts issued during this active shift ({receipts.length} total)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <ReceiptList receipts={receipts} onChanged={refresh} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={closing} onOpenChange={(open) => !busy && setClosing(open)}>
         <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto">

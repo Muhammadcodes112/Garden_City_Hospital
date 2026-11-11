@@ -229,6 +229,7 @@ export const patients = pgTable("patients", {
   paymentEvidenceUrl: text("payment_evidence_url").default(""),
   paymentEvidenceName: text("payment_evidence_name").default(""),
   paymentNotes: text("payment_notes").default(""),
+  insuranceScheme: text("insurance_scheme").default(""),
   caseFileData: jsonb("case_file_data").default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
