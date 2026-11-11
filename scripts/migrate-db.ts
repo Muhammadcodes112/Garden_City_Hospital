@@ -318,10 +318,13 @@ async function migrate() {
     // "user" (e.g. the ADD COLUMNs further down) while a trigger event on it
     // is still pending — so this must fully commit first.
     await sql.unsafe(`
-      -- Normalize existing data first so the text->enum cast below can't fail:
-      -- every account becomes 'admin' except current super_admins, which keep
-      -- 'super_admin'. No-op today (data already matches), but idempotent.
-      UPDATE "user" SET role = 'admin' WHERE role IS DISTINCT FROM 'super_admin';
+      -- Only normalize legacy text data if the column hasn't been converted to enum yet.
+      -- Previously this ran unconditionally and reset all cashiers and patients to 'admin'!
+      DO $$ BEGIN
+        IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'user' AND column_name = 'role') = 'text' THEN
+          UPDATE "user" SET role = 'admin' WHERE role IS DISTINCT FROM 'super_admin';
+        END IF;
+      END $$;
     `);
 
     await sql.unsafe(`
