@@ -48,19 +48,22 @@ export default async function CashierLayout({ children }: { children: React.Reac
   const { session, role } = await requireCashierArea();
   const notConfigured = !isCashierDbConfigured();
 
+  // The page itself never scrolls: the shell is pinned to the viewport and
+  // only <main> (or the desk's own lists inside it) scrolls.
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b border-border bg-brand-black text-white">
-        <div className="h-1 w-full bg-gradient-to-r from-brand-black via-brand-red to-brand-orange" aria-hidden />
-        <div className="flex h-14 items-center justify-between gap-3 px-3 sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background">
+      <header className="shrink-0 bg-brand-black text-white">
+        <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
             <Image src="/brand/logo-mark-dark.svg" alt={HOSPITAL_NAME} width={36} height={36} className="shrink-0 rounded-sm bg-white/10 p-0.5" />
-            <div className="min-w-0">
+            <div className="hidden min-w-0 sm:block">
               <p className="truncate text-sm font-bold leading-tight">Cashier Desk</p>
               <p className="truncate text-[11px] text-white/70 leading-tight">{HOSPITAL_NAME}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          {/* The cashier desk portals its shift fields and actions in here. */}
+          <div id="cashier-bar" className="flex min-w-0 flex-1 items-center" />
+          <div className="flex shrink-0 items-center gap-3">
             {role === "super_admin" ? (
               <Link href="/dashboard" className="text-xs font-semibold text-white/80 hover:text-white underline-offset-2 hover:underline">
                 Back to dashboard
@@ -73,8 +76,9 @@ export default async function CashierLayout({ children }: { children: React.Reac
             />
           </div>
         </div>
+        <div className="h-1 w-full bg-gradient-to-r from-brand-black via-brand-red to-brand-orange" aria-hidden />
       </header>
-      <main className="p-3 sm:p-4">{notConfigured ? <SetupNotice isSuperAdmin={role === "super_admin"} /> : children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">{notConfigured ? <SetupNotice isSuperAdmin={role === "super_admin"} /> : children}</main>
     </div>
   );
 }

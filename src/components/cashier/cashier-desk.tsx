@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, CheckCircle2, Clock, CreditCard, FileText, History, Landmark, Loader2, Minus, Pill, Plus, Printer, Receipt, Search, Shield, ShieldCheck, Smartphone, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Banknote, Clock, CreditCard, History, Landmark, Loader2, Lock, Minus, Plus, Printer, Search, Smartphone, StickyNote, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,12 +38,31 @@ import { ReceiptList, printReceipt } from "./receipt-list";
 type DeskLine = {
   key: string;
   serviceId: string | null;
+  /** Set for pharmacy drugs: the drugs KACHMA and NHIS cover. */
+  drugId: string | null;
   name: string;
-  /** Fixed catalogue price; null when the amount is typed ("Others", unpriced services, or custom). */
+  /** Fixed price; null when the amount is typed ("Others" or a custom item). */
   unitPriceKobo: number | null;
   qty: number;
   description: string;
   amount: string;
+};
+
+type InsuranceScheme = "none" | "kachma" | "nhis";
+
+/** One tappable catalogue entry: a priced service or a pharmacy drug. */
+type Tile = {
+  key: string;
+  name: string;
+  sub: string;
+  priceKobo: number;
+  folderColour: string | null;
+  /** Unpriced service: a super admin must set its price before it can be sold. */
+  needsPrice: boolean;
+  /** "Others": the cashier types the amount. */
+  typed: boolean;
+  service?: SaleService;
+  drug?: CashierDrugItem;
 };
 
 const MODE_ICONS: Record<PaymentMode, typeof Banknote> = {
@@ -52,6 +72,30 @@ const MODE_ICONS: Record<PaymentMode, typeof Banknote> = {
   cheque: Landmark,
 };
 
+const SCHEME_LABELS: Record<InsuranceScheme, string> = { none: "Standard", kachma: "KACHMA", nhis: "NHIS" };
+
+const SCHEME_CHIP: Record<InsuranceScheme, { off: string; on: string }> = {
+  none: {
+    off: "border-border bg-card text-foreground hover:bg-muted",
+    on: "border-foreground bg-foreground text-background",
+  },
+  kachma: {
+    off: "border-[var(--scheme-kachma-line)] bg-[var(--scheme-kachma-tint)] text-[var(--scheme-kachma-text)] hover:brightness-95",
+    on: "border-[var(--scheme-kachma-solid)] bg-[var(--scheme-kachma-solid)] text-white",
+  },
+  nhis: {
+    off: "border-[var(--scheme-nhis-line)] bg-[var(--scheme-nhis-tint)] text-[var(--scheme-nhis-text)] hover:brightness-95",
+    on: "border-[var(--scheme-nhis-solid)] bg-[var(--scheme-nhis-solid)] text-white",
+  },
+};
+
+/** The desk's common sales, pinned at the top of "All" so each is one tap. */
+const MOST_USED: RegExp[] = [/^white folder/i, /^pink folder/i, /^general doctor$/i, /^scan\s*[—-]\s*general doctor/i, /\bgyu\b/i, /^anc\b/i];
+
+const DRUGS_TAB = "drugs";
+const ALL_TAB = "all";
+const ALL_DRUGS_PREVIEW = 12;
+
 function lineTotal(l: DeskLine): number {
   const unit = l.unitPriceKobo ?? parseNairaToKobo(l.amount) ?? 0;
   return unit * l.qty;
@@ -59,6 +103,79 @@ function lineTotal(l: DeskLine): number {
 
 function time(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** "Registration (folders)" → "Registration". */
+function shortCategory(name: string): string {
+  return name.replace(/\s*\(.*\)\s*$/, "");
+}
+
+function serviceTile(s: SaleService, category: string): Tile {
+  return {
+    key: `s:${s.id}`,
+    name: s.name,
+    sub: s.folderColour ? "Folder" : shortCategory(category),
+    priceKobo: s.priceKobo,
+    folderColour: s.folderColour,
+    needsPrice: !s.allowCustomAmount && s.priceKobo <= 0,
+    typed: s.allowCustomAmount,
+    service: s,
+  };
+}
+
+function drugTile(d: CashierDrugItem): Tile {
+  return {
+    key: `d:${d.id}`,
+    name: d.name,
+    sub: [d.strength, d.unit].filter(Boolean).join(" · ") || "Drug",
+    priceKobo: Math.round(d.unitPrice * 100),
+    folderColour: null,
+    needsPrice: false,
+    typed: false,
+    drug: d,
+  };
+}
+
+function isTyping(el: Element | null): el is HTMLElement {
+  if (!(el instanceof HTMLElement)) return false;
+  return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable;
+}
+
+const noopSubscribe = () => () => {};
+
+function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <kbd className={cn("rounded border border-border bg-muted px-1 font-mono text-[10px] font-semibold leading-4 text-muted-foreground", className)}>
+      {children}
+    </kbd>
+  );
+}
+
+/** Compact dismissible amber strip: the stale-shift warning and the "needs a price" message. */
+function Notice({ children, onDismiss }: { children: React.ReactNode; onDismiss: () => void }) {
+  return (
+    <div role="status" className="flex shrink-0 items-center gap-2 rounded-lg border border-[var(--notice-line)] bg-[var(--notice-tint)] pl-3 text-sm font-medium text-[var(--notice-text)]">
+      <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+      <p className="min-w-0 flex-1 py-1.5 leading-snug">{children}</p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-r-lg hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function BarField({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex min-w-0 flex-col justify-center border-l border-white/15 px-3", className)}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">{label}</span>
+      <span className="truncate text-sm font-bold leading-tight">{children}</span>
+    </div>
+  );
 }
 
 export function CashierDesk({
@@ -77,12 +194,13 @@ export function CashierDesk({
   const [receipts, setReceipts] = useState(initialReceipts);
   const [busy, setBusy] = useState(false);
 
-  // Catalog tabs & item search
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // Catalogue tabs & item search
+  const [selectedCategory, setSelectedCategory] = useState<string>(ALL_TAB);
   const [itemSearch, setItemSearch] = useState<string>("");
-  type InsuranceScheme = "none" | "kachma" | "nhis";
   const [insuranceScheme, setInsuranceScheme] = useState<InsuranceScheme>("none");
   const [receiptsDialogOpen, setReceiptsDialogOpen] = useState(false);
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
+  const [staleDismissed, setStaleDismissed] = useState(false);
 
   // Patient / payer
   const [query, setQuery] = useState("");
@@ -90,15 +208,18 @@ export function CashierDesk({
   const [searching, setSearching] = useState(false);
   const [patient, setPatient] = useState<CashierPatient | null>(null);
   const [history, setHistory] = useState<ReceiptSummary[] | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [notRegistered, setNotRegistered] = useState(false);
   const [payerName, setPayerName] = useState("");
 
-  // Basket
+  // Sale
   const [lines, setLines] = useState<DeskLine[]>([]);
+  const [noteOpen, setNoteOpen] = useState<Record<string, boolean>>({});
   const [mode, setMode] = useState<PaymentMode | null>(null);
   const [ref, setRef] = useState("");
   const [chequeNo, setChequeNo] = useState("");
-  const [lastIssued, setLastIssued] = useState<{ id: string; receiptNo: string; payer: string; totalKobo: number } | null>(null);
+  const [issued, setIssued] = useState<{ id: string; receiptNo: string; payer: string; totalKobo: number } | null>(null);
+  const [issuedHtml, setIssuedHtml] = useState<string | null>(null);
 
   // Shift start / close
   const [cashierName, setCashierName] = useState("");
@@ -107,6 +228,20 @@ export function CashierDesk({
   const [closeSummary, setCloseSummary] = useState<ShiftReportSnapshot | null>(null);
   const [counted, setCounted] = useState("");
   const [closeNote, setCloseNote] = useState("");
+
+  const itemSearchRef = useRef<HTMLInputElement>(null);
+  const patientSearchRef = useRef<HTMLInputElement>(null);
+  const patientClearRef = useRef<HTMLButtonElement>(null);
+  const refInputRef = useRef<HTMLInputElement>(null);
+  const payerInputRef = useRef<HTMLInputElement>(null);
+  const printButtonRef = useRef<HTMLButtonElement>(null);
+
+  // The layout's top bar has a slot for the shift fields (src/app/(cashier)/layout.tsx).
+  const barSlot = useSyncExternalStore(
+    noopSubscribe,
+    () => document.getElementById("cashier-bar"),
+    () => null,
+  );
 
   async function refresh() {
     const s = await getMyOpenShift();
@@ -131,52 +266,15 @@ export function CashierDesk({
     };
   }, [query]);
 
-  function handleSchemeChange(newScheme: InsuranceScheme) {
-    setInsuranceScheme(newScheme);
-    setLines((prev) =>
-      prev.map((l) => {
-        const matchedDrug = drugs.find((d) => d.name.toLowerCase() === l.name.toLowerCase());
-        const isDrug = Boolean(matchedDrug) || l.description.toLowerCase().includes("covered - free");
-        if (!isDrug) return l;
-
-        if (newScheme === "none") {
-          const originalKobo = matchedDrug ? Math.round(matchedDrug.unitPrice * 100) : (l.unitPriceKobo || 0);
-          const originalAmount = matchedDrug ? String(matchedDrug.unitPrice) : l.amount;
-          const cleanedDesc = l.description.replace(/\s*\[(KACHMA|NHIS) Covered - Free\]/gi, "").trim();
-          return {
-            ...l,
-            unitPriceKobo: originalKobo,
-            amount: originalAmount,
-            description: cleanedDesc,
-          };
-        } else {
-          const tag = `[${newScheme.toUpperCase()} Covered - Free]`;
-          const baseDesc = l.description.replace(/\s*\[(KACHMA|NHIS) Covered - Free\]/gi, "").trim();
-          return {
-            ...l,
-            unitPriceKobo: 0,
-            amount: "0",
-            description: baseDesc ? `${baseDesc} ${tag}` : tag,
-          };
-        }
-      })
-    );
-  }
-
   function pickPatient(p: CashierPatient) {
     setPatient(p);
     setPayerName(`${p.firstNames} ${p.surname}`.trim());
     setQuery("");
     setResults([]);
     setHistory(null);
+    setShowHistory(false);
     const s = (p.insuranceScheme || "").toLowerCase();
-    if (s.includes("kachma")) {
-      handleSchemeChange("kachma");
-    } else if (s.includes("nhis")) {
-      handleSchemeChange("nhis");
-    } else {
-      handleSchemeChange("none");
-    }
+    setInsuranceScheme(s.includes("kachma") ? "kachma" : s.includes("nhis") ? "nhis" : "none");
     getPatientReceiptHistory(p.id)
       .then(setHistory)
       .catch((err) => {
@@ -188,94 +286,135 @@ export function CashierDesk({
   function clearPatient() {
     setPatient(null);
     setHistory(null);
+    setShowHistory(false);
     setPayerName("");
-    handleSchemeChange("none");
+    setInsuranceScheme("none");
   }
 
   function addService(s: SaleService) {
-    if (s.allowCustomAmount || s.priceKobo === 0) {
+    if (!s.allowCustomAmount && s.priceKobo <= 0) {
+      setPriceNotice(`${s.name} has no price yet. A super admin must set it on the price list before it can be charged.`);
+      return;
+    }
+    setPriceNotice(null);
+    if (s.allowCustomAmount) {
       setLines((prev) => [
         ...prev,
-        { key: crypto.randomUUID(), serviceId: s.id, name: s.name, unitPriceKobo: null, qty: 1, description: "", amount: "" },
+        { key: crypto.randomUUID(), serviceId: s.id, drugId: null, name: s.name, unitPriceKobo: null, qty: 1, description: "", amount: "" },
       ]);
       return;
     }
     setLines((prev) => {
       const existing = prev.find((l) => l.serviceId === s.id && l.unitPriceKobo !== null);
       if (existing) return prev.map((l) => (l.key === existing.key ? { ...l, qty: Math.min(999, l.qty + 1) } : l));
-      return [...prev, { key: crypto.randomUUID(), serviceId: s.id, name: s.name, unitPriceKobo: s.priceKobo, qty: 1, description: "", amount: "" }];
+      return [...prev, { key: crypto.randomUUID(), serviceId: s.id, drugId: null, name: s.name, unitPriceKobo: s.priceKobo, qty: 1, description: "", amount: "" }];
     });
   }
 
   function addCustomItem(initialName = "Other Payment") {
     setLines((prev) => [
       ...prev,
-      {
-        key: crypto.randomUUID(),
-        serviceId: null,
-        name: initialName,
-        unitPriceKobo: null,
-        qty: 1,
-        description: "",
-        amount: "",
-      },
+      { key: crypto.randomUUID(), serviceId: null, drugId: null, name: initialName, unitPriceKobo: null, qty: 1, description: "", amount: "" },
     ]);
   }
 
   function addDrug(d: CashierDrugItem) {
-    const isFree = insuranceScheme !== "none";
-    const kobo = isFree ? 0 : Math.round(d.unitPrice * 100);
-    const amountStr = isFree ? "0" : String(d.unitPrice);
-    const baseDesc = [d.strength, d.unit].filter(Boolean).join(" ");
-    const tag = isFree ? `[${insuranceScheme.toUpperCase()} Covered - Free]` : "";
-    const fullDesc = [baseDesc, tag].filter(Boolean).join(" ").trim();
-
+    setPriceNotice(null);
     setLines((prev) => {
-      const existing = prev.find((l) => l.serviceId === null && l.name === d.name && l.unitPriceKobo === kobo);
+      const existing = prev.find((l) => l.drugId === d.id);
       if (existing) return prev.map((l) => (l.key === existing.key ? { ...l, qty: Math.min(999, l.qty + 1) } : l));
       return [
         ...prev,
         {
           key: crypto.randomUUID(),
           serviceId: null,
+          drugId: d.id,
           name: d.name,
-          unitPriceKobo: kobo,
+          unitPriceKobo: Math.round(d.unitPrice * 100),
           qty: 1,
-          description: fullDesc,
-          amount: amountStr,
+          description: [d.strength, d.unit].filter(Boolean).join(" "),
+          amount: String(d.unitPrice),
         },
       ];
     });
+  }
+
+  function addTile(t: Tile) {
+    if (t.service) addService(t.service);
+    else if (t.drug) addDrug(t.drug);
   }
 
   function updateLine(key: string, patch: Partial<DeskLine>) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
+  /** On KACHMA or NHIS, pharmacy drugs are free; every other service is still charged. */
+  const isCovered = (l: DeskLine) => insuranceScheme !== "none" && l.drugId !== null;
+
+  // --- Catalogue -------------------------------------------------------------
   const normalizedSearch = itemSearch.trim().toLowerCase();
 
-  const matchingDrugs = useMemo(() => {
-    if (!normalizedSearch) return [];
-    return drugs.filter((d) => {
-      const n = d.name.toLowerCase();
-      const s = (d.strength || "").toLowerCase();
-      const u = (d.unit || "").toLowerCase();
-      return n.includes(normalizedSearch) || s.includes(normalizedSearch) || u.includes(normalizedSearch);
-    });
-  }, [drugs, normalizedSearch]);
+  const serviceTilesByCategory = useMemo(
+    () => catalogue.map((cat) => ({ id: cat.id, name: cat.name, tiles: cat.services.map((s) => serviceTile(s, cat.name)) })),
+    [catalogue],
+  );
+  const drugTiles = useMemo(() => drugs.map(drugTile), [drugs]);
 
-  const matchingCatalogue = useMemo(() => {
-    if (!normalizedSearch) return [];
-    return catalogue
-      .map((cat) => ({
-        ...cat,
-        services: cat.services.filter((s) => s.name.toLowerCase().includes(normalizedSearch)),
-      }))
-      .filter((cat) => cat.services.length > 0);
-  }, [catalogue, normalizedSearch]);
+  const mostUsed = useMemo(() => {
+    const all = serviceTilesByCategory.flatMap((c) => c.tiles);
+    return MOST_USED.map((re) => all.find((t) => re.test(t.name))).filter((t): t is Tile => Boolean(t));
+  }, [serviceTilesByCategory]);
 
-  const total = useMemo(() => lines.reduce((sum, l) => sum + lineTotal(l), 0), [lines]);
-  const linesValid = lines.length > 0 && lines.every((l) => lineTotal(l) >= 0);
+  // Tabs in desk order: the catalogue's categories with Drugs placed before "Other".
+  const tabs = useMemo(() => {
+    const cats = serviceTilesByCategory.map((c) => ({ id: c.id, label: shortCategory(c.name), count: c.tiles.length }));
+    const drugTab = { id: DRUGS_TAB, label: "Drugs", count: drugTiles.length };
+    const otherIdx = cats.findIndex((c) => /^other/i.test(c.label));
+    if (otherIdx === -1) cats.push(drugTab);
+    else cats.splice(otherIdx, 0, drugTab);
+    return [{ id: ALL_TAB, label: "All", count: cats.reduce((n, c) => n + c.count, 0) }, ...cats];
+  }, [serviceTilesByCategory, drugTiles]);
+
+  const groups = useMemo((): { title: string; tiles: Tile[]; more?: number }[] => {
+    if (normalizedSearch) {
+      const matches = (t: Tile) => t.name.toLowerCase().includes(normalizedSearch) || t.sub.toLowerCase().includes(normalizedSearch);
+      return [
+        ...serviceTilesByCategory.map((c) => ({ title: shortCategory(c.name), tiles: c.tiles.filter(matches) })),
+        { title: "Drugs", tiles: drugTiles.filter(matches) },
+      ].filter((g) => g.tiles.length > 0);
+    }
+    if (selectedCategory === DRUGS_TAB) return [{ title: "Drugs", tiles: drugTiles }];
+    if (selectedCategory === ALL_TAB) {
+      return [
+        ...(mostUsed.length ? [{ title: "Most used", tiles: mostUsed }] : []),
+        ...serviceTilesByCategory.map((c) => ({ title: shortCategory(c.name), tiles: c.tiles })),
+        ...(drugTiles.length
+          ? [{ title: "Drugs", tiles: drugTiles.slice(0, ALL_DRUGS_PREVIEW), more: Math.max(0, drugTiles.length - ALL_DRUGS_PREVIEW) }]
+          : []),
+      ].filter((g) => g.tiles.length > 0);
+    }
+    return serviceTilesByCategory.filter((c) => c.id === selectedCategory).map((c) => ({ title: shortCategory(c.name), tiles: c.tiles }));
+  }, [normalizedSearch, selectedCategory, serviceTilesByCategory, drugTiles, mostUsed]);
+
+  const firstMatch = normalizedSearch ? groups[0]?.tiles[0] : undefined;
+
+  /** How many of each catalogue entry are already in the sale, for the tile badges. */
+  const inSale = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of lines) {
+      const key = l.drugId ? `d:${l.drugId}` : l.serviceId ? `s:${l.serviceId}` : null;
+      if (key) m.set(key, (m.get(key) ?? 0) + l.qty);
+    }
+    return m;
+  }, [lines]);
+
+  // --- Totals ----------------------------------------------------------------
+  const chargedLines = lines.filter((l) => !isCovered(l));
+  const total = chargedLines.reduce((sum, l) => sum + lineTotal(l), 0);
+  const coveredKobo = lines.filter(isCovered).reduce((sum, l) => sum + lineTotal(l), 0);
+  const chargedQty = chargedLines.reduce((n, l) => n + l.qty, 0);
+  // A typed line must carry a real amount: a ₦0 line never reaches a printed receipt.
+  const linesValid = lines.length > 0 && lines.every((l) => l.unitPriceKobo !== null || (parseNairaToKobo(l.amount) ?? 0) > 0);
   const canIssue =
     Boolean(shift) &&
     payerName.trim().length > 0 &&
@@ -286,16 +425,22 @@ export function CashierDesk({
 
   function resetReceipt() {
     setLines([]);
+    setNoteOpen({});
     setMode(null);
     setRef("");
     setChequeNo("");
     clearPatient();
     setNotRegistered(false);
-    handleSchemeChange("none");
+    setPriceNotice(null);
+  }
+
+  function choosePaymentMode(m: PaymentMode) {
+    setMode(m);
+    if (m !== "cash") requestAnimationFrame(() => refInputRef.current?.focus());
   }
 
   async function handleIssue() {
-    if (!canIssue) return;
+    if (!canIssue || busy) return;
     const finalMode = total === 0 ? (mode ?? "cash") : mode;
     if (!finalMode) return;
     setBusy(true);
@@ -304,20 +449,24 @@ export function CashierDesk({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-        patientId: notRegistered ? null : patient?.id ?? null,
-        payerName: payerName.trim(),
-        paymentMode: finalMode,
-        tellerOrTransferRef: ref.trim() || undefined,
-        chequeNo: chequeNo.trim() || undefined,
-        lines: lines.map((l) => ({
-          serviceId: l.serviceId || null,
-          qty: l.qty,
-          amount: l.amount ? l.amount : (l.unitPriceKobo !== null ? (l.unitPriceKobo / 100).toFixed(2) : undefined),
-          description:
-            l.serviceId === null && l.description.trim()
-              ? `${l.name} (${l.description.trim()})`
-              : l.description.trim() || (l.serviceId === null ? l.name : undefined),
-        })),
+          patientId: notRegistered ? null : patient?.id ?? null,
+          payerName: payerName.trim(),
+          paymentMode: finalMode,
+          tellerOrTransferRef: ref.trim() || undefined,
+          chequeNo: chequeNo.trim() || undefined,
+          lines: lines.map((l) => {
+            // Covered drugs go on the receipt at ₦0, tagged with the scheme.
+            const covered = isCovered(l);
+            const description = covered
+              ? [l.description.trim(), `[${insuranceScheme.toUpperCase()} Covered - Free]`].filter(Boolean).join(" ")
+              : l.description.trim();
+            return {
+              serviceId: l.serviceId || null,
+              qty: l.qty,
+              amount: covered ? "0" : l.amount ? l.amount : l.unitPriceKobo !== null ? (l.unitPriceKobo / 100).toFixed(2) : undefined,
+              description: l.serviceId === null && description ? `${l.name} (${description})` : description || (l.serviceId === null ? l.name : undefined),
+            };
+          }),
         }),
       });
       const res = (await response.json().catch(() => ({}))) as { receiptId?: string; receiptNo?: string; error?: string };
@@ -325,10 +474,17 @@ export function CashierDesk({
         toast.error(res.error ?? "Could not issue the receipt");
         return;
       }
-      setLastIssued({ id: res.receiptId, receiptNo: res.receiptNo, payer: payerName.trim(), totalKobo: total });
-      toast.success(`Receipt Nº ${res.receiptNo} issued`);
+      const receiptId = res.receiptId;
+      setIssued({ id: receiptId, receiptNo: res.receiptNo, payer: payerName.trim(), totalKobo: total });
+      setIssuedHtml(null);
       resetReceipt();
-      await refresh();
+      // The receipt exactly as it prints (side-effect free: no print is recorded).
+      fetch(`/api/cashier/receipts/${receiptId}/pdf?html=1`)
+        .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then(setIssuedHtml)
+        .catch((err) => console.error("Receipt preview failed:", err));
+      // The receipt is already issued: a failed refresh must not read as a failed sale.
+      refresh().catch((err) => console.error("Refresh after issue failed:", err));
     } catch (err) {
       console.error("Issue failed:", err);
       toast.error("Could not issue the receipt. Nothing was charged; try again.");
@@ -336,6 +492,47 @@ export function CashierDesk({
       setBusy(false);
     }
   }
+
+  function closeIssued() {
+    setIssued(null);
+    setIssuedHtml(null);
+    resetReceipt();
+  }
+
+  // --- Keyboard --------------------------------------------------------------
+  // Re-bound every render so the handler always sees the current sale.
+  useEffect(() => {
+    if (!shift) return;
+    function onKey(e: KeyboardEvent) {
+      // Open dialogs (receipt, close shift, shift receipts) own their keys; Radix closes them on Esc.
+      if (issued || closing || receiptsDialogOpen) return;
+      const el = document.activeElement;
+      const typing = isTyping(el);
+      if (e.key === "F9") {
+        e.preventDefault();
+        void handleIssue();
+        return;
+      }
+      if (e.key === "Escape") {
+        if (typing) el.blur();
+        else resetReceipt();
+        return;
+      }
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        itemSearchRef.current?.focus();
+      } else if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        (patientSearchRef.current ?? patientClearRef.current)?.focus();
+      } else if (e.key >= "1" && e.key <= "4") {
+        e.preventDefault();
+        choosePaymentMode(PAYMENT_MODES[Number(e.key) - 1]);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   async function handleStart() {
     setBusy(true);
@@ -415,949 +612,707 @@ export function CashierDesk({
         <Button type="button" onClick={handleStart} disabled={busy || cashierName.trim().length < 2 || (openingFloat.trim() !== "" && parseNairaToKobo(openingFloat) === null)} className="h-16 w-full gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700">
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clock className="h-5 w-5" />} Start shift
         </Button>
-        <Link href="/cashier/reports" className="flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+        <Link href="/cashier/reports" className="flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <History className="h-4 w-4" /> Past shift reports
         </Link>
       </div>
     );
   }
 
+  const barButton =
+    "flex h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-semibold text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white";
+
+  const topBar = (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 items-center">
+        <BarField label="On shift" className="hidden min-[1080px]:flex">
+          <span className="flex items-center gap-1.5 capitalize" title={shift.cashierName}>
+            <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            </span>
+            {shift.cashierName}
+          </span>
+        </BarField>
+        <BarField label="Open since" className="hidden lg:flex">
+          {time(shift.openedAt)}
+        </BarField>
+        <button
+          type="button"
+          onClick={() => setReceiptsDialogOpen(true)}
+          className="flex h-[44px] min-w-0 flex-col justify-center border-l border-white/15 px-3 text-left hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          title="View, re-print or void this shift's receipts"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Receipts</span>
+          <span className="text-sm font-bold leading-tight underline decoration-white/30 underline-offset-2">
+            {shift.receiptCount}
+            {shift.voidedCount ? <span className="ml-1 text-[11px] font-semibold text-white/70">· {shift.voidedCount} void</span> : null}
+          </span>
+        </button>
+        <BarField label="Taken">
+          <span className="font-mono text-base">{formatKobo(shift.totalKobo)}</span>
+        </BarField>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <Link href="/cashier/reports" className={barButton} aria-label="Past shifts">
+          <History className="h-4 w-4" /> <span className="hidden lg:inline">Past shifts</span>
+        </Link>
+        <button type="button" className={barButton} onClick={openCloseDialog} aria-label="Close shift">
+          <Lock className="h-4 w-4" /> <span className="hidden sm:inline">Close shift</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const payerLabel = payerName.trim() || (notRegistered ? "Walk-in" : "No patient yet");
+  const refLabel = mode === "cheque" ? "Cheque number" : mode === "pos" ? "POS reference" : "Teller / transfer ref";
+
+  const issueBlocker = !notRegistered && !patient
+    ? "Pick a patient (P), or tick Walk-in."
+    : !payerName.trim()
+      ? "Enter who the money was received from."
+      : !linesValid
+        ? "Enter an amount for every typed item."
+        : total > 0 && !mode
+          ? "Choose a payment mode (1–4)."
+          : "Enter the cheque number.";
+
   return (
-    <div className="space-y-3">
-      {/* 1. SHIFT STATS & ACTIONS */}
-      <div className="space-y-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">Active Shift</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs font-semibold hover:border-brand-green/60 hover:text-brand-green"
-              onClick={() => setReceiptsDialogOpen(true)}
-            >
-              <Receipt className="h-3.5 w-3.5 text-brand-green" /> Shift receipts ({receipts.length})
-            </Button>
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-medium">
-              <Link href="/cashier/reports">
-                <History className="h-3.5 w-3.5" /> Past shifts
-              </Link>
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="h-8 text-xs font-semibold hover:border-destructive hover:text-destructive" onClick={openCloseDialog}>
-              Close shift
-            </Button>
-          </div>
-        </div>
+    <>
+      {barSlot ? createPortal(topBar, barSlot) : null}
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {/* 1. On shift */}
-          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">On shift</p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                <UserRound className="h-3 w-3" />
-              </div>
-            </div>
-            <p className="mt-1 truncate text-xs sm:text-sm font-bold capitalize text-foreground" title={shift.cashierName}>
-              {shift.cashierName}
-            </p>
-          </div>
+      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-2 sm:gap-3 min-[1080px]:grid-cols-[minmax(0,1fr)_400px] min-[1080px]:grid-rows-[minmax(0,1fr)]">
+        {/* CATALOGUE */}
+        <section aria-label="Services and drugs" className="flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-2xs min-[760px]:p-3">
+          {shift.stale && !staleDismissed ? (
+            <Notice onDismiss={() => setStaleDismissed(true)}>
+              This shift has been open over {STALE_SHIFT_HOURS} hours and has been flagged to management. Close it if your shift has ended.
+            </Notice>
+          ) : null}
+          {priceNotice ? <Notice onDismiss={() => setPriceNotice(null)}>{priceNotice}</Notice> : null}
 
-          {/* 2. Opened */}
-          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opened</p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Clock className="h-3 w-3" />
-              </div>
-            </div>
-            <p className="mt-1 text-xs sm:text-sm font-bold text-foreground">
-              {time(shift.openedAt)}
-            </p>
-          </div>
-
-          {/* 3. Receipts */}
-          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Receipts</p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                <FileText className="h-3 w-3" />
-              </div>
-            </div>
-            <div className="mt-1 flex flex-wrap items-baseline gap-1">
-              <span className="text-xs sm:text-sm font-bold text-foreground">{shift.receiptCount}</span>
-              {shift.voidedCount ? (
-                <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
-                  ({shift.voidedCount} void)
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          {/* 4. Total taken */}
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2.5 shadow-2xs dark:bg-emerald-500/10">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total taken</p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                <Banknote className="h-3 w-3" />
-              </div>
-            </div>
-            <p className="mt-1 font-mono text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400">
-              {formatKobo(shift.totalKobo)}
-            </p>
-          </div>
-
-          {/* 5. Opening float */}
-          <div className="rounded-lg border border-border bg-card p-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Opening float</p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-500/10 text-slate-600 dark:text-slate-400">
-                <Landmark className="h-3 w-3" />
-              </div>
-            </div>
-            <p className="mt-1 font-mono text-xs sm:text-sm font-bold text-foreground">
-              {formatKobo(shift.openingFloatKobo)}
-            </p>
-          </div>
-
-          {/* 6. Shift receipts (Right end tab) */}
-          <button
-            type="button"
-            onClick={() => setReceiptsDialogOpen(true)}
-            className="group rounded-lg border border-border/90 bg-card p-2.5 shadow-2xs text-left transition-all hover:border-brand-green/70 hover:bg-muted/40 hover:shadow-xs active:scale-[0.98]"
-            title="Click to view all receipts issued this shift"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-brand-green">
-                Shift Receipts
-              </p>
-              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-500/10 text-brand-green">
-                <Receipt className="h-3 w-3" />
-              </div>
-            </div>
-            <div className="mt-1 flex items-baseline justify-between gap-1">
-              <span className="text-xs sm:text-sm font-bold text-foreground">
-                {receipts.length} {receipts.length === 1 ? "receipt" : "receipts"}
-              </span>
-              <span className="text-[10px] font-semibold text-brand-green group-hover:underline">
-                View &rarr;
-              </span>
-            </div>
-          </button>
-        </div>
-      </div>
-      {shift.stale ? (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-800 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4" /> This shift has been open over {STALE_SHIFT_HOURS} hours and has been flagged to management. Close it if your shift has ended.
-        </p>
-      ) : null}
-
-      {lastIssued ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          <p className="flex-1 text-sm text-foreground">
-            Receipt <span className="font-mono font-bold">Nº {lastIssued.receiptNo}</span> issued to {lastIssued.payer} for{" "}
-            <span className="font-bold">{formatKobo(lastIssued.totalKobo)}</span>
-          </p>
-          <Button type="button" className="h-11 gap-1.5" onClick={() => printReceipt(lastIssued.id).then(refresh)}>
-            <Printer className="h-4 w-4" /> Print receipt
-          </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-11 w-11" onClick={() => setLastIssued(null)} aria-label="Dismiss">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : null}
-
-      {/* 2. PATIENT & SCHEME CARD (Full width) */}
-      <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
-          <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
-            <UserRound className="h-4 w-4 text-brand-green" /> Patient &amp; Insurance Scheme
-          </h2>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-0.5">Scheme:</span>
-            <button
-              type="button"
-              onClick={() => handleSchemeChange("none")}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
-                insuranceScheme === "none"
-                  ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow-2xs"
-                  : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              Standard
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSchemeChange("kachma")}
-              className={cn(
-                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
-                insuranceScheme === "kachma"
-                  ? "bg-amber-500 text-white shadow-2xs font-bold"
-                  : "border border-amber-300/80 bg-amber-50/50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300"
-              )}
-            >
-              <Shield className="h-3 w-3" />
-              KACHMA (Free Drugs)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSchemeChange("nhis")}
-              className={cn(
-                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
-                insuranceScheme === "nhis"
-                  ? "bg-blue-600 text-white shadow-2xs font-bold"
-                  : "border border-blue-300/80 bg-blue-50/50 text-blue-800 hover:bg-blue-100 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
-              )}
-            >
-              <Shield className="h-3 w-3" />
-              NHIS (Free Drugs)
-            </button>
-
-            <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-foreground">
-              <Checkbox
-                checked={notRegistered}
-                onCheckedChange={(c) => {
-                  setNotRegistered(c === true);
-                  clearPatient();
-                }}
-              />
-              Walk-in (Not registered)
-            </label>
-          </div>
-        </div>
-
-        {/* Free Drugs Banner */}
-        {insuranceScheme !== "none" ? (
-          <div className={cn(
-            "mt-2.5 flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-xs font-medium border",
-            insuranceScheme === "kachma"
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
-              : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
-          )}>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span>
-                <strong>{insuranceScheme.toUpperCase()} Insurance Active:</strong> Prescribed drugs and medications are <strong>100% Free (₦0)</strong> for this patient.
-              </span>
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/70 dark:bg-black/40 text-emerald-700 dark:text-emerald-300">
-              Drugs Free
-            </span>
-          </div>
-        ) : null}
-
-        {notRegistered ? (
-          <div className="mt-2.5 space-y-1">
-            <Label htmlFor="payer" className="text-xs">Received from (Walk-in payer)</Label>
-            <Input
-              id="payer"
-              className="h-9.5 text-xs sm:text-sm bg-background"
-              value={payerName}
-              onChange={(e) => setPayerName(e.target.value)}
-              placeholder="Full name of the person paying"
-            />
-          </div>
-        ) : patient ? (
-          <div className="mt-2.5 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 p-2.5">
-              <div className="text-xs">
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-sm text-foreground">
-                    {patient.firstNames} {patient.surname}
-                  </p>
-                  {insuranceScheme !== "none" ? (
-                    <span className={cn(
-                      "rounded px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider",
-                      insuranceScheme === "kachma" ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                    )}>
-                      {insuranceScheme}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground mt-0.5">
-                  <span className="font-mono">{patient.hospitalNumber}</span> · DOB: {patient.dob || "—"} · {patient.sex || "Sex —"} · {patient.phone || "No phone"}
-                </p>
-              </div>
-              <Button type="button" variant="ghost" size="sm" className="h-8 text-xs font-semibold" onClick={clearPatient}>
-                Change patient
-              </Button>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="payer" className="text-xs">Received from</Label>
-              <Input id="payer" className="h-9.5 text-xs sm:text-sm bg-background" value={payerName} onChange={(e) => setPayerName(e.target.value)} />
-            </div>
-            <details className="text-xs">
-              <summary className="cursor-pointer py-0.5 font-semibold text-muted-foreground hover:text-foreground">
-                Payment history {history ? `(${history.length})` : ""}
-              </summary>
-              {history === null ? (
-                <p className="py-1 text-muted-foreground">Loading…</p>
-              ) : history.length === 0 ? (
-                <p className="py-1 text-muted-foreground">No earlier receipts.</p>
-              ) : (
-                <ul className="mt-1 divide-y divide-border rounded-lg border border-border">
-                  {history.map((h) => (
-                    <li key={h.id} className="flex justify-between gap-2 px-2 py-1.5">
-                      <span className="font-mono">Nº {h.receiptNo}</span>
-                      <span>{new Date(h.issuedAt).toLocaleDateString("en-GB")}</span>
-                      <span className={h.status === "voided" ? "line-through text-muted-foreground" : "font-bold"}>{formatKobo(h.totalKobo)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </details>
-          </div>
-        ) : (
-          <div className="relative mt-2.5">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-9.5 pl-8.5 pr-8 text-xs sm:text-sm bg-background placeholder:text-muted-foreground/70"
-              placeholder="Search patient by name or hospital number..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (e.target.value.trim().length >= 2) setSearching(true);
-                else setResults([]);
-              }}
-              aria-label="Search patients"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  setResults([]);
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Clear patient search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-            {query.trim().length >= 2 ? (
-              <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
-                {searching && results.length === 0 ? (
-                  <li className="px-3 py-3 text-xs text-muted-foreground">Searching…</li>
-                ) : results.length === 0 ? (
-                  <li className="px-3 py-3 text-xs text-muted-foreground">No patient found. Tick &quot;Walk-in&quot; for an unregistered patient.</li>
-                ) : (
-                  results.map((p) => (
-                    <li key={p.id}>
-                      <button type="button" className="flex min-h-12 w-full flex-col justify-center px-3 py-2 text-left hover:bg-muted" onClick={() => pickPatient(p)}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-semibold text-foreground">
-                            {p.firstNames} {p.surname}
-                          </span>
-                          {p.insuranceScheme ? (
-                            <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.2 text-[10px] font-bold uppercase">
-                              {p.insuranceScheme}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          <span className="font-mono">{p.hospitalNumber}</span> · DOB: {p.dob || "—"} · {p.sex || "—"}
-                        </span>
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      {/* Two Column Workspace: Left (col-span-7) = Catalogue & Drugs, Right (col-span-5) = Items & Payment */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-        {/* Service & Drug selection */}
-        <div className="flex flex-col rounded-xl border border-border bg-card p-3 lg:col-span-7 md:max-h-[calc(100vh-14rem)] md:overflow-hidden shadow-2xs">
-              <div className="mb-2.5 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pay for Services &amp; Drugs</h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addCustomItem("Custom Payment")}
-                  className="h-8 gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400"
-                >
-                  <Plus className="h-3.5 w-3.5" /> + Custom Payment
-                </Button>
-              </div>
-
-              {/* Universal Search across drugs and services */}
-              <div className="relative mb-2.5">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="h-9 bg-background pl-9 pr-8 text-xs placeholder:text-muted-foreground"
-                  placeholder="Search drugs, folders, scans, consultation, anything..."
-                  value={itemSearch}
-                  onChange={(e) => setItemSearch(e.target.value)}
-                  aria-label="Search items and drugs"
-                />
-                {itemSearch ? (
-                  <button
-                    type="button"
-                    onClick={() => setItemSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-              </div>
-
-              {/* Category & Drugs Tabs */}
-              <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-border/60">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("all")}
-                  className={cn(
-                    "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                    selectedCategory === "all"
-                      ? "bg-brand-green text-white shadow-xs"
-                      : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  All Items
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("drugs")}
-                  className={cn(
-                    "flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                    selectedCategory === "drugs"
-                      ? "bg-brand-green text-white shadow-xs"
-                      : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Pill className="h-3 w-3" />
-                  Drugs
-                  <span
-                    className={cn(
-                      "ml-1 rounded-full px-1.5 py-0.2 font-mono text-[10px]",
-                      selectedCategory === "drugs" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {drugs.length}
-                  </span>
-                </button>
-                {catalogue.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      "whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-all",
-                      selectedCategory === cat.id
-                        ? "bg-brand-green text-white shadow-xs"
-                        : "border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Scrollable Items List */}
-              <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                {/* 1. When Search query is typed */}
-                {normalizedSearch ? (
-                  <>
-                    {matchingDrugs.length === 0 && matchingCatalogue.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-muted-foreground">
-                        <p>No drugs or services found matching &quot;{itemSearch}&quot;.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            addCustomItem(itemSearch);
-                            setItemSearch("");
-                          }}
-                          className="mt-2 text-xs"
-                        >
-                          <Plus className="mr-1 h-3.5 w-3.5" /> Pay for &quot;{itemSearch}&quot; as custom item
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    {/* Matching Drugs */}
-                    {matchingDrugs.length > 0 ? (
-                      <div>
-                        <h4 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                          <Pill className="h-3.5 w-3.5 text-brand-green" /> Drugs ({matchingDrugs.length})
-                        </h4>
-                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                          {matchingDrugs.map((d) => (
-                            <button
-                              key={d.id}
-                              type="button"
-                              onClick={() => addDrug(d)}
-                              className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
-                                  {d.name}
-                                </span>
-                                {d.strength || d.unit ? (
-                                  <span className="block truncate font-mono text-[10px] text-muted-foreground">
-                                    {[d.strength, d.unit].filter(Boolean).join(" · ")}
-                                  </span>
-                                ) : null}
-                              </div>
-                              {insuranceScheme !== "none" ? (
-                                <div className="shrink-0 text-right">
-                                  <span className="block font-mono text-[10px] text-muted-foreground line-through">
-                                    {formatKobo(d.unitPrice * 100)}
-                                  </span>
-                                  <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                    ₦0 FREE
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                  {formatKobo(d.unitPrice * 100)}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {/* Matching Services */}
-                    {matchingCatalogue.map((cat) => (
-                      <div key={cat.id}>
-                        <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
-                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                          {cat.services.map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => addService(s)}
-                              className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
-                            >
-                              {s.folderColour ? (
-                                <span className={`h-7 w-5 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
-                              ) : null}
-                              <div className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-semibold leading-tight text-foreground">{s.name}</span>
-                                <span className="block font-mono text-[10px] text-muted-foreground">
-                                  {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {/* 2. DRUGS TAB IS SELECTED */}
-                    {selectedCategory === "drugs" ? (
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                              <Pill className="h-3.5 w-3.5 text-brand-green" /> Hospital Drugs &amp; Medications ({drugs.length})
-                            </h4>
-                            {insuranceScheme !== "none" ? (
-                              <span className="rounded bg-amber-500/15 px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                                Free on {insuranceScheme.toUpperCase()}
-                              </span>
-                            ) : null}
-                          </div>
-                          <span className="text-[11px] text-muted-foreground">Tap drug to add</span>
-                        </div>
-                        {drugs.length === 0 ? (
-                          <p className="py-6 text-center text-xs text-muted-foreground">No drugs listed in pharmacy.</p>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {drugs.map((d) => (
-                              <button
-                                key={d.id}
-                                type="button"
-                                onClick={() => addDrug(d)}
-                                className="flex min-h-14 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2.5 text-left transition-all hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <Pill className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
-                                      {d.name}
-                                    </span>
-                                  </div>
-                                  {d.strength || d.unit ? (
-                                    <span className="block truncate pl-5 text-[11px] text-muted-foreground">
-                                      {[d.strength, d.unit].filter(Boolean).join(" · ")}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {insuranceScheme !== "none" ? (
-                                  <div className="shrink-0 text-right">
-                                    <span className="block font-mono text-[10px] text-muted-foreground line-through">
-                                      {formatKobo(d.unitPrice * 100)}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                      ₦0 FREE
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                    {formatKobo(d.unitPrice * 100)}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {/* 3. ALL ITEMS TAB */}
-                    {selectedCategory === "all" ? (
-                      <>
-                        {/* Quick Drugs preview under All */}
-                        {drugs.length > 0 ? (
-                          <div>
-                            <div className="mb-1.5 flex items-center justify-between">
-                              <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                <Pill className="h-3.5 w-3.5 text-brand-green" /> Drugs ({drugs.length})
-                              </h4>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCategory("drugs")}
-                                className="text-[11px] font-semibold text-brand-green hover:underline"
-                              >
-                                View all {drugs.length} drugs &rarr;
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                              {drugs.slice(0, 8).map((d) => (
-                                <button
-                                  key={d.id}
-                                  type="button"
-                                  onClick={() => addDrug(d)}
-                                  className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:border-brand-green/60 hover:bg-muted/60 active:scale-[0.98]"
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground" title={d.name}>
-                                      {d.name}
-                                    </span>
-                                    {d.strength || d.unit ? (
-                                      <span className="block truncate font-mono text-[10px] text-muted-foreground">
-                                        {[d.strength, d.unit].filter(Boolean).join(" · ")}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  {insuranceScheme !== "none" ? (
-                                    <div className="shrink-0 text-right">
-                                      <span className="block font-mono text-[10px] text-muted-foreground line-through">
-                                        {formatKobo(d.unitPrice * 100)}
-                                      </span>
-                                      <span className="inline-flex items-center gap-1 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
-                                        ₦0 FREE
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="shrink-0 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                      {formatKobo(d.unitPrice * 100)}
-                                    </span>
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {/* All Catalogue Categories */}
-                        {catalogue.map((cat) => (
-                          <div key={cat.id}>
-                            <h4 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
-                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                              {cat.services.map((s) => (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => addService(s)}
-                                  className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-background p-2 text-left transition-colors hover:bg-muted active:scale-[0.98]"
-                                >
-                                  {s.folderColour ? (
-                                    <span className={`h-7 w-5 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
-                                  ) : null}
-                                  <div className="min-w-0 flex-1">
-                                    <span className="block truncate text-xs font-semibold leading-tight text-foreground">{s.name}</span>
-                                    <span className="block font-mono text-[10px] text-muted-foreground">
-                                      {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    ) : null}
-
-                    {/* 4. SPECIFIC CATALOGUE CATEGORY TAB IS SELECTED */}
-                    {selectedCategory !== "all" && selectedCategory !== "drugs" ? (
-                      catalogue
-                        .filter((cat) => cat.id === selectedCategory)
-                        .map((cat) => (
-                          <div key={cat.id}>
-                            <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.name}</h4>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              {cat.services.map((s) => (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  onClick={() => addService(s)}
-                                  className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-background p-2.5 text-left transition-colors hover:bg-muted active:scale-[0.98]"
-                                >
-                                  {s.folderColour ? (
-                                    <span className={`h-8 w-6 shrink-0 rounded-sm border-2 ${FOLDER_SWATCH[s.folderColour] ?? "bg-muted"}`} aria-label={`${s.folderColour} folder`} />
-                                  ) : null}
-                                  <div className="min-w-0 flex-1">
-                                    <span className="block text-xs font-semibold leading-tight text-foreground">{s.name}</span>
-                                    <span className="block font-mono text-[11px] text-muted-foreground">
-                                      {s.allowCustomAmount ? "Type amount" : s.priceKobo === 0 ? "Enter price" : formatKobo(s.priceKobo)}
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))
-                    ) : null}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Basket, total, payment, issue */}
-            <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:col-span-5 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                  <FileText className="h-4 w-4" /> Items ({lines.length})
-                </h2>
-                {lines.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-muted-foreground hover:text-rose-600"
-                    onClick={() => setLines([])}
-                  >
-                    Clear all
-                  </Button>
-                )}
-              </div>
-              {lines.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  <p>Tap a service to add it, or add a custom payment.</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addCustomItem("Other Payment")}
-                    className="mt-2 text-xs"
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Add custom payment
-                  </Button>
-                </div>
-              ) : (
-                <ul className="space-y-2">
-                  {lines.map((l) => (
-                    <li key={l.key} className="rounded-lg border border-border bg-background/50 p-2.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          {l.serviceId === null ? (
-                            <Input
-                              className="h-8 font-semibold text-sm px-2 mb-1"
-                              value={l.name}
-                              placeholder="Item name (e.g. Medical Report, Drugs)"
-                              onChange={(e) => updateLine(l.key, { name: e.target.value })}
-                            />
-                          ) : (
-                            <p className="text-sm font-semibold text-foreground">{l.name}</p>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))}
-                          aria-label={`Remove ${l.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {l.unitPriceKobo === null ? (
-                        <div className="mt-1.5 grid grid-cols-5 gap-2">
-                          <Input
-                            className="col-span-3 h-11 text-sm"
-                            placeholder={
-                              l.name.toLowerCase().includes("drug")
-                                ? "Specify drugs (e.g. Paracetamol, Amartem)"
-                                : l.name.toLowerCase().includes("lab")
-                                  ? "Specify test (e.g. PCV, Malaria, MP)"
-                                  : l.name.toLowerCase().includes("report")
-                                    ? "Specify report (e.g. Police Medical Report)"
-                                    : "What is this payment for? (optional)"
-                            }
-                            value={l.description}
-                            onChange={(e) => updateLine(l.key, { description: e.target.value })}
-                          />
-                          <div className="relative col-span-2">
-                            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₦</span>
-                            <Input
-                              className="h-11 pl-7 text-sm font-semibold"
-                              inputMode="decimal"
-                              placeholder="Amount"
-                              value={l.amount}
-                              onChange={(e) => updateLine(l.key, { amount: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-1.5">
-                          <Input
-                            className="h-9 text-xs text-foreground placeholder:text-muted-foreground/70"
-                            placeholder="Add note / specify what for (optional)"
-                            value={l.description}
-                            onChange={(e) => updateLine(l.key, { description: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9"
-                            disabled={l.qty <= 1}
-                            onClick={() => updateLine(l.key, { qty: l.qty - 1 })}
-                            aria-label="Decrease quantity"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center font-mono font-bold text-sm">{l.qty}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9"
-                            disabled={l.qty >= 999}
-                            onClick={() => updateLine(l.key, { qty: l.qty + 1 })}
-                            aria-label="Increase quantity"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <span className="font-mono text-sm font-bold text-foreground">{formatKobo(lineTotal(l))}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="rounded-lg bg-muted/60 px-3 py-2 text-right">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</p>
-                <p className="font-mono text-3xl font-black text-foreground">{formatKobo(total)}</p>
-              </div>
-
-              {total === 0 && lines.length > 0 && insuranceScheme !== "none" ? (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
-                  <div className="flex items-center justify-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
-                    <ShieldCheck className="h-4 w-4" />
-                    100% Covered by {insuranceScheme.toUpperCase()} (₦0)
+          {/* Context row: patient + scheme */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="relative min-w-[240px] flex-1">
+              {patient ? (
+                <div className="flex h-[44px] items-center gap-2 rounded-lg border border-[var(--patient-line)] bg-[var(--patient-tint)] pl-3 text-[var(--patient-text)]">
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-sm font-bold">
+                      {patient.firstNames} {patient.surname}
+                    </p>
+                    <p className="truncate text-[11px] font-medium">
+                      <span className="font-mono">{patient.hospitalNumber}</span>
+                      {patient.dob ? ` · DOB ${patient.dob}` : ""}
+                      {patient.sex ? ` · ${patient.sex}` : ""}
+                    </p>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    All drugs in this basket are fully covered for this insurance patient. No payment is required.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory((v) => !v)}
+                    aria-expanded={showHistory}
+                    className="h-[44px] shrink-0 px-2 text-xs font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    History{history ? ` (${history.length})` : ""}
+                  </button>
+                  <button
+                    ref={patientClearRef}
+                    type="button"
+                    onClick={() => {
+                      clearPatient();
+                      requestAnimationFrame(() => patientSearchRef.current?.focus());
+                    }}
+                    className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-r-lg hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Clear patient"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : notRegistered ? (
+                <div className="flex h-[44px] items-center gap-2 rounded-lg border border-border bg-muted pl-3 text-sm font-semibold text-foreground">
+                  <span className="flex-1 truncate">Walk-in (not registered)</span>
+                  <button
+                    ref={patientClearRef}
+                    type="button"
+                    onClick={() => {
+                      setNotRegistered(false);
+                      clearPatient();
+                      requestAnimationFrame(() => patientSearchRef.current?.focus());
+                    }}
+                    className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-r-lg hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Cancel walk-in"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PAYMENT_MODES.map((m) => {
-                      const Icon = MODE_ICONS[m];
-                      return (
-                        <Button
-                          key={m}
-                          type="button"
-                          variant={mode === m ? "default" : "outline"}
-                          className="h-14 gap-2 text-base font-bold"
-                          onClick={() => setMode(m)}
-                          aria-pressed={mode === m}
-                        >
-                          <Icon className="h-5 w-5" /> {PAYMENT_MODE_LABELS[m]}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  {mode === "transfer" || mode === "pos" ? (
-                    <div className="space-y-1">
-                      <Label htmlFor="ref">{mode === "pos" ? "POS reference" : "Teller / transfer reference"}</Label>
-                      <Input id="ref" className="h-12" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Optional" />
-                    </div>
-                  ) : null}
-                  {mode === "cheque" ? (
-                    <div className="space-y-1">
-                      <Label htmlFor="cheque">Cheque number (required)</Label>
-                      <Input id="cheque" className="h-12" value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
-                    </div>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref={patientSearchRef}
+                    className="h-[44px] bg-background pl-9 pr-10 text-sm"
+                    placeholder="Patient name or hospital number"
+                    value={query}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      if (e.target.value.trim().length >= 2) setSearching(true);
+                      else setResults([]);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && results[0]) {
+                        e.preventDefault();
+                        pickPatient(results[0]);
+                        itemSearchRef.current?.focus();
+                      } else if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        document.querySelector<HTMLButtonElement>("[data-patient-result]")?.focus();
+                      } else if (e.key === "Escape") {
+                        setQuery("");
+                        setResults([]);
+                      }
+                    }}
+                    aria-label="Search patients"
+                    autoComplete="off"
+                  />
+                  <Kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 max-[759px]:hidden">P</Kbd>
+                  {query.trim().length >= 2 ? (
+                    <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                      {searching && results.length === 0 ? (
+                        <li className="px-3 py-3 text-xs text-muted-foreground">Searching…</li>
+                      ) : results.length === 0 ? (
+                        <li className="px-3 py-3 text-xs text-muted-foreground">No patient found. Tick &quot;Walk-in&quot; for an unregistered patient.</li>
+                      ) : (
+                        results.map((p) => (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              data-patient-result
+                              className="flex min-h-[48px] w-full flex-col justify-center px-3 py-2 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                              onClick={() => {
+                                pickPatient(p);
+                                itemSearchRef.current?.focus();
+                              }}
+                              onKeyDown={(e) => {
+                                const li = e.currentTarget.parentElement;
+                                const sib = e.key === "ArrowDown" ? li?.nextElementSibling : e.key === "ArrowUp" ? li?.previousElementSibling : null;
+                                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                                  e.preventDefault();
+                                  (sib?.querySelector("button") ?? (e.key === "ArrowUp" ? patientSearchRef.current : null))?.focus();
+                                }
+                              }}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-foreground">
+                                  {p.firstNames} {p.surname}
+                                </span>
+                                {p.insuranceScheme ? (
+                                  <span className="rounded border border-[var(--scheme-kachma-line)] bg-[var(--scheme-kachma-tint)] px-1.5 text-[10px] font-bold uppercase text-[var(--scheme-kachma-text)]">
+                                    {p.insuranceScheme}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                <span className="font-mono">{p.hospitalNumber}</span> · DOB: {p.dob || "—"} · {p.sex || "—"}
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
                   ) : null}
                 </>
               )}
-
-              <Button
-                type="button"
-                disabled={!canIssue || busy}
-                onClick={handleIssue}
-                className="h-14 gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700"
-              >
-                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}{" "}
-                {total === 0 && insuranceScheme !== "none" ? "Issue Insurance Receipt (₦0)" : "Issue receipt"}
-              </Button>
-              {!canIssue && !busy ? (
-                <p className="text-center text-xs text-muted-foreground">
-                  {!notRegistered && !patient
-                    ? "Pick a patient, or tick Not registered."
-                    : !payerName.trim()
-                      ? "Enter who the money was received from."
-                      : !linesValid
-                        ? lines.length === 0
-                          ? "Add at least one item."
-                          : "Enter an amount for every typed item."
-                        : total > 0 && !mode
-                          ? "Choose a payment mode."
-                          : "Enter the cheque number."}
-                </p>
+              {patient && showHistory ? (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-2 text-xs shadow-lg">
+                  {history === null ? (
+                    <p className="py-1 text-muted-foreground">Loading…</p>
+                  ) : history.length === 0 ? (
+                    <p className="py-1 text-muted-foreground">No earlier receipts.</p>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {history.map((h) => (
+                        <li key={h.id} className="flex justify-between gap-2 px-1 py-1.5">
+                          <span className="font-mono">Nº {h.receiptNo}</span>
+                          <span>{new Date(h.issuedAt).toLocaleDateString("en-GB")}</span>
+                          <span className={h.status === "voided" ? "line-through text-muted-foreground" : "font-bold"}>{formatKobo(h.totalKobo)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               ) : null}
             </div>
+
+            {!patient && !notRegistered ? (
+              <label className="flex h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 text-sm font-medium text-foreground hover:bg-muted">
+                <Checkbox
+                  checked={notRegistered}
+                  onCheckedChange={(c) => {
+                    setNotRegistered(c === true);
+                    clearPatient();
+                    // The checkbox unmounts once ticked; carry focus on to the payer's name.
+                    if (c === true) requestAnimationFrame(() => payerInputRef.current?.focus());
+                  }}
+                />
+                Walk-in
+              </label>
+            ) : null}
+
+            <div role="group" aria-label="Payment scheme" className="flex gap-1.5">
+              {(Object.keys(SCHEME_LABELS) as InsuranceScheme[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={insuranceScheme === s}
+                  onClick={() => setInsuranceScheme(s)}
+                  title={s === "none" ? "Everything charged" : `${SCHEME_LABELS[s]}: drugs covered, services charged`}
+                  className={cn(
+                    "h-[44px] rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+                    insuranceScheme === s ? SCHEME_CHIP[s].on : SCHEME_CHIP[s].off,
+                  )}
+                >
+                  {SCHEME_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category tabs */}
+          <div className="-mx-1 flex shrink-0 gap-1.5 overflow-x-auto px-1 py-0.5 scrollbar-none">
+            {tabs.map((t) => {
+              const active = !normalizedSearch && selectedCategory === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setSelectedCategory(t.id);
+                    setItemSearch("");
+                  }}
+                  className={cn(
+                    "flex h-[44px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active ? "border-brand-green bg-brand-green text-white" : "border-border bg-background text-foreground hover:bg-muted",
+                  )}
+                >
+                  {t.label}
+                  <span className={cn("rounded-full px-1.5 font-mono text-[11px]", active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground")}>{t.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Item search */}
+          <div className="flex shrink-0 gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={itemSearchRef}
+                className="h-[44px] bg-background pl-9 pr-16 text-sm"
+                placeholder="Search services and drugs — Enter adds the first match"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && firstMatch) {
+                    e.preventDefault();
+                    addTile(firstMatch);
+                    setItemSearch("");
+                  }
+                }}
+                aria-label="Search services and drugs"
+                autoComplete="off"
+              />
+              {itemSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemSearch("");
+                    itemSearchRef.current?.focus();
+                  }}
+                  className="absolute right-1 top-1/2 flex h-[44px] w-[44px] -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <Kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 max-[759px]:hidden">/</Kbd>
+              )}
+            </div>
+            <Button type="button" variant="outline" className="h-[44px] gap-1 px-3 text-sm font-semibold" onClick={() => addCustomItem("Custom Payment")}>
+              <Plus className="h-4 w-4" /> Custom
+            </Button>
+          </div>
+
+          {/* Tiles: the only thing on the page that scrolls */}
+          <div className="-mr-1 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            {groups.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                <p>Nothing matches &quot;{itemSearch}&quot;.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2 h-[44px]"
+                  onClick={() => {
+                    addCustomItem(itemSearch.trim());
+                    setItemSearch("");
+                  }}
+                >
+                  <Plus className="mr-1 h-4 w-4" /> Charge &quot;{itemSearch.trim()}&quot; as a custom item
+                </Button>
+              </div>
+            ) : (
+              groups.map((g) => (
+                <div key={g.title}>
+                  <h3 className="mb-1.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {g.title}
+                    {g.more ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory(DRUGS_TAB)}
+                        className="-my-3 flex h-[44px] items-center rounded px-2 normal-case tracking-normal text-brand-green hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-emerald-400"
+                      >
+                        All {drugTiles.length} drugs &rarr;
+                      </button>
+                    ) : null}
+                  </h3>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(178px,1fr))] gap-2">
+                    {g.tiles.map((t) => {
+                      const count = inSale.get(t.key);
+                      const covered = Boolean(t.drug) && insuranceScheme !== "none";
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => addTile(t)}
+                          aria-label={`${t.name}, ${t.needsPrice ? "price not set" : t.typed ? "type amount" : covered ? "covered" : formatKobo(t.priceKobo)}${count ? `, ${count} in sale` : ""}`}
+                          className={cn(
+                            "relative flex min-h-[72px] flex-col justify-between gap-1.5 rounded-lg border bg-background p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
+                            count ? "border-brand-green/60" : "border-border hover:border-brand-green/60",
+                            t.needsPrice ? "bg-muted/60" : "hover:bg-muted/50",
+                          )}
+                        >
+                          <span className={cn("line-clamp-2 text-[13px] font-semibold leading-tight text-foreground", count ? "pr-7" : "")}>{t.name}</span>
+                          <span className="flex items-end justify-between gap-2 text-xs">
+                            <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                              {t.folderColour ? (
+                                <span className={cn("h-[13px] w-[13px] shrink-0 rounded-[3px] border", FOLDER_SWATCH[t.folderColour] ?? "bg-muted")} aria-hidden />
+                              ) : null}
+                              <span className="truncate">{t.sub}</span>
+                            </span>
+                            {t.needsPrice ? (
+                              <span className="shrink-0 font-semibold text-[var(--scheme-kachma-text)]">Set price</span>
+                            ) : t.typed ? (
+                              <span className="shrink-0 font-semibold text-muted-foreground">Type amount</span>
+                            ) : covered ? (
+                              <span className="shrink-0 font-semibold text-[var(--covered-text)]">Covered</span>
+                            ) : (
+                              <span className="shrink-0 font-mono font-bold text-foreground">{formatKobo(t.priceKobo)}</span>
+                            )}
+                          </span>
+                          {count ? (
+                            <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-green px-1 font-mono text-[11px] font-bold text-white" aria-hidden>
+                              {count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* SALE */}
+        <aside
+          aria-label="This sale"
+          className="flex min-h-0 flex-col rounded-xl border border-border bg-card shadow-2xs max-[1079px]:max-h-[46vh] max-[1079px]:overflow-y-auto"
+        >
+          <div className="flex shrink-0 items-center gap-2 border-b border-border py-1 pl-3 pr-1 min-[760px]:pl-4">
+            <h2 className="text-sm font-bold text-foreground">This sale</h2>
+            <span className="ml-auto truncate text-sm font-semibold text-muted-foreground" title={payerLabel}>
+              {payerLabel}
+            </span>
+            {lines.length > 0 ? (
+              <button
+                type="button"
+                onClick={resetReceipt}
+                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Clear sale (Esc)"
+                title="Clear sale (Esc)"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : (
+              <span className="h-[44px]" aria-hidden />
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 min-[760px]:px-4 max-[1079px]:min-h-24">
+            {lines.length === 0 ? (
+              <p className="py-4 text-sm text-muted-foreground">Tap a service, or press / to search.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {lines.map((l) => {
+                  const covered = isCovered(l);
+                  const typed = l.unitPriceKobo === null;
+                  const freeItem = l.serviceId === null && l.drugId === null;
+                  const showNote = typed || noteOpen[l.key];
+                  return (
+                    <li key={l.key} className="py-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          {freeItem ? (
+                            <Input
+                              className="h-[44px] px-2 text-sm font-semibold"
+                              value={l.name}
+                              placeholder="Item name (e.g. Medical Report)"
+                              onChange={(e) => updateLine(l.key, { name: e.target.value })}
+                              aria-label="Item name"
+                            />
+                          ) : (
+                            <p className="text-sm font-semibold leading-tight text-foreground">
+                              {l.name}
+                              {l.drugId && l.description ? <span className="ml-1 text-xs font-normal text-muted-foreground">{l.description}</span> : null}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 pt-0.5 font-mono text-sm font-bold text-foreground">
+                          {covered ? <span className="font-sans font-semibold text-[var(--covered-text)]">Covered</span> : formatKobo(lineTotal(l))}
+                        </span>
+                      </div>
+
+                      {showNote ? (
+                        <div className="mt-1.5 flex gap-2">
+                          <Input
+                            className="h-[44px] min-w-0 flex-1 text-sm"
+                            placeholder={typed ? "What is this payment for?" : "Note on the receipt (optional)"}
+                            value={l.description}
+                            onChange={(e) => updateLine(l.key, { description: e.target.value })}
+                            aria-label={`Note for ${l.name}`}
+                          />
+                          {typed ? (
+                            <div className="relative w-28 shrink-0">
+                              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">₦</span>
+                              <Input
+                                className="h-[44px] pl-6 text-sm font-semibold"
+                                inputMode="decimal"
+                                placeholder="Amount"
+                                value={l.amount}
+                                onChange={(e) => updateLine(l.key, { amount: e.target.value })}
+                                aria-label={`Amount for ${l.name}`}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      <div className="mt-1 flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-[44px] w-[44px]"
+                          disabled={l.qty <= 1}
+                          onClick={() => updateLine(l.key, { qty: l.qty - 1 })}
+                          aria-label={`Decrease quantity of ${l.name}`}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center font-mono text-sm font-bold" aria-label="Quantity">
+                          {l.qty}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-[44px] w-[44px]"
+                          disabled={l.qty >= 999}
+                          onClick={() => updateLine(l.key, { qty: l.qty + 1 })}
+                          aria-label={`Increase quantity of ${l.name}`}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        {!typed ? (
+                          <span className="ml-1 truncate font-mono text-xs text-muted-foreground">@ {formatKobo(l.unitPriceKobo ?? 0)}</span>
+                        ) : null}
+                        <span className="flex-1" />
+                        {!typed ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-[44px] w-[44px] text-muted-foreground"
+                            aria-pressed={Boolean(noteOpen[l.key])}
+                            onClick={() => setNoteOpen((prev) => ({ ...prev, [l.key]: !prev[l.key] }))}
+                            aria-label={`Note for ${l.name}`}
+                            title="Add a note"
+                          >
+                            <StickyNote className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-[44px] px-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                          onClick={() => setLines((prev) => prev.filter((x) => x.key !== l.key))}
+                          aria-label={`Remove ${l.name}`}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="shrink-0 space-y-2 border-t border-border p-3 min-[760px]:px-4">
+            {patient || notRegistered ? (
+              <label className="flex items-center gap-2">
+                <span className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">Received from</span>
+                <Input
+                  ref={payerInputRef}
+                  className="h-[44px] text-sm"
+                  value={payerName}
+                  onChange={(e) => setPayerName(e.target.value)}
+                  placeholder={notRegistered ? "Full name of the person paying" : undefined}
+                />
+              </label>
+            ) : null}
+
+            <div className="space-y-0.5">
+              {coveredKobo > 0 ? (
+                <div className="flex justify-between text-sm text-[var(--covered-text)]">
+                  <span className="font-semibold">Covered by {SCHEME_LABELS[insuranceScheme]}</span>
+                  <span className="font-mono font-semibold">{formatKobo(coveredKobo)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>
+                  {chargedQty} {chargedQty === 1 ? "item" : "items"}
+                </span>
+                <span className="font-mono">{formatKobo(total)}</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-bold text-foreground">To pay</span>
+                <span className="font-mono text-[32px] font-black leading-none text-foreground" aria-live="polite">
+                  {formatKobo(total)}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Payment mode">
+              {PAYMENT_MODES.map((m, i) => {
+                const Icon = MODE_ICONS[m];
+                return (
+                  <Button
+                    key={m}
+                    type="button"
+                    variant={mode === m ? "default" : "outline"}
+                    className="relative h-[48px] flex-col gap-0 px-1 text-sm font-bold"
+                    onClick={() => choosePaymentMode(m)}
+                    aria-pressed={mode === m}
+                    aria-keyshortcuts={String(i + 1)}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {PAYMENT_MODE_LABELS[m]}
+                    <span className={cn("absolute right-1 top-0.5 font-mono text-[10px] font-semibold", mode === m ? "text-white/80" : "text-muted-foreground")} aria-hidden>
+                      {i + 1}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
+            {total === 0 && coveredKobo > 0 && chargedLines.length === 0 ? (
+              <p className="text-xs font-medium text-[var(--covered-text)]">Fully covered by {SCHEME_LABELS[insuranceScheme]}: no payment needed.</p>
+            ) : null}
+
+            {mode && mode !== "cash" ? (
+              <label className="flex items-center gap-2">
+                <span className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">{refLabel}</span>
+                <Input
+                  ref={refInputRef}
+                  className="h-[44px] text-sm"
+                  value={mode === "cheque" ? chequeNo : ref}
+                  onChange={(e) => (mode === "cheque" ? setChequeNo(e.target.value) : setRef(e.target.value))}
+                  placeholder={mode === "cheque" ? "Required" : "Optional"}
+                />
+              </label>
+            ) : null}
+
+            <Button
+              type="button"
+              disabled={!canIssue || busy}
+              onClick={handleIssue}
+              aria-keyshortcuts="F9"
+              className="relative h-[54px] w-full gap-2 bg-brand-green text-lg font-bold text-white hover:bg-emerald-700"
+            >
+              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />} Issue receipt
+              <span className="absolute right-3 font-mono text-[11px] font-semibold text-white/80 max-[759px]:hidden" aria-hidden>
+                F9
+              </span>
+            </Button>
+            {lines.length > 0 && !canIssue && !busy ? <p className="text-center text-xs text-muted-foreground">{issueBlocker}</p> : null}
+            <p className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground max-[759px]:hidden">
+              <span><Kbd>/</Kbd> search</span>
+              <span><Kbd>P</Kbd> patient</span>
+              <span><Kbd>1–4</Kbd> payment</span>
+              <span><Kbd>F9</Kbd> issue</span>
+              <span><Kbd>Esc</Kbd> clear</span>
+            </p>
+          </div>
+        </aside>
       </div>
+
+      {/* Receipt confirmation: the receipt exactly as it will print */}
+      <Dialog open={Boolean(issued)} onOpenChange={(open) => !open && closeIssued()}>
+        <DialogContent
+          className="max-h-[96dvh] max-w-[880px] gap-3 overflow-y-auto p-4"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            printButtonRef.current?.focus();
+          }}
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            itemSearchRef.current?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Receipt Nº {issued?.receiptNo} issued</DialogTitle>
+            <DialogDescription>
+              {issued ? `${issued.payer} · ${formatKobo(issued.totalKobo)}. ` : ""}Check it, then print. Closing starts the next sale.
+            </DialogDescription>
+          </DialogHeader>
+          {issuedHtml ? (
+            <iframe title={`Receipt Nº ${issued?.receiptNo}`} srcDoc={issuedHtml} sandbox="" className="aspect-[210/148] w-full rounded-md border border-border bg-white" />
+          ) : (
+            <div className="flex aspect-[210/148] w-full items-center justify-center gap-2 rounded-md border border-border text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading the receipt…
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="h-[44px]" onClick={closeIssued}>
+              Close <Kbd className="ml-1.5">Esc</Kbd>
+            </Button>
+            <Button
+              ref={printButtonRef}
+              type="button"
+              className="h-[44px] gap-1.5"
+              onClick={() => issued && printReceipt(issued.id).then(refresh)}
+            >
+              <Printer className="h-4 w-4" /> Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Shift Receipts Dialog */}
       <Dialog open={receiptsDialogOpen} onOpenChange={setReceiptsDialogOpen}>
         <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-brand-green" />
-              This Shift&apos;s Receipts
-            </DialogTitle>
+            <DialogTitle>This shift&apos;s receipts</DialogTitle>
             <DialogDescription>
               Receipts issued during this active shift ({receipts.length} total)
             </DialogDescription>
@@ -1444,15 +1399,15 @@ export function CashierDesk({
             </div>
           )}
           <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" className="h-11" disabled={busy} onClick={() => setClosing(false)}>
+            <Button type="button" variant="outline" className="h-[44px]" disabled={busy} onClick={() => setClosing(false)}>
               Keep working
             </Button>
-            <Button type="button" className="h-11 gap-1.5" disabled={busy || !closeSummary || !canClose} onClick={handleClose}>
+            <Button type="button" className="h-[44px] gap-1.5" disabled={busy || !closeSummary || !canClose} onClick={handleClose}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Close shift
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

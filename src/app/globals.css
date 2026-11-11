@@ -40,6 +40,24 @@
   --ring: var(--brand-green);
 
   --radius: 0.5rem;
+
+  /* Cashier desk scheme chips and status text. Every text/fill pair here is
+     checked for 4.5:1 contrast in both themes. */
+  --scheme-kachma-tint: #fbf0dc;
+  --scheme-kachma-line: #e8dcc2;
+  --scheme-kachma-text: #8a5a00;
+  --scheme-kachma-solid: #8a5a00;
+  --scheme-nhis-tint: #e4edf8;
+  --scheme-nhis-line: #c7d9ee;
+  --scheme-nhis-text: #17528f;
+  --scheme-nhis-solid: #1a5fa8;
+  --notice-tint: #fbf0dc;
+  --notice-line: #e8dcc2;
+  --notice-text: #6b4500;
+  --covered-text: #047857;
+  --patient-tint: #e3f4ea;
+  --patient-line: #b9e2c9;
+  --patient-text: #065f46;
 }
 
 .dark {
@@ -69,6 +87,20 @@
   --border: #27354a;
   --input: #27354a;
   --ring: #12a352;
+
+  --scheme-kachma-tint: #3a2a0c;
+  --scheme-kachma-line: #6b4e16;
+  --scheme-kachma-text: #f2c46d;
+  --scheme-nhis-tint: #10243d;
+  --scheme-nhis-line: #24466f;
+  --scheme-nhis-text: #a8cbf2;
+  --notice-tint: #3a2a0c;
+  --notice-line: #6b4e16;
+  --notice-text: #f2c46d;
+  --covered-text: #34d399;
+  --patient-tint: #0e2a1e;
+  --patient-line: #1f5a3f;
+  --patient-text: #7ee2b0;
 }
 
 @theme inline {
