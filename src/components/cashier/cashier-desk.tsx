@@ -274,13 +274,23 @@ export function CashierDesk({
     setHistory(null);
     setShowHistory(false);
     const s = (p.insuranceScheme || "").toLowerCase();
-    setInsuranceScheme(s.includes("kachma") ? "kachma" : s.includes("nhis") ? "nhis" : "none");
+    chooseScheme(s.includes("kachma") ? "kachma" : s.includes("nhis") ? "nhis" : "none");
     getPatientReceiptHistory(p.id)
       .then(setHistory)
       .catch((err) => {
         console.error("History failed:", err);
         setHistory([]);
       });
+  }
+
+  /** KACHMA and NHIS pay for nothing: switching to one drops any payment details. */
+  function chooseScheme(next: InsuranceScheme) {
+    setInsuranceScheme(next);
+    if (next !== "none") {
+      setMode(null);
+      setRef("");
+      setChequeNo("");
+    }
   }
 
   function clearPatient() {
@@ -348,8 +358,8 @@ export function CashierDesk({
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
-  /** On KACHMA or NHIS, pharmacy drugs are free; every other service is still charged. */
-  const isCovered = (l: DeskLine) => insuranceScheme !== "none" && l.drugId !== null;
+  /** KACHMA and NHIS patients pay nothing: on a scheme every line is covered. */
+  const onScheme = insuranceScheme !== "none";
 
   // --- Catalogue -------------------------------------------------------------
   const normalizedSearch = itemSearch.trim().toLowerCase();
@@ -409,12 +419,12 @@ export function CashierDesk({
   }, [lines]);
 
   // --- Totals ----------------------------------------------------------------
-  const chargedLines = lines.filter((l) => !isCovered(l));
+  const chargedLines = onScheme ? [] : lines;
   const total = chargedLines.reduce((sum, l) => sum + lineTotal(l), 0);
-  const coveredKobo = lines.filter(isCovered).reduce((sum, l) => sum + lineTotal(l), 0);
+  const coveredKobo = (onScheme ? lines : []).reduce((sum, l) => sum + lineTotal(l), 0);
   const chargedQty = chargedLines.reduce((n, l) => n + l.qty, 0);
   // A typed line must carry a real amount: a ₦0 line never reaches a printed receipt.
-  const linesValid = lines.length > 0 && lines.every((l) => l.unitPriceKobo !== null || (parseNairaToKobo(l.amount) ?? 0) > 0);
+  const linesValid = lines.length > 0 && lines.every((l) => l.unitPriceKobo !== null || onScheme || (parseNairaToKobo(l.amount) ?? 0) > 0);
   const canIssue =
     Boolean(shift) &&
     payerName.trim().length > 0 &&
@@ -455,8 +465,8 @@ export function CashierDesk({
           tellerOrTransferRef: ref.trim() || undefined,
           chequeNo: chequeNo.trim() || undefined,
           lines: lines.map((l) => {
-            // Covered drugs go on the receipt at ₦0, tagged with the scheme.
-            const covered = isCovered(l);
+            // Covered lines go on the receipt at ₦0, tagged with the scheme.
+            const covered = onScheme;
             const description = covered
               ? [l.description.trim(), `[${insuranceScheme.toUpperCase()} Covered - Free]`].filter(Boolean).join(" ")
               : l.description.trim();
@@ -525,7 +535,7 @@ export function CashierDesk({
       } else if (e.key === "p" || e.key === "P") {
         e.preventDefault();
         (patientSearchRef.current ?? patientClearRef.current)?.focus();
-      } else if (e.key >= "1" && e.key <= "4") {
+      } else if (e.key >= "1" && e.key <= "4" && !onScheme) {
         e.preventDefault();
         choosePaymentMode(PAYMENT_MODES[Number(e.key) - 1]);
       }
@@ -863,8 +873,8 @@ export function CashierDesk({
                   key={s}
                   type="button"
                   aria-pressed={insuranceScheme === s}
-                  onClick={() => setInsuranceScheme(s)}
-                  title={s === "none" ? "Everything charged" : `${SCHEME_LABELS[s]}: drugs covered, services charged`}
+                  onClick={() => chooseScheme(s)}
+                  title={s === "none" ? "Everything charged" : `${SCHEME_LABELS[s]}: everything covered, no payment`}
                   className={cn(
                     "h-[44px] rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
                     insuranceScheme === s ? SCHEME_CHIP[s].on : SCHEME_CHIP[s].off,
@@ -977,13 +987,13 @@ export function CashierDesk({
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(178px,1fr))] gap-2">
                     {g.tiles.map((t) => {
                       const count = inSale.get(t.key);
-                      const covered = Boolean(t.drug) && insuranceScheme !== "none";
+                      const covered = onScheme && !t.needsPrice;
                       return (
                         <button
                           key={t.key}
                           type="button"
                           onClick={() => addTile(t)}
-                          aria-label={`${t.name}, ${t.needsPrice ? "price not set" : t.typed ? "type amount" : covered ? "covered" : formatKobo(t.priceKobo)}${count ? `, ${count} in sale` : ""}`}
+                          aria-label={`${t.name}, ${t.needsPrice ? "price not set" : covered ? "covered" : t.typed ? "type amount" : formatKobo(t.priceKobo)}${count ? `, ${count} in sale` : ""}`}
                           className={cn(
                             "relative flex min-h-[72px] flex-col justify-between gap-1.5 rounded-lg border bg-background p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]",
                             count ? "border-brand-green/60" : "border-border hover:border-brand-green/60",
@@ -1000,10 +1010,10 @@ export function CashierDesk({
                             </span>
                             {t.needsPrice ? (
                               <span className="shrink-0 font-semibold text-[var(--scheme-kachma-text)]">Set price</span>
-                            ) : t.typed ? (
-                              <span className="shrink-0 font-semibold text-muted-foreground">Type amount</span>
                             ) : covered ? (
                               <span className="shrink-0 font-semibold text-[var(--covered-text)]">Covered</span>
+                            ) : t.typed ? (
+                              <span className="shrink-0 font-semibold text-muted-foreground">Type amount</span>
                             ) : (
                               <span className="shrink-0 font-mono font-bold text-foreground">{formatKobo(t.priceKobo)}</span>
                             )}
@@ -1054,7 +1064,7 @@ export function CashierDesk({
             ) : (
               <ul className="divide-y divide-border">
                 {lines.map((l) => {
-                  const covered = isCovered(l);
+                  const covered = onScheme;
                   const typed = l.unitPriceKobo === null;
                   const freeItem = l.serviceId === null && l.drugId === null;
                   const showNote = typed || noteOpen[l.key];
@@ -1091,7 +1101,7 @@ export function CashierDesk({
                             onChange={(e) => updateLine(l.key, { description: e.target.value })}
                             aria-label={`Note for ${l.name}`}
                           />
-                          {typed ? (
+                          {typed && !covered ? (
                             <div className="relative w-28 shrink-0">
                               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">₦</span>
                               <Input
@@ -1203,6 +1213,11 @@ export function CashierDesk({
               </div>
             </div>
 
+            {onScheme ? (
+              <p className="flex min-h-[48px] items-center rounded-lg border border-[var(--patient-line)] bg-[var(--patient-tint)] px-3 text-sm font-semibold text-[var(--patient-text)]">
+                {SCHEME_LABELS[insuranceScheme]} patient: everything covered, no payment. Printing the receipt is optional.
+              </p>
+            ) : (
             <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Payment mode">
               {PAYMENT_MODES.map((m, i) => {
                 const Icon = MODE_ICONS[m];
@@ -1225,11 +1240,9 @@ export function CashierDesk({
                 );
               })}
             </div>
-            {total === 0 && coveredKobo > 0 && chargedLines.length === 0 ? (
-              <p className="text-xs font-medium text-[var(--covered-text)]">Fully covered by {SCHEME_LABELS[insuranceScheme]}: no payment needed.</p>
-            ) : null}
+            )}
 
-            {mode && mode !== "cash" ? (
+            {!onScheme && mode && mode !== "cash" ? (
               <label className="flex items-center gap-2">
                 <span className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">{refLabel}</span>
                 <Input
@@ -1258,7 +1271,7 @@ export function CashierDesk({
             <p className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground max-[759px]:hidden">
               <span><Kbd>/</Kbd> search</span>
               <span><Kbd>P</Kbd> patient</span>
-              <span><Kbd>1–4</Kbd> payment</span>
+              {!onScheme ? <span><Kbd>1–4</Kbd> payment</span> : null}
               <span><Kbd>F9</Kbd> issue</span>
               <span><Kbd>Esc</Kbd> clear</span>
             </p>
@@ -1282,7 +1295,7 @@ export function CashierDesk({
           <DialogHeader>
             <DialogTitle>Receipt Nº {issued?.receiptNo} issued</DialogTitle>
             <DialogDescription>
-              {issued ? `${issued.payer} · ${formatKobo(issued.totalKobo)}. ` : ""}Check it, then print. Closing starts the next sale.
+              {issued ? `${issued.payer} · ${formatKobo(issued.totalKobo)}. ` : ""}Print it if a copy is wanted. Closing starts the next sale.
             </DialogDescription>
           </DialogHeader>
           {issuedHtml ? (
